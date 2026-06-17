@@ -2,8 +2,12 @@ package com.web.Instagram.service;
 
 import com.web.Instagram.entity.User;
 import com.web.Instagram.repository.UserRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 
 @Service
@@ -25,17 +29,33 @@ public class UserService {
         return userRepository.save(user);
     }
 
+    @Transactional
     public User updateUser(Long id, User updatedUser) {
+
         User user = getUser(id);
-        user.setFullName(updatedUser.getFullName());
-        user.setBio(updatedUser.getBio());
-        user.setProfilePicture(updatedUser.getProfilePicture());
-        user.setPrivate(updatedUser.isPrivate());
+
+        if (updatedUser.getFullName() != null) {
+            user.setFullName(updatedUser.getFullName());
+        }
+
+        if (updatedUser.getBio() != null) {
+            user.setBio(updatedUser.getBio());
+        }
+
+        if (updatedUser.getProfilePicture() != null) {
+            user.setProfilePicture(updatedUser.getProfilePicture());
+        }
+
+        user.setIsPrivate(updatedUser.getIsPrivate());
         return userRepository.save(user);
     }
 
+    @Transactional
     public void deleteUser(Long id) {
-        User user = getUser(id);
-        userRepository.delete(user);
+        userRepository.delete(getUser(id));
+    }
+
+    public ResponseEntity<List<User>> getAllUSers() {
+        return ResponseEntity.ok(userRepository.findAll());
     }
 }
