@@ -1,0 +1,28 @@
+@import url('https://fonts.googleapis.com/css2?family=Grand+Hotel&family=Inter:wght@300;400;550;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-grand-hotel: "Grand Hotel", cursive;
+}
+
+/* Custom styles for components that cannot easily use pure tailwind utilities (e.g. scrollbars) */
+::-webkit-scrollbar {
+  height: 4px;
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #dbdbdb;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #c7c7c7;
+}
+
+/* Modal styles for background dim */
+body.modal-open {
+  overflow: hidden;
+}

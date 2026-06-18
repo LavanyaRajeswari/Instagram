@@ -1,44 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Grand+Hotel&display=swap');
 
-.instagram-logo {
-    font-family: "Grand Hotel", cursive;
-    font-size: 42px;
-    font-weight: 400;
-    color: #262626;
-    margin: 20px 12px 40px;
-    user-select: none;
-}
-
-.left-actions {
-    display: flex;
-    gap: 16px;
-}
-
-.action-btn {
-    background: transparent;
-    border: none;
-    padding: 0;
-    cursor: pointer;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    font-size: 28px;
-    color: #262626;
-
-    transition: all 0.2s ease;
-}
-
-.action-btn:hover {
-    color: #8e8e8e;
-}
-
-.action-btn:active {
-    transform: scale(0.9);
-}
-
-
 * {
   box-sizing: border-box;
 }
@@ -57,12 +18,26 @@ button {
   font-family: inherit;
 }
 
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 a {
   text-decoration: none;
   color: inherit;
 }
 
-/* Sidebar */
+/* Logo */
+
+.instagram-logo {
+  font-family: "Grand Hotel", cursive;
+  font-size: 42px;
+  font-weight: 400;
+  color: #262626;
+  margin: 0;
+  user-select: none;
+}
 
 .brand {
   display: flex;
@@ -76,14 +51,7 @@ a {
   color: #262626;
 }
 
-.instagram-logo {
-  font-family: "Grand Hotel", cursive;
-  font-size: 42px;
-  font-weight: 400;
-  color: #262626;
-  margin: 0;
-  user-select: none;
-}
+/* Sidebar */
 
 .sidebar {
   position: fixed;
@@ -143,6 +111,13 @@ a {
   width: 470px;
 }
 
+.center-text {
+  text-align: center;
+  color: #8e8e8e;
+}
+
+/* Stories */
+
 .stories-bar {
   display: flex;
   gap: 16px;
@@ -169,12 +144,7 @@ a {
   object-fit: cover;
 }
 
-.center-text {
-  text-align: center;
-  color: #8e8e8e;
-}
-
-/* Post */
+/* Post Card */
 
 .post-card {
   background: #fff;
@@ -202,6 +172,7 @@ a {
   width: 36px;
   height: 36px;
   border-radius: 50%;
+  object-fit: cover;
 }
 
 .post-user h4 {
@@ -258,16 +229,46 @@ a {
   background: #eee;
 }
 
+/* Actions */
+
 .post-actions {
   display: flex;
   justify-content: space-between;
   padding: 12px;
 }
 
-.post-actions button {
-  font-size: 22px;
-  margin-right: 12px;
+.left-actions {
+  display: flex;
+  gap: 16px;
 }
+
+.action-btn {
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  color: #262626;
+  transition: all 0.2s ease;
+}
+
+.action-btn:hover {
+  color: #8e8e8e;
+}
+
+.action-btn:active {
+  transform: scale(0.9);
+}
+
+.action-btn.liked svg {
+  color: #ed4956;
+  fill: #ed4956;
+}
+
+/* Post Content */
 
 .post-content {
   padding: 0 12px 12px;
@@ -279,16 +280,13 @@ a {
   margin: 0 0 8px;
 }
 
-.comments-btn {
-  color: #8e8e8e;
-  margin-top: 8px;
-}
-
 .time {
   color: #8e8e8e;
   font-size: 10px;
   text-transform: uppercase;
 }
+
+/* Comment input */
 
 .comment-box {
   border-top: 1px solid #dbdbdb;
@@ -301,12 +299,15 @@ a {
   flex: 1;
   border: none;
   outline: none;
+  font-size: 14px;
 }
 
 .comment-box button {
   color: #0095f6;
   font-weight: 600;
 }
+
+/* Edit */
 
 .edit-box textarea {
   width: 100%;
@@ -320,6 +321,143 @@ a {
   color: #0095f6;
   font-weight: 600;
   margin-right: 12px;
+}
+
+/* Instagram Comments Modal */
+
+.comments-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.comments-modal {
+    width: 900px;
+    max-height: 90vh;
+    background: #fff;
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.comments-modal-left {
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.comments-modal-left img {
+    max-width: 100%;
+    max-height: 90vh;
+    object-fit: contain;
+}
+
+.comments-modal-right {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  min-width: 0;
+}
+
+.comments-modal-header {
+  height: 62px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #dbdbdb;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-close {
+  font-size: 24px;
+  color: #262626;
+}
+
+.instagram-comments-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.instagram-comment {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.comment-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.comment-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.comment-main p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 18px;
+  word-break: break-word;
+}
+
+.comment-meta {
+  margin-top: 6px;
+  display: flex;
+  gap: 14px;
+  color: #8e8e8e;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.comment-meta button {
+  color: #8e8e8e;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.comment-delete-icon {
+  color: #8e8e8e;
+  font-size: 14px;
+  padding-top: 2px;
+}
+
+.comment-delete-icon:hover {
+  color: #ed4956;
+}
+
+.modal-actions {
+  border-top: 1px solid #dbdbdb;
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.modal-likes {
+  padding: 0 16px 12px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.modal-comment-box {
+  margin-top: auto;
+}
+
+.no-comments {
+  color: #8e8e8e;
+  text-align: center;
+  margin-top: 40px;
+  font-size: 14px;
 }
 
 /* Suggestions */
@@ -342,6 +480,7 @@ a {
   width: 44px;
   height: 44px;
   border-radius: 50%;
+  object-fit: cover;
 }
 
 .my-profile h4,
@@ -367,7 +506,7 @@ a {
   font-weight: 600;
 }
 
-/* Modal */
+/* Create Modal */
 
 .modal-backdrop {
   position: fixed;
@@ -544,6 +683,7 @@ a {
   width: 150px;
   height: 150px;
   border-radius: 50%;
+  object-fit: cover;
 }
 
 .profile-top {
@@ -658,4 +798,98 @@ a {
   .create-modal {
     width: 94%;
   }
+
+  .comments-modal {
+    width: 94%;
+    height: 86vh;
+    grid-template-columns: 1fr;
+  }
+
+  .comments-modal-left {
+    display: none;
+  }
+
+  .comment-emoji-icon {
+    font-size: 22px;
+    color: #262626;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+
+  .emoji-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .emoji-button {
+    padding: 0;
+    display: flex;
+    align-items: center;
+  }
+
+  .emoji-picker-box {
+    position: absolute;
+    bottom: 35px;
+    left: 0;
+    z-index: 10000;
+  }
+
+  .comment-emoji-icon {
+    font-size: 22px;
+    color: #262626;
+  }
 }
+
+  .comment-options-btn {
+    font-size: 22px;
+    color: #8e8e8e;
+    padding: 2px 6px;
+    line-height: 1;
+  }
+
+  .comment-options-btn:hover {
+    color: #262626;
+  }
+
+  .delete-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.65);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 20000;
+  }
+
+  .delete-modal {
+    width: 360px;
+    background: #fff;
+    border-radius: 12px;
+    overflow: hidden;
+    text-align: center;
+  }
+
+  .delete-modal h3 {
+    margin: 24px 0 8px;
+    font-size: 18px;
+  }
+
+  .delete-modal p {
+    color: #8e8e8e;
+    margin: 0 24px 24px;
+    font-size: 14px;
+  }
+
+  .delete-modal button {
+    display: block;
+    width: 100%;
+    padding: 16px;
+    border-top: 1px solid #dbdbdb;
+    font-size: 14px;
+  }
+
+  .delete-confirm-btn {
+    color: #ed4956;
+    font-weight: 700;
+  }
