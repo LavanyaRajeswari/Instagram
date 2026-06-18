@@ -1,14 +1,13 @@
 package com.web.Instagram.controller.api;
 
+import com.web.Instagram.dto.user.*;
 import com.web.Instagram.entity.User;
 import com.web.Instagram.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-
 
 @RestController
 @RequiredArgsConstructor
@@ -18,35 +17,50 @@ public class UserRestController {
     private final UserService userService;
 
     @GetMapping
-    public ResponseEntity<List<User>> getAllUsers() {
-        return userService.getAllUSers();
+    public List<User> getAllUsers() {
+        return userService.getAllUsers();
     }
 
     @GetMapping("/{id}")
-    public User getUser(@PathVariable Long id) {
+    public UserResponse getUser(
+            @PathVariable Long id
+    ) {
         return userService.getUser(id);
     }
 
     @PostMapping("/register")
-    public User register(
-            @Valid @RequestBody User user) {
+    public UserResponse register(
+            @Valid
+            @RequestBody RegisterRequest request
+    ) {
+        return userService.register(request);
+    }
 
-        return userService.register(user);
+    @PostMapping("/login")
+    public LoginResponse login(
+            @RequestBody LoginRequest request
+    ) {
+        return userService.login(request);
     }
 
     @PutMapping("/{id}")
-    public User updateUser(
+    public UserResponse updateUser(
             @PathVariable Long id,
-            @RequestBody User user) {
-
-        return userService.updateUser(id, user);
+            @RequestBody UpdateRequest request
+    ) {
+        return userService.updateUser(
+                id,
+                request
+        );
     }
 
     @DeleteMapping("/{id}")
     public String deleteUser(
-            @PathVariable Long id) {
+            @PathVariable Long id
+    ) {
 
         userService.deleteUser(id);
-        return "User deleted successfully";
+
+        return "User deleted";
     }
 }

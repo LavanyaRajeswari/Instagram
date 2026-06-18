@@ -5,6 +5,7 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -22,14 +23,19 @@ public class User {
     @Column(nullable = false, unique = true, length = 30)
     private String username;
 
-    @Column(nullable = false, unique = true)
-    private String email;
-
     @Column(nullable = false, length = 100)
     private String fullName;
 
+    @Column(unique = true)
+    private String email;
+
+    @Column(unique = true)
+    private String mobileNumber;
+
     @Column(nullable = false)
     private String password;
+
+    private LocalDate birthDate;
 
     @Column(length = 150)
     private String bio;
