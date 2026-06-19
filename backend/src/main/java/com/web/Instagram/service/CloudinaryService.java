@@ -36,20 +36,29 @@ public class CloudinaryService {
     }
 
     public void deleteFile(String publicId) {
+    try {
+        cloudinary.uploader().destroy(
+                publicId,
+                ObjectUtils.asMap(
+                        "resource_type",
+                        "image"
+                )
+        );
+    } catch (Exception imageException) {
         try {
             cloudinary.uploader().destroy(
                     publicId,
                     ObjectUtils.asMap(
                             "resource_type",
-                            "auto"
+                            "video"
                     )
             );
-
-        } catch (Exception e) {
+        } catch (Exception videoException) {
             throw new RuntimeException(
-                    "Delete failed: " + e.getMessage(),
-                    e
+                    "Delete failed: " + videoException.getMessage(),
+                    videoException
             );
         }
     }
+}
 }
