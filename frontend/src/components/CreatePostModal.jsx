@@ -58,7 +58,7 @@ function CreatePostModal({ onClose, onPostCreated }) {
       setImages([]);
       setPreview([]);
 
-      onPostCreated();
+      onPostCreated?.();
     } catch (error) {
       console.error(error);
       alert(getErrorMessage(error));
