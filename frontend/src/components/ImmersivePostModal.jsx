@@ -1,128 +1,269 @@
-import { useState, useEffect, useRef } from "react";
-import { Heart, MessageCircle, Send, Bookmark, X, ChevronUp, ChevronDown, Smile, MoreHorizontal, MessageSquare, Volume2, VolumeX } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  Heart,
+  MessageCircle,
+  Send,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  Smile,
+  MoreHorizontal,
+  MessageSquare,
+  Volume2,
+  VolumeX,
+  Bookmark,
+} from "lucide-react";
 import EmojiPicker from "emoji-picker-react";
-import { likePost, unlikePost } from "../api/likesApi";
-import { getComments, addComment, deleteComment } from "../api/commentsApi";
+import ShareModal from "./ShareModal";
+import { likePost, unlikePost, getLikeCount, isPostLiked } from "../api/likesApi";
+import { savePost, unsavePost, isPostSaved } from "../api/savedPostsApi";
+import { getShareCount } from "../api/shareApi";
+import {
+  getComments,
+  addComment,
+  addReply,
+  deleteComment,
+  likeComment,
+  unlikeComment,
+} from "../api/commentsApi";
 
-function ImmersivePostModal({ post, postsList = [], onClose, onRefresh, onSelectPost }) {
-  const activeUser = JSON.parse(
-    localStorage.getItem("currentUser") ||
-      '{"id":1,"username":"lavanya","fullName":"Lavanya","profilePicture":"https://i.pravatar.cc/100?img=5"}'
-  );
-  const CURRENT_USER_ID = activeUser?.id || 1;
+function ImmersivePostModal({
+  post,
+  postsList = [],
+  onClose,
+  onRefresh,
+  onSelectPost,
+}) {
+  const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+  const CURRENT_USER_ID = currentUser?.id;
 
-  const [liked, setLiked] = useState(post?.likedByCurrentUser || false);
-  const [likesCount, setLikesCount] = useState(post?.likeCount || 0);
+  const [liked, setLiked] = useState(false);
+  const [likesCount, setLikesCount] = useState(0);
+  const [saved, setSaved] = useState(false);
+  const [shareCount, setShareCount] = useState(0);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+
   const [commentsList, setCommentsList] = useState([]);
-  const [isFollowing, setIsFollowing] = useState(() => {
-    const follows = JSON.parse(localStorage.getItem("followed_users") || "[]");
-    return follows.includes(post?.user?.id || post?.userId);
-  });
-  const [bookmarked, setBookmarked] = useState(false);
   const [newCommentText, setNewCommentText] = useState("");
   const [copyToast, setCopyToast] = useState(false);
   const [showOptionsPopup, setShowOptionsPopup] = useState(false);
   const [emojiOpen, setEmojiOpen] = useState(false);
-  
-  // Controls side comments panel for immersive view
-  const [commentsDrawerOpen, setCommentsDrawerOpen] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
+  const [mediaIndex, setMediaIndex] = useState(0);
+  const [commentOptions, setCommentOptions] = useState(null);
+  const [deleteConfirmComment, setDeleteConfirmComment] = useState(null);
+
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [replyText, setReplyText] = useState("");
+  const [expandedReplies, setExpandedReplies] = useState({});
 
   const commentsContainerRef = useRef(null);
+  const emojiRef = useRef(null);
 
-  // Load comments
-  const loadComments = async () => {
-    if (!post?.id) return;
-    try {
-      const data = await getComments(post.id);
-      setCommentsList(data || []);
-    } catch (err) {
-      console.error(err);
-    }
-  };
+  const mediaList = post?.media || [];
+  const media = mediaList[mediaIndex];
+  const currentIndex = postsList.findIndex((p) => p.id === post?.id);
+
+  const username = post?.user?.username || "user";
+  const userPic =
+    post?.user?.profilePicture || "https://ui-avatars.com/api/?name=User";
+  const fullName = post?.user?.fullName || "";
 
   useEffect(() => {
-    if (post) {
-      setLiked(post.likedByCurrentUser || false);
-      setLikesCount(post.likeCount || 0);
-      loadComments();
-      setIsFollowing(() => {
-        const follows = JSON.parse(localStorage.getItem("followed_users") || "[]");
-        return follows.includes(post.user?.id || post.userId);
-      });
-      // Reset comments drawer State to closed or open by default
-      setCommentsDrawerOpen(false);
-    }
-  }, [post]);
-
-  const handleLikeToggle = async () => {
     if (!post?.id) return;
-    try {
-      if (liked) {
-        await unlikePost(post.id, CURRENT_USER_ID);
-        setLikesCount(prev => Math.max(prev - 1, 0));
-        setLiked(false);
-      } else {
-        await likePost(post.id, CURRENT_USER_ID);
-        setLikesCount(prev => prev + 1);
-        setLiked(true);
+
+    setLiked(false);
+    setLikesCount(0);
+    setSaved(false);
+    setShareCount(0);
+    setNewCommentText("");
+    setEmojiOpen(false);
+    setIsMuted(true);
+    setMediaIndex(0);
+    setCommentOptions(null);
+    setDeleteConfirmComment(null);
+    setReplyingTo(null);
+    setReplyText("");
+    setExpandedReplies({});
+
+    loadLikeData();
+    loadSavedStatus();
+    loadShareCount();
+    loadComments();
+  }, [post?.id, CURRENT_USER_ID]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (emojiRef.current && !emojiRef.current.contains(event.target)) {
+        setEmojiOpen(false);
       }
-      if (onRefresh) onRefresh();
-    } catch (err) {
-      console.error(err);
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const loadLikeData = async () => {
+    if (!post?.id || !CURRENT_USER_ID) return;
+
+    try {
+      const [count, status] = await Promise.all([
+        getLikeCount(post.id),
+        isPostLiked(post.id, CURRENT_USER_ID),
+      ]);
+
+      setLikesCount(count);
+      setLiked(status);
+    } catch (error) {
+      console.error("Failed to load like data", error);
     }
   };
 
-  const handleFollowToggle = () => {
-    const targetUserId = post?.user?.id || post?.userId || 1;
-    let follows = JSON.parse(localStorage.getItem("followed_users") || "[]");
-    if (isFollowing) {
-      follows = follows.filter(id => id !== targetUserId);
-      setIsFollowing(false);
-    } else {
-      follows.push(targetUserId);
-      setIsFollowing(true);
+  const loadSavedStatus = async () => {
+    if (!post?.id || !CURRENT_USER_ID) return;
+
+    try {
+      const status = await isPostSaved(post.id, CURRENT_USER_ID);
+      setSaved(status);
+    } catch (error) {
+      console.error("Failed to load saved status", error);
     }
-    localStorage.setItem("followed_users", JSON.stringify(follows));
+  };
+
+  const loadShareCount = async () => {
+    if (!post?.id) return;
+
+    try {
+      const count = await getShareCount(post.id);
+      setShareCount(count);
+    } catch (error) {
+      console.error("Failed to load share count", error);
+    }
+  };
+
+  const loadComments = async () => {
+    if (!post?.id) return;
+
+    try {
+      const data = await getComments(post.id, CURRENT_USER_ID);
+      setCommentsList(data || []);
+    } catch (error) {
+      console.error("Failed to load comments", error);
+    }
+  };
+
+  const handleLikeToggle = async () => {
+    if (!CURRENT_USER_ID) return alert("Please login first");
+
+    try {
+      if (liked) await unlikePost(post.id, CURRENT_USER_ID);
+      else await likePost(post.id, CURRENT_USER_ID);
+
+      await loadLikeData();
+      onRefresh?.();
+    } catch (error) {
+      console.error("Like failed", error);
+    }
+  };
+
+  const handleSaveToggle = async () => {
+    if (!CURRENT_USER_ID) return alert("Please login first");
+
+    try {
+      if (saved) await unsavePost(post.id, CURRENT_USER_ID);
+      else await savePost(post.id, CURRENT_USER_ID);
+
+      await loadSavedStatus();
+    } catch (error) {
+      console.error("Save failed", error);
+    }
   };
 
   const handlePostComment = async () => {
-    if (!newCommentText.trim() || !post?.id) return;
+    if (!CURRENT_USER_ID) return alert("Please login first");
+
+    const text = newCommentText.trim();
+    if (!text || !post?.id) return;
+
     try {
-      await addComment(post.id, CURRENT_USER_ID, newCommentText);
+      await addComment(post.id, CURRENT_USER_ID, text);
       setNewCommentText("");
       setEmojiOpen(false);
       await loadComments();
-      if (onRefresh) onRefresh();
-    } catch (err) {
-      console.error(err);
+    } catch (error) {
+      console.error("Comment failed", error);
     }
   };
 
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(window.location.origin + `/posts/${post?.id || ""}`);
+  const handleReply = async (parentCommentId) => {
+    if (!CURRENT_USER_ID) return alert("Please login first");
+
+    const text = replyText.trim();
+    if (!text) return;
+
+    try {
+      await addReply(post.id, parentCommentId, CURRENT_USER_ID, text);
+      setReplyText("");
+      setReplyingTo(null);
+      setExpandedReplies((prev) => ({ ...prev, [parentCommentId]: true }));
+      await loadComments();
+    } catch (error) {
+      console.error("Reply failed", error);
+    }
+  };
+
+  const handleCommentLike = async (comment) => {
+    if (!CURRENT_USER_ID) return alert("Please login first");
+
+    try {
+      if (comment.likedByCurrentUser) {
+        await unlikeComment(comment.id, CURRENT_USER_ID);
+      } else {
+        await likeComment(comment.id, CURRENT_USER_ID);
+      }
+
+      await loadComments();
+    } catch (error) {
+      console.error("Comment like failed", error);
+    }
+  };
+
+  const handleDeleteComment = async () => {
+    if (!deleteConfirmComment) return;
+
+    try {
+      await deleteComment(deleteConfirmComment.id);
+      setDeleteConfirmComment(null);
+      setCommentOptions(null);
+      await loadComments();
+    } catch (error) {
+      console.error("Delete comment failed", error);
+    }
+  };
+
+  const handleCopyLink = async () => {
+    await navigator.clipboard.writeText(`${window.location.origin}/posts/${post?.id || ""}`);
     setCopyToast(true);
     setShowOptionsPopup(false);
     setTimeout(() => setCopyToast(false), 2000);
   };
 
-  // Helper function to format date/time ago
   const formatTimeAgo = (dateString) => {
-    if (!dateString) return "Just now";
-    const date = new Date(dateString);
-    const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
-    if (seconds < 60) return "Just now";
+    if (!dateString) return "now";
+    const seconds = Math.floor((new Date() - new Date(dateString)) / 1000);
+    if (seconds < 60) return "now";
     const minutes = Math.floor(seconds / 60);
     if (minutes < 60) return `${minutes}m`;
     const hours = Math.floor(minutes / 60);
     if (hours < 24) return `${hours}h`;
     const days = Math.floor(hours / 24);
     if (days < 7) return `${days}d`;
-    return date.toLocaleDateString([], { month: "short", day: "numeric" });
-  };
 
-  // Find index of current post in standard posts list to navigate
-  const currentIndex = postsList.findIndex(p => p.id === post?.id);
+    return new Date(dateString).toLocaleDateString([], {
+      month: "short",
+      day: "numeric",
+    });
+  };
 
   const handlePrevPost = () => {
     if (currentIndex > 0 && onSelectPost) {
@@ -136,304 +277,434 @@ function ImmersivePostModal({ post, postsList = [], onClose, onRefresh, onSelect
     }
   };
 
+  const nextMedia = (e) => {
+    e.stopPropagation();
+    setMediaIndex((prev) => (prev + 1) % mediaList.length);
+  };
+
+  const prevMedia = (e) => {
+    e.stopPropagation();
+    setMediaIndex((prev) => (prev === 0 ? mediaList.length - 1 : prev - 1));
+  };
+
+  const renderSmallLikeText = (item) => {
+    if (!item.likeCount || item.likeCount <= 0) return null;
+
+    return (
+      <span className="text-[11px] text-gray-500 font-semibold">
+        {item.likeCount} like{item.likeCount > 1 ? "s" : ""}
+      </span>
+    );
+  };
+
+  const renderHeartButton = (item) => (
+    <button
+      type="button"
+      onClick={() => handleCommentLike(item)}
+      className="shrink-0"
+    >
+      <Heart
+        className={`w-4 h-4 ${
+          item.likedByCurrentUser
+            ? "fill-[#ed4956] stroke-[#ed4956] text-[#ed4956]"
+            : "text-gray-400"
+        }`}
+      />
+    </button>
+  );
+
+  const isOwnedByCurrentUser = (item) => {
+    const itemUserId = item?.user?.id ?? item?.userId;
+    return CURRENT_USER_ID != null && String(itemUserId) === String(CURRENT_USER_ID);
+  };
+
+  const getReplies = (comment) => {
+    if (Array.isArray(comment.replies)) return comment.replies;
+    if (Array.isArray(comment.children)) return comment.children;
+    if (Array.isArray(comment.childComments)) return comment.childComments;
+    return [];
+  };
+
+  const renderComment = (comment, depth = 0) => {
+    const commentUser = comment.user || {};
+    const replies = getReplies(comment);
+    const isExpanded = expandedReplies[comment.id];
+    const username = commentUser.username || comment.username || "user";
+
+    const handleStartReply = () => {
+      setReplyingTo(comment);
+      setReplyText(`@${username} `);
+    };
+
+    return (
+      <div
+        key={comment.id}
+        className="flex flex-col gap-2"
+      >
+        <div className="flex items-start gap-3 justify-between group text-[13px]">
+          <div className="flex items-start gap-2.5 flex-grow min-w-0">
+            <img
+              src={
+                commentUser.profilePicture ||
+                comment.profilePicture ||
+                "https://ui-avatars.com/api/?name=User"
+              }
+              alt="commenter"
+              className={`${
+                depth > 0 ? "w-7 h-7" : "w-8 h-8"
+              } rounded-full object-cover border border-gray-100 shrink-0`}
+            />
+
+            <div className="min-w-0 flex-grow">
+              <p className="text-[#262626] leading-tight text-[13px]">
+                <span className="font-semibold mr-1.5 text-[#262626]">
+                  {username}
+                </span>
+                <span className="break-words text-[#262626]">
+                  {comment.text}
+                </span>
+              </p>
+
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-bold">
+                <span className="text-gray-400">
+                  {formatTimeAgo(comment.createdAt || comment.updatedAt)}
+                </span>
+
+                {renderSmallLikeText(comment)}
+
+                <button
+                  type="button"
+                  className="text-gray-500 hover:text-[#262626] font-semibold"
+                  onClick={handleStartReply}
+                >
+                  Reply
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {renderHeartButton(comment)}
+
+          {isOwnedByCurrentUser(comment) && (
+            <button
+              type="button"
+              className="opacity-100 md:opacity-0 md:group-hover:opacity-100"
+              onClick={() => setCommentOptions(comment)}
+            >
+              <MoreHorizontal className="w-5 h-5 text-gray-500 hover:text-[#262626]" />
+            </button>
+          )}
+        </div>
+
+        {replyingTo?.id === comment.id && (
+          <div className={`${depth > 0 ? "ml-9" : "ml-11"} mt-1 flex items-center gap-2`}>
+            <input
+              value={replyText}
+              onChange={(e) => setReplyText(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleReply(comment.id)}
+              placeholder="Write a reply..."
+              className="flex-grow border border-gray-200 rounded-full px-3 py-1.5 text-xs text-[#262626] placeholder-gray-400 outline-none"
+              autoFocus
+            />
+
+            <button
+              type="button"
+              onClick={() => handleReply(comment.id)}
+              disabled={!replyText.trim()}
+              className="text-[#0095f6] disabled:opacity-30 text-xs font-bold"
+            >
+              Post
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setReplyingTo(null);
+                setReplyText("");
+              }}
+              className="text-gray-400 text-xs"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+
+        {replies.length > 0 && (
+          <div className={`${depth < 2 ? "ml-11" : "ml-4"} min-w-0`}>
+            {!isExpanded ? (
+              <button
+                type="button"
+                onClick={() =>
+                  setExpandedReplies((prev) => ({
+                    ...prev,
+                    [comment.id]: true,
+                  }))
+                }
+                className="text-[12px] font-semibold text-gray-500 hover:text-[#262626]"
+              >
+                View all {replies.length} repl{replies.length === 1 ? "y" : "ies"}
+              </button>
+            ) : (
+              <div className="mt-2 flex flex-col gap-3 border-l border-gray-100 pl-4">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setExpandedReplies((prev) => ({
+                      ...prev,
+                      [comment.id]: false,
+                    }))
+                  }
+                  className="text-[12px] font-semibold text-gray-500 hover:text-[#262626] text-left"
+                >
+                  Hide replies
+                </button>
+
+                {replies.map((reply) => renderComment(reply, depth + 1))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   if (!post) return null;
 
-  const username = post.user?.username || post.username || "instagram_user";
-  const userPic = post.user?.profilePicture || "https://i.pravatar.cc/100?img=1";
-
   return (
-    <div 
-      className="fixed inset-0 bg-[#0c0c0c] z-[60000] flex items-center justify-center font-sans text-white select-none overflow-hidden animate-fade-in" 
-      id="immersive-modal-backdrop" 
+    <div
+      className="fixed inset-0 bg-black/65 z-[60000] flex items-center justify-center font-sans text-[#262626] overflow-hidden p-4"
       onClick={onClose}
     >
-      {/* Viewport Close Button - Upper Right Corner */}
       <button
         onClick={onClose}
-        className="fixed top-5 right-5 p-2 rounded-full hover:bg-white/10 transition-all text-white cursor-pointer z-[70000] filter drop-shadow hover:scale-105 active:scale-95"
-        id="immersive-outer-close-btn"
-        title="Close Immersive View"
+        className="fixed top-4 right-4 p-2 rounded-full hover:bg-white/10 text-white cursor-pointer z-[70000]"
       >
         <X className="w-8 h-8 text-white stroke-[2]" />
       </button>
 
-      {/* Main Reels Framework - Responsive and scalable centered viewport box */}
-      <div 
-        className="relative flex items-center justify-center w-full h-[100dvh] max-h-screen"
+      <div
+        className="relative w-full max-w-[1040px] h-[88vh] max-h-[760px] bg-white border border-gray-200 rounded-md shadow-2xl overflow-hidden grid grid-cols-1 md:grid-cols-[minmax(0,1.35fr)_390px]"
         onClick={(e) => e.stopPropagation()}
       >
-        
-        {/* Left/Center Viewport Column: Clean aspect-ratio container mirroring real-life reel styling */}
-        <div 
-          className="relative h-[93vh] max-h-[880px] aspect-[9/16] bg-black rounded-lg overflow-hidden shadow-2xl transition-all duration-300 border border-white/5 flex items-center justify-center"
-          style={{ marginRight: commentsDrawerOpen ? "440px" : "0" }}
-          id="immersive-media-stage"
-        >
-          {/* Main Media Showcase */}
-          {post.media && post.media.length > 0 ? (
+        <div className="relative bg-black flex items-center justify-center min-h-[320px] md:min-h-0">
+          {media ? (
             <div className="w-full h-full flex items-center justify-center relative">
-              {post.media[0]?.mediaType === "VIDEO" ? (
-                <video 
-                  src={post.media[0].mediaUrl} 
-                  controls 
-                  autoPlay 
-                  loop 
+              {media.mediaType === "VIDEO" ? (
+                <video
+                  src={media.mediaUrl}
+                  controls
+                  autoPlay
+                  loop
                   muted={isMuted}
-                  className="w-full h-full object-cover" 
-                  playsInline 
+                  className="w-full h-full object-contain"
+                  playsInline
                 />
               ) : (
-                <img 
-                  src={post.media[0].mediaUrl} 
-                  alt="reel media item" 
-                  className="w-full h-full object-cover" 
-                  referrerPolicy="no-referrer" 
+                <img
+                  src={media.mediaUrl}
+                  alt="post media"
+                  className="w-full h-full object-contain"
+                  referrerPolicy="no-referrer"
                 />
               )}
             </div>
           ) : (
-            <div className="w-full h-full bg-[#121212] flex items-center justify-center text-white/40 text-xs">
+            <div className="w-full h-full bg-black flex items-center justify-center text-white/60 text-xs">
               No media available
             </div>
           )}
 
-          {/* Audio volume toggler overlay for videos */}
-          {post.media?.[0]?.mediaType === "VIDEO" && (
+          {media?.mediaType === "VIDEO" && (
             <button
-              onClick={() => setIsMuted(prev => !prev)}
-              className="absolute top-4 right-4 p-2 bg-black/40 hover:bg-black/60 rounded-full transition-all text-white cursor-pointer z-40"
-              title={isMuted ? "Unmute" : "Mute"}
+              onClick={() => setIsMuted((prev) => !prev)}
+              className="absolute top-4 right-4 p-2 bg-black/40 hover:bg-black/60 rounded-full text-white cursor-pointer z-40"
             >
               {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
             </button>
           )}
 
-          {/* Floating Creator details & description at bottom-left corner of the video frame */}
-          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 text-left z-35 flex flex-col justify-end select-text">
-            {/* Creator Profile Line */}
-            <div className="flex items-center gap-3.5 mb-2.5">
-              <img 
-                src={userPic} 
-                alt="creator avatar" 
-                className="w-8 h-8 rounded-full object-cover border border-white/40 p-[0.5px] shrink-0" 
-              />
-              <div className="flex flex-col">
-                <div className="flex items-center gap-2 leading-none">
-                  <span className="text-[13.5px] font-semibold text-white whitespace-nowrap tracking-wide">
-                    {username}
-                  </span>
-                  <span className="text-white/50 text-[10px] select-none">•</span>
-                  <button
-                    onClick={handleFollowToggle}
-                    className={`font-semibold text-xs transition-colors cursor-pointer tracking-wide ${isFollowing ? "text-white/60 hover:text-white" : "text-[#0095f6] hover:text-[#3897f0]"}`}
-                  >
-                    {isFollowing ? "Following" : "Follow"}
-                  </button>
-                </div>
-                {/* Location subtitle if set, otherwise full name */}
-                <span className="text-[10px] text-white/70 font-normal leading-none mt-1 whitespace-nowrap">
-                  {post.location || post.user?.fullName || "Aditya University"}
-                </span>
-              </div>
-            </div>
-
-            {/* Post Caption Body with hashtag highlighting */}
-            <p className="text-[13px] text-white/95 leading-relaxed font-normal whitespace-pre-line max-h-[120px] overflow-y-auto scrollbar-none break-all pr-2">
-              {post.caption || "No description provided."}
-            </p>
-
-            {/* Static Simulated audio overlay statement */}
-            <div className="flex items-center gap-1.5 mt-3 text-[10px] text-white/70 font-semibold select-none bg-white/10 py-1 px-2.5 rounded-full w-fit">
-              <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-              <span>Original audio</span>
-            </div>
-          </div>
-
-          {/* FLOATING ACTION SIDE DOCK: Overlaying the bottom-right corner of the video frame */}
-          <div className="absolute right-3.5 bottom-6 flex flex-col items-center gap-5 z-40 select-none">
-            {/* Like Action */}
-            <div className="flex flex-col items-center">
+          {mediaList.length > 1 && (
+            <>
               <button
-                onClick={handleLikeToggle}
-                className={`w-[45px] h-[45px] rounded-full bg-black/35 hover:bg-black/50 transition-all flex items-center justify-center text-white cursor-pointer active:scale-75 ${
-                  liked ? "text-red-500" : "text-white"
-                }`}
-                title="Like reel"
-              >
-                <Heart className={`w-[26px] h-[26px] ${liked ? "fill-red-500 text-red-500" : "stroke-white"}`} />
-              </button>
-              <span className="text-[11.5px] font-bold text-white mt-1 filter drop-shadow-md">
-                {likesCount}
-              </span>
-            </div>
-
-            {/* Comments Toggle Action */}
-            <div className="flex flex-col items-center">
-              <button
-                onClick={() => setCommentsDrawerOpen(prev => !prev)}
-                className={`w-[45px] h-[45px] rounded-full transition-all flex items-center justify-center text-white cursor-pointer active:scale-75 ${
-                  commentsDrawerOpen ? "bg-[#0095f6]" : "bg-black/35 hover:bg-black/50"
-                }`}
-                title="Toggle comments"
-              >
-                <MessageCircle className="w-[26px] h-[26px]" />
-              </button>
-              <span className="text-[11.5px] font-bold text-white mt-1 filter drop-shadow-md">
-                {commentsList.length}
-              </span>
-            </div>
-
-            {/* Direct Send/Share Action */}
-            <div>
-              <button
-                onClick={handleCopyLink}
-                className="w-[45px] h-[45px] rounded-full bg-black/35 hover:bg-black/50 transition-all flex items-center justify-center text-white cursor-pointer active:scale-75"
-                title="Copy post link"
-              >
-                <Send className="w-[24px] h-[24px]" />
-              </button>
-              <span className="text-[10px] font-bold text-white mt-0.5 filter drop-shadow-md block">Share</span>
-            </div>
-
-            {/* Bookmark Block */}
-            <div>
-              <button
-                onClick={() => setBookmarked(prev => !prev)}
-                className="w-[45px] h-[45px] rounded-full bg-black/35 hover:bg-black/50 transition-all flex items-center justify-center text-white cursor-pointer active:scale-75"
-                title="Save post"
-              >
-                <Bookmark className={`w-[24px] h-[24px] ${bookmarked ? "fill-white text-white" : "stroke-white"}`} />
-              </button>
-              <span className="text-[10px] font-bold text-white mt-0.5 filter drop-shadow-md block">Save</span>
-            </div>
-
-            {/* More Options Menu Triggers */}
-            <div>
-              <button
-                onClick={() => setShowOptionsPopup(true)}
-                className="w-[45px] h-[45px] rounded-full bg-black/35 hover:bg-black/50 transition-all flex items-center justify-center text-white cursor-pointer active:scale-75"
-                title="Post options"
                 type="button"
+                onClick={prevMedia}
+                className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/45 text-white rounded-full p-2 hover:bg-black/70 z-50"
               >
-                <MoreHorizontal className="w-[24px] h-[24px]" />
+                <ChevronLeft className="w-6 h-6" />
               </button>
-              <span className="text-[10px] font-bold text-white mt-0.5 filter drop-shadow-md block">More</span>
-            </div>
 
-            {/* Creator Profile Shortcut */}
-            <div className="mt-1">
-              <img 
-                src={userPic} 
-                alt="creator short" 
-                className="w-[32px] h-[32px] rounded-md object-cover border border-white/60 shadow-lg p-[0.5px]" 
-              />
-            </div>
-          </div>
+              <button
+                type="button"
+                onClick={nextMedia}
+                className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/45 text-white rounded-full p-2 hover:bg-black/70 z-50"
+              >
+                <ChevronRight className="w-6 h-6" />
+              </button>
+
+              <div className="absolute top-4 left-1/2 -translate-x-1/2 flex gap-1.5 z-50">
+                {mediaList.map((_, index) => (
+                  <span
+                    key={index}
+                    className={`w-2 h-2 rounded-full ${
+                      index === mediaIndex ? "bg-white" : "bg-white/40"
+                    }`}
+                  />
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
-        {/* Sliding Comments Drawer panel layout (matches Instagram detail look-and-feel inside dark UI context) */}
-        {commentsDrawerOpen && (
-          <div 
-            className="absolute right-0 top-0 bottom-0 w-full sm:w-[440px] bg-[#121212] border-l border-white/10 flex flex-col z-[45] animate-slide-left text-white"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Drawer Header Area */}
-            <div className="h-[62px] px-4 border-b border-white/10 flex items-center justify-between flex-shrink-0">
-              <div className="flex items-center gap-2">
-                <span className="text-15px font-bold tracking-wide">Comments</span>
-                <span className="bg-white/10 text-white/85 text-[11px] px-2 py-0.5 rounded-full font-bold">
-                  {commentsList.length}
-                </span>
+        <div className="flex min-h-0 flex-col border-l border-gray-200 bg-white">
+          <div className="h-[62px] px-4 border-b border-gray-100 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-3 min-w-0">
+              <img
+                src={userPic}
+                alt="creator avatar"
+                className="w-8 h-8 rounded-full object-cover border border-gray-100 shrink-0"
+              />
+              <div className="min-w-0">
+                <p className="text-[14px] font-semibold text-[#262626] truncate">
+                  {username}
+                </p>
+                {fullName && (
+                  <p className="text-[11px] text-gray-400 truncate">
+                    {fullName}
+                  </p>
+                )}
               </div>
-              <button
-                onClick={() => setCommentsDrawerOpen(false)}
-                className="p-1 px-1.5 hover:bg-white/10 rounded transition-colors text-white cursor-pointer focus:outline-none"
-                title="Close comments panel"
-              >
-                <X className="w-5 h-5" />
-              </button>
             </div>
 
-            {/* Comments List Container */}
-            <div 
-              ref={commentsContainerRef}
-              className="flex-grow overflow-y-auto px-4 py-4 flex flex-col gap-4 text-left scrollbar-thin scrollbar-thumb-white/10"
+            <button
+              type="button"
+              onClick={() => setShowOptionsPopup(true)}
+              className="p-1 text-[#262626] hover:text-gray-500"
             >
-              {commentsList.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-36 text-center select-none">
-                  <MessageSquare className="w-10 h-10 text-white/20 mb-3" />
-                  <p className="text-[15px] font-bold text-white/90 mb-1">No comments yet</p>
-                  <p className="text-white/40 text-xs font-normal">Start the conversation by posting a note.</p>
-                </div>
-              ) : (
-                commentsList.map((c) => (
-                  <div key={c.id} className="flex items-start gap-3 justify-between group text-[13px] leading-snug">
-                    <div className="flex items-start gap-2.5 flex-grow min-w-0">
-                      <img 
-                        src={c.profilePicture || "https://i.pravatar.cc/100?img=15"} 
-                        alt="commenter" 
-                        className="w-7.5 h-7.5 rounded-full object-cover border border-white/10 shrink-0 mt-0.5" 
-                      />
-                      <div className="min-w-0 flex-grow">
-                        <p className="text-white leading-tight text-[13px]">
-                          <span className="font-bold mr-1.5 text-white/95">{c.username}</span>
-                          <span className="break-words text-white/80">{c.text}</span>
-                        </p>
-                        <div className="mt-1.5 flex items-center gap-3 text-[10px] text-white/40 font-bold select-none">
-                          <span>{formatTimeAgo(c.createdAt)}</span>
-                          <button type="button" className="hover:text-white font-semibold cursor-pointer">
-                            Reply
-                          </button>
-                        </div>
-                      </div>
-                    </div>
+              <MoreHorizontal className="w-6 h-6" />
+            </button>
+          </div>
 
-                    {/* Delete Comments Option (Authorized) */}
-                    {c.userId === CURRENT_USER_ID && (
-                      <button
-                        type="button"
-                        className="text-white/40 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity p-1 text-[11px] cursor-pointer font-semibold shrink-0"
-                        onClick={async () => {
-                          if (confirm("Delete this comment?")) {
-                            try {
-                              await deleteComment(c.id);
-                              loadComments();
-                            } catch (err) {
-                              console.error(err);
-                            }
-                          }
-                        }}
-                      >
-                        Delete
-                      </button>
-                    )}
-                  </div>
-                ))
+          <div
+            ref={commentsContainerRef}
+            className="flex-grow overflow-y-auto px-4 py-4 flex flex-col gap-4 text-left"
+          >
+            {post.caption && (
+              <div className="flex items-start gap-3 pb-3 border-b border-gray-100">
+                <img
+                  src={userPic}
+                  alt="creator avatar"
+                  className="w-8 h-8 rounded-full object-cover border border-gray-100 shrink-0"
+                />
+                <div className="min-w-0">
+                  <p className="text-[13px] text-[#262626] leading-snug">
+                    <span className="font-semibold mr-1.5">{username}</span>
+                    <span className="break-words">{post.caption}</span>
+                  </p>
+                  <span className="text-[11px] text-gray-400">
+                    {formatTimeAgo(post.createdAt)}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {commentsList.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <MessageSquare className="w-10 h-10 text-gray-200 mb-3" />
+                <p className="text-[15px] font-semibold text-[#262626] mb-1">
+                  No comments yet
+                </p>
+                <p className="text-gray-400 text-xs">
+                  Start the conversation by posting a note.
+                </p>
+              </div>
+            ) : (
+              commentsList.map((comment) => renderComment(comment, 0))
+            )}
+          </div>
+
+          <div className="border-t border-gray-100 shrink-0">
+            <div className="px-4 py-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <button
+                    type="button"
+                    onClick={handleLikeToggle}
+                    className={liked ? "text-[#ed4956]" : "text-[#262626]"}
+                  >
+                    <Heart
+                      className={`w-[26px] h-[26px] ${
+                        liked ? "fill-[#ed4956] stroke-[#ed4956]" : ""
+                      }`}
+                    />
+                  </button>
+
+                  <button
+                    type="button"
+                    className="text-[#262626]"
+                  >
+                    <MessageCircle className="w-[26px] h-[26px]" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShareModalOpen(true)}
+                    className="text-[#262626]"
+                  >
+                    <Send className="w-[26px] h-[26px]" />
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSaveToggle}
+                  className="text-[#262626]"
+                >
+                  <Bookmark
+                    className={`w-[26px] h-[26px] ${
+                      saved ? "fill-[#262626] stroke-[#262626]" : ""
+                    }`}
+                  />
+                </button>
+              </div>
+
+              <p className="mt-2 text-[13px] font-semibold text-[#262626]">
+                {likesCount} like{likesCount === 1 ? "" : "s"}
+              </p>
+              {shareCount > 0 && (
+                <p className="mt-1 text-[11px] text-gray-500">
+                  {shareCount} share{shareCount === 1 ? "" : "s"}
+                </p>
               )}
             </div>
 
-            {/* Side-Drawer Comments Footer Input bar */}
-            <div className="p-3 border-t border-white/10 flex gap-2 items-center flex-shrink-0 bg-[#121212] relative">
-              <button
-                onClick={() => setEmojiOpen(!emojiOpen)}
-                className="text-white/70 hover:text-white transition-colors cursor-pointer p-1.5 focus:outline-none"
-                title="Add Emoji"
-              >
-                <Smile className="w-[22px] h-[22px]" />
-              </button>
+            <div className="px-3 py-2 border-t border-gray-100 flex gap-2 items-center bg-white relative">
+              <div ref={emojiRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setEmojiOpen((prev) => !prev)}
+                  className="text-[#262626] hover:text-gray-500 cursor-pointer p-1.5"
+                >
+                  <Smile className="w-[22px] h-[22px]" />
+                </button>
 
-              {emojiOpen && (
-                <div className="absolute bottom-[54px] left-3 z-[60000] shadow-2xl border border-white/5 rounded-lg bg-black">
-                  <EmojiPicker
-                    onEmojiClick={(emojiObj) => {
-                      setNewCommentText(prev => prev + emojiObj.emoji);
-                    }}
-                    width={320}
-                    height={380}
-                    theme="dark"
-                  />
-                </div>
-              )}
+                {emojiOpen && (
+                  <div className="absolute bottom-[42px] left-0 z-[60000] shadow-2xl rounded-lg overflow-hidden">
+                    <EmojiPicker
+                      onEmojiClick={(emojiObj) =>
+                        setNewCommentText((prev) => prev + emojiObj.emoji)
+                      }
+                      width={320}
+                      height={380}
+                      theme="light"
+                      skinTonesDisabled={true}
+                      searchDisabled={false}
+                      previewConfig={{
+                        showPreview: false,
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
 
               <input
                 type="text"
@@ -443,121 +714,61 @@ function ImmersivePostModal({ post, postsList = [], onClose, onRefresh, onSelect
                   if (e.key === "Enter") handlePostComment();
                 }}
                 placeholder="Add a comment..."
-                className="flex-grow px-2 py-1 text-xs placeholder-white/30 outline-none border-none text-white bg-transparent"
+                className="flex-grow px-2 py-1 text-sm placeholder-gray-400 outline-none border-none text-[#262626] bg-transparent"
               />
 
               <button
                 onClick={handlePostComment}
                 disabled={!newCommentText.trim()}
-                className="text-[#0095f6] hover:text-[#3897f0] disabled:opacity-30 text-xs font-bold px-2 cursor-pointer transition-colors"
+                className="text-[#0095f6] hover:text-[#3897f0] disabled:opacity-30 text-sm font-semibold px-2"
               >
                 Post
               </button>
             </div>
           </div>
-        )}
+        </div>
       </div>
 
-      {/* STACKED CIRCULAR NAVIGATION CHEVRONS: Placed on the right margin of the page */}
-      <div 
-        className="fixed right-6 top-1/2 -translate-y-1/2 flex flex-col gap-3.5 z-50 pointer-events-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="fixed inset-y-0 left-4 hidden md:flex items-center z-50">
         <button
           onClick={handlePrevPost}
           disabled={currentIndex <= 0}
-          className="w-11 h-11 rounded-full bg-[#1c1c1ecc] hover:bg-black/95 border border-white/10 flex items-center justify-center text-white disabled:opacity-20 disabled:cursor-not-allowed transition-all shadow-xl cursor-pointer hover:scale-105 active:scale-95"
-          aria-label="Previous reel post"
-          title="Previous post"
+          className="w-10 h-10 rounded-full bg-white/90 hover:bg-white border border-gray-200 flex items-center justify-center text-[#262626] disabled:opacity-20 disabled:cursor-not-allowed shadow"
         >
-          <ChevronUp className="w-5 h-5 font-bold stroke-[2.5]" />
-        </button>
-
-        <button
-          onClick={handleNextPost}
-          disabled={currentIndex === -1 || currentIndex >= postsList.length - 1}
-          className="w-11 h-11 rounded-full bg-[#1c1c1ecc] hover:bg-black/95 border border-white/10 flex items-center justify-center text-white disabled:opacity-20 disabled:cursor-not-allowed transition-all shadow-xl cursor-pointer hover:scale-105 active:scale-95"
-          aria-label="Next reel post"
-          title="Next post"
-        >
-          <ChevronDown className="w-5 h-5 font-bold stroke-[2.5]" />
+          <ChevronLeft className="w-5 h-5" />
         </button>
       </div>
 
-      {/* Options Dropdown Overlay Modal (Image 3 layout style) */}
-      {showOptionsPopup && (
-        <div 
-          className="fixed inset-0 bg-black/75 flex items-center justify-center z-[210000] p-4 animate-fade-in"
-          id="post-options-backdrop"
-          onClick={(e) => {
-            e.stopPropagation();
-            setShowOptionsPopup(false);
-          }}
+      <div className="fixed inset-y-0 right-4 hidden md:flex items-center z-50">
+        <button
+          onClick={handleNextPost}
+          disabled={currentIndex === -1 || currentIndex >= postsList.length - 1}
+          className="w-10 h-10 rounded-full bg-white/90 hover:bg-white border border-gray-200 flex items-center justify-center text-[#262626] disabled:opacity-20 disabled:cursor-not-allowed shadow"
         >
-          <div 
-            className="w-full max-w-[400px] bg-white rounded-xl overflow-hidden text-center shadow-2xl animate-scale-up"
+          <ChevronRight className="w-5 h-5" />
+        </button>
+      </div>
+
+      {showOptionsPopup && (
+        <div
+          className="fixed inset-0 bg-black/75 flex items-center justify-center z-[210000] p-4"
+          onClick={() => setShowOptionsPopup(false)}
+        >
+          <div
+            className="w-full max-w-[400px] bg-white rounded-xl overflow-hidden text-center shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <button
               type="button"
-              className="block w-full py-4 text-sm font-bold text-[#ed4956] hover:bg-gray-50 border-none transition-colors cursor-pointer"
-              onClick={() => {
-                alert("This post has been reported to administrators.");
-                setShowOptionsPopup(false);
-              }}
-            >
-              Report
-            </button>
-            <button
-              type="button"
-              className="block w-full py-4 border-t border-gray-100 text-sm font-semibold text-[#262626] hover:bg-gray-50 border-none transition-colors cursor-pointer"
-              onClick={() => {
-                alert("Redirecting to dedicated post url...");
-                setShowOptionsPopup(false);
-              }}
-            >
-              Go to post
-            </button>
-            <button
-              type="button"
-              className="block w-full py-4 border-t border-gray-100 text-sm font-semibold text-[#262626] hover:bg-gray-50 border-none transition-colors cursor-pointer"
-              onClick={() => {
-                alert("Share dialog requested.");
-                setShowOptionsPopup(false);
-              }}
-            >
-              Share to...
-            </button>
-            <button
-              type="button"
-              className="block w-full py-4 border-t border-gray-100 text-sm font-semibold text-[#262626] hover:bg-gray-50 border-none transition-colors cursor-pointer"
+              className="block w-full py-4 text-sm font-semibold text-[#262626] hover:bg-gray-50"
               onClick={handleCopyLink}
             >
               Copy link
             </button>
+
             <button
               type="button"
-              className="block w-full py-4 border-t border-gray-100 text-sm font-semibold text-[#262626] hover:bg-gray-50 border-none transition-colors cursor-pointer"
-              onClick={() => {
-                alert("Embed code copied!");
-                setShowOptionsPopup(false);
-              }}
-            >
-              Embed
-            </button>
-            <button
-              type="button"
-              className="block w-full py-4 border-t border-gray-100 text-sm font-semibold text-[#262626] hover:bg-gray-50 border-none transition-colors cursor-pointer"
-              onClick={() => {
-                alert(`Account Details:\nUsername: ${username}\nJoined: June 2026`);
-                setShowOptionsPopup(false);
-              }}
-            >
-              About this account
-            </button>
-            <button
-              type="button"
-              className="block w-full py-4 border-t border-gray-100 text-sm font-normal text-gray-500 hover:bg-gray-50 border-none transition-colors cursor-pointer"
+              className="block w-full py-4 border-t border-gray-100 text-sm text-gray-500 hover:bg-gray-50"
               onClick={() => setShowOptionsPopup(false)}
             >
               Cancel
@@ -566,11 +777,81 @@ function ImmersivePostModal({ post, postsList = [], onClose, onRefresh, onSelect
         </div>
       )}
 
-      {/* Copy Link Toast Alert */}
+      {commentOptions && (
+        <div
+          className="fixed inset-0 bg-black/70 flex items-center justify-center z-[220000] p-4"
+          onClick={() => setCommentOptions(null)}
+        >
+          <div
+            className="w-[320px] bg-white rounded-xl overflow-hidden text-center shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="block w-full py-4 text-[#ed4956] font-bold hover:bg-gray-50"
+              onClick={() => {
+                setDeleteConfirmComment(commentOptions);
+                setCommentOptions(null);
+              }}
+            >
+              Delete
+            </button>
+
+            <button
+              className="block w-full py-4 border-t border-gray-100 text-gray-500 hover:bg-gray-50"
+              onClick={() => setCommentOptions(null)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {deleteConfirmComment && (
+        <div
+          className="fixed inset-0 bg-black/70 flex items-center justify-center z-[230000] p-4"
+          onClick={() => setDeleteConfirmComment(null)}
+        >
+          <div
+            className="w-[320px] bg-white rounded-xl overflow-hidden text-center shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-[16px] font-semibold text-[#262626] mt-5 mb-1">
+              Delete comment?
+            </h3>
+            <p className="text-gray-500 text-sm px-6 mb-5">
+              This action cannot be undone.
+            </p>
+
+            <button
+              className="block w-full py-4 border-t border-gray-100 text-[#ed4956] font-bold hover:bg-gray-50"
+              onClick={handleDeleteComment}
+            >
+              Delete
+            </button>
+
+            <button
+              className="block w-full py-4 border-t border-gray-100 text-gray-500 hover:bg-gray-50"
+              onClick={() => setDeleteConfirmComment(null)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       {copyToast && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 bg-[#262626] shadow-xl text-white text-xs font-semibold py-2.5 px-6 rounded-md z-[220000] pointer-events-none animate-fade-in flex items-center justify-center border border-white/20 select-none">
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 bg-[#262626] shadow-xl text-white text-xs font-semibold py-2.5 px-6 rounded-md z-[240000]">
           Link copied to clipboard!
         </div>
+      )}
+
+      {shareModalOpen && (
+        <ShareModal
+          post={post}
+          currentUserId={CURRENT_USER_ID}
+          onClose={() => setShareModalOpen(false)}
+          onShared={(count) => setShareCount(count)}
+        />
       )}
     </div>
   );

@@ -11,6 +11,11 @@ public class LikeRestController {
 
     private final LikeService likeService;
 
+    @GetMapping("/{postId}/likes")
+    public long getLikes(@PathVariable Long postId) {
+        return likeService.getLikeCount(postId);
+    }
+
     @PostMapping("/{postId}/like")
     public String likePost(@RequestParam Long userId, @PathVariable Long postId) {
         likeService.likePost(userId, postId);
@@ -23,8 +28,8 @@ public class LikeRestController {
         return "Post unliked";
     }
 
-    @GetMapping("/{postId}/likes")
-    public long getLikes(@PathVariable Long postId) {
-        return likeService.getLikeCount(postId);
+    @GetMapping("/{postId}/like/status")
+    public boolean isLiked(@PathVariable Long postId, @RequestParam Long userId) {
+        return likeService.isLiked(userId, postId);
     }
 }

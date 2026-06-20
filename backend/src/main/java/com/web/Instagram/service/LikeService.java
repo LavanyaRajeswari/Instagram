@@ -49,4 +49,9 @@ public class LikeService {
     public boolean hasLiked(Long userId, Long postId) {
         return likeRepository.existsByUserIdAndPostId(userId, postId);
     }
+ 
+    public boolean isLiked(Long userId, Long postId) {
+        return likeRepository.existsByUserIdAndPostId(userId, postId);
+    }
+    
 }

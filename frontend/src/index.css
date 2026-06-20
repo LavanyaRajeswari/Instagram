@@ -50,3 +50,8 @@ body {
 body.modal-open {
   overflow: hidden;
 }
+
+.epr-skin-tones,
+.epr_skins {
+  display: none !important;
+}
