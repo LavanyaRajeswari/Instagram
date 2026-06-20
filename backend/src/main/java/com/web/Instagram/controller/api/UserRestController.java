@@ -12,8 +12,9 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 @RestController
-@RequiredArgsConstructor
 @RequestMapping("/api/users")
+@RequiredArgsConstructor
+@CrossOrigin(origins = "*")
 public class UserRestController {
 
     private final UserService userService;
@@ -33,6 +34,15 @@ public class UserRestController {
             @PathVariable Long id
     ) {
         return userService.getUser(id);
+    }
+
+    @GetMapping("/username/{username}")
+    public UserResponse getUserByUsername(
+            @PathVariable String username
+    ) {
+        return userService.getUserByUsername(
+                username
+        );
     }
 
     @PostMapping("/register")
@@ -61,17 +71,26 @@ public class UserRestController {
         );
     }
 
-    @PostMapping(value = "/profile-picture", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PutMapping("/profile")
+    public UserResponse updateProfile(
+            @RequestBody UpdateProfileRequest request
+    ) {
+        return userService.updateProfile(
+                request
+        );
+    }
+
+    @PostMapping(
+            value = "/profile-picture",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE
+    )
     public UserResponse uploadProfilePicture(
             @RequestParam("file")
             MultipartFile file
     ) {
-        return userService.uploadProfilePicture(file);
-    }
-
-    @PutMapping("/profile")
-    public UserResponse updateProfile(@RequestBody UpdateProfileRequest request) {
-        return userService.updateProfile(request);
+        return userService.uploadProfilePicture(
+                file
+        );
     }
 
     @DeleteMapping("/{id}")
@@ -81,7 +100,6 @@ public class UserRestController {
 
         userService.deleteUser(id);
 
-        return "User deleted";
+        return "User deleted successfully";
     }
-
 }

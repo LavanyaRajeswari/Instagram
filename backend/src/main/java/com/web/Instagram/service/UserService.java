@@ -2,6 +2,8 @@ package com.web.Instagram.service;
 
 import com.web.Instagram.dto.user.*;
 import com.web.Instagram.entity.User;
+import com.web.Instagram.repository.FollowRepository;
+import com.web.Instagram.repository.PostRepository;
 import com.web.Instagram.repository.UserRepository;
 import com.web.Instagram.security.JwtService;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +23,8 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final CloudinaryService cloudinaryService;
+    private final FollowRepository followRepository;
+    private final PostRepository postRepository;
 
     public List<User> getAllUsers() {
         return userRepository.findAll();
@@ -217,13 +221,25 @@ public class UserService {
             User user
     ) {
 
+        long postsCount =
+                postRepository.countByUser(user);
+
+        long followersCount =
+                followRepository.countByFollowing(user);
+
+        long followingCount =
+                followRepository.countByFollower(user);
+
         return UserResponse.builder()
                 .id(user.getId())
                 .username(user.getUsername())
                 .fullName(user.getFullName())
                 .bio(user.getBio())
-                .profilePicture(user.getProfilePicture())
                 .gender(user.getGender())
+                .profilePicture(user.getProfilePicture())
+                .postsCount(postsCount)
+                .followersCount(followersCount)
+                .followingCount(followingCount)
                 .isPrivate(
                         Boolean.TRUE.equals(
                                 user.getIsPrivate()
@@ -232,4 +248,35 @@ public class UserService {
                 .build();
     }
 
+    public User getAuthenticatedUser() {
+
+        String username =
+                SecurityContextHolder
+                        .getContext()
+                        .getAuthentication()
+                        .getName();
+
+        return userRepository
+                .findByUsername(username)
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "User not found"
+                        )
+                );
+    }
+
+    public UserResponse getUserByUsername(
+            String username
+    ) {
+
+        User user = userRepository
+                .findByUsername(username)
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "User not found"
+                        )
+                );
+
+        return mapToResponse(user);
+    }
 }

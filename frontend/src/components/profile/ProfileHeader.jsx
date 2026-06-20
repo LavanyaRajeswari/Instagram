@@ -33,29 +33,23 @@ function ProfileHeader({
 }) {
     const username =
         user?.username ||
-        "ganga_saride";
+        "instagram_user";
 
     const fullName =
         user?.fullName ||
         user?.name ||
         username;
 
-    const followersCount = getCount(
-        user,
-        [
-            "followersCount",
-            "followerCount",
-            "followers"
-        ]
-    );
+    const followersCount =
+        user?.followersCount ?? 0;
 
-    const followingCount = getCount(
-        user,
-        [
-            "followingCount",
-            "following"
-        ]
-    );
+    const followingCount =
+        user?.followingCount ?? 0;
+
+    const totalPosts =
+        user?.postsCount ??
+        postsCount ??
+        0;
 
     return (
         <section className="pt-[34px] md:pt-[64px]">
@@ -87,20 +81,23 @@ function ProfileHeader({
                             sm:w-[150px]
                         "
                     >
-                        {user?.profilePicture ? (
-                            <img
-                                src={user.profilePicture}
-                                alt=""
-                                className="
+                        {
+                            user?.profilePicture &&
+                                user.profilePicture.trim() !== ""
+                                ? (
+                                    <img
+                                        src={user.profilePicture}
+                                        alt=""
+                                        className="
                                     h-full
                                     w-full
                                     rounded-full
                                     object-cover
                                 "
-                            />
-                        ) : (
-                            <div
-                                className="
+                                    />
+                                ) : (
+                                    <div
+                                        className="
                                     relative
                                     h-full
                                     w-full
@@ -108,9 +105,9 @@ function ProfileHeader({
                                     rounded-full
                                     bg-[#a8a8a8]
                                 "
-                            >
-                                <div
-                                    className="
+                                    >
+                                        <div
+                                            className="
                                         absolute
                                         left-1/2
                                         top-[28px]
@@ -123,10 +120,10 @@ function ProfileHeader({
                                         sm:h-[60px]
                                         sm:w-[60px]
                                     "
-                                />
+                                        />
 
-                                <div
-                                    className="
+                                        <div
+                                            className="
                                         absolute
                                         bottom-[-12px]
                                         left-1/2
@@ -138,10 +135,10 @@ function ProfileHeader({
                                         sm:h-[82px]
                                         sm:w-[150px]
                                     "
-                                />
+                                        />
 
-                                <div
-                                    className="
+                                        <div
+                                            className="
                                         absolute
                                         left-1/2
                                         top-1/2
@@ -158,14 +155,14 @@ function ProfileHeader({
                                         sm:h-[50px]
                                         sm:w-[50px]
                                     "
-                                >
-                                    <Camera
-                                        size={30}
-                                        strokeWidth={3}
-                                    />
-                                </div>
-                            </div>
-                        )}
+                                        >
+                                            <Camera
+                                                size={30}
+                                                strokeWidth={3}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
                     </div>
 
                     <div
@@ -199,14 +196,19 @@ function ProfileHeader({
                                 {username}
                             </h1>
 
-                            <Settings
-                                size={22}
-                                strokeWidth={2.6}
+                            <button
                                 className="
-                                    mt-[1px]
-                                    shrink-0
+                                    rounded-full
+                                    p-1
+                                    transition
+                                    hover:bg-[#efefef]
                                 "
-                            />
+                            >
+                                <Settings
+                                    size={20}
+                                    strokeWidth={2.4}
+                                />
+                            </button>
                         </div>
 
                         <p
@@ -235,19 +237,23 @@ function ProfileHeader({
                             "
                         >
                             <span>
-                                <b>{postsCount}</b>{" "}
+                                <b>{totalPosts}</b>{" "}
                                 posts
                             </span>
 
-                            <span>
-                                <b>{followersCount}</b>{" "}
-                                followers
-                            </span>
+                            <button
+                                type="button"
+                                className="hover:opacity-70"
+                            >
+                                <b>{followersCount}</b> followers
+                            </button>
 
-                            <span>
-                                <b>{followingCount}</b>{" "}
-                                following
-                            </span>
+                            <button
+                                type="button"
+                                className="hover:opacity-70"
+                            >
+                                <b>{followingCount}</b> following
+                            </button>
                         </div>
 
                         {user?.bio && (

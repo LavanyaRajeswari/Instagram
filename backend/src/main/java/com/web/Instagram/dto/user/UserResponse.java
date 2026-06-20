@@ -26,4 +26,10 @@ public class UserResponse {
     private String profilePicture;
 
     private boolean isPrivate;
+
+    private Long postsCount;
+
+    private Long followersCount;
+
+    private Long followingCount;
 }

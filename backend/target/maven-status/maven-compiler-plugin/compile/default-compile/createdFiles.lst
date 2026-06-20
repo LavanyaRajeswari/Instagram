@@ -1,9 +1,12 @@
 com/web/Instagram/config/CorsConfig$1.class
 com/web/Instagram/controller/api/UserRestController.class
 com/web/Instagram/repository/PostRepository.class
+com/web/Instagram/controller/api/FollowRestController.class
 com/web/Instagram/config/CorsConfig.class
 com/web/Instagram/dto/user/UpdateRequest.class
+com/web/Instagram/service/FollowService.class
 com/web/Instagram/config/CloudinaryConfig.class
+com/web/Instagram/entity/Follow$FollowBuilder.class
 com/web/Instagram/dto/user/UpdateProfileRequest.class
 com/web/Instagram/service/CommentService.class
 com/web/Instagram/service/UserService.class
@@ -24,6 +27,7 @@ com/web/Instagram/dto/user/UserResponse$UserResponseBuilder.class
 com/web/Instagram/controller/api/PostRestController.class
 com/web/Instagram/dto/user/LoginResponse.class
 com/web/Instagram/entity/Comment.class
+com/web/Instagram/repository/FollowRepository.class
 com/web/Instagram/dto/user/RegisterRequest.class
 com/web/Instagram/service/CloudinaryService.class
 com/web/Instagram/service/LikeService.class
@@ -34,4 +38,5 @@ com/web/Instagram/dto/cloudinary/CloudinaryResponse.class
 com/web/Instagram/entity/Post.class
 com/web/Instagram/service/PostService.class
 com/web/Instagram/dto/user/UserResponse.class
+com/web/Instagram/entity/Follow.class
 com/web/Instagram/dto/user/LoginResponse$LoginResponseBuilder.class
