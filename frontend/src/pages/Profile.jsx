@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import Sidebar from "../components/Sidebar";
 import ImmersivePostModal from "../components/ImmersivePostModal";
+import CreatePostModal from "../components/CreatePostModal";
 import axios from "axios";
 
 function Profile() {
@@ -17,6 +18,7 @@ function Profile() {
   const [user, setUser] = useState(null);
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [createOpen, setCreateOpen] = useState(false);
   const [selectedImmersivePost, setSelectedImmersivePost] = useState(null);
 
   const loadProfile = async () => {
@@ -38,7 +40,9 @@ function Profile() {
       }
 
       try {
-        const postsResponse = await axios.get("http://localhost:8080/api/posts");
+        const postsResponse = await axios.get("http://localhost:8080/api/posts", {
+          params: { userId: CURRENT_USER_ID },
+        });
         allPosts = postsResponse.data;
       } catch (err) {
         console.warn("Backend posts api offline, reading local cache");
@@ -70,7 +74,7 @@ function Profile() {
   if (loading) {
     return (
       <div className="bg-[#fafafa] min-h-screen">
-        <Sidebar />
+        <Sidebar onCreateClick={() => setCreateOpen(true)} />
         <main className="md:ml-[72px] xl:ml-[244px] flex flex-col items-center justify-center py-40" id="profile-loading">
           <div className="border-[3px] border-[#efefef] border-t-[#0095f6] rounded-full w-8 h-8 animate-spin"></div>
           <h2 className="text-gray-500 text-sm font-semibold mt-4">Loading profile...</h2>
@@ -81,7 +85,7 @@ function Profile() {
 
   return (
     <div className="bg-[#fafafa] min-h-screen">
-      <Sidebar />
+      <Sidebar onCreateClick={() => setCreateOpen(true)} />
 
       <main className="md:ml-[72px] xl:ml-[244px] max-w-[935px] mx-auto px-4 md:px-8 py-10 pb-[80px] md:pb-10 transition-all duration-300" id="profile-layout">
         {/* Profile Header section */}
@@ -182,6 +186,16 @@ function Profile() {
           onClose={() => setSelectedImmersivePost(null)}
           onRefresh={loadProfile}
           onSelectPost={(p) => setSelectedImmersivePost(p)}
+        />
+      )}
+
+      {createOpen && (
+        <CreatePostModal
+          onClose={() => setCreateOpen(false)}
+          onPostCreated={() => {
+            setCreateOpen(false);
+            loadProfile();
+          }}
         />
       )}
     </div>
