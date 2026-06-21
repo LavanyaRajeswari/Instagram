@@ -35,8 +35,7 @@ public class SecurityConfig {
                                 "/api/users/login",
                                 "/api/posts/**",
                                 "/api/users/**",
-                                "/api/comments/**",
-                                "/uploads/**"
+                                "/api/comments/**"
                         ).permitAll()
                         .anyRequest().permitAll()
                 )

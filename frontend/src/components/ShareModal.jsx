@@ -8,6 +8,7 @@ import {
 } from "react-icons/fa6";
 import { sharePost } from "../api/shareApi";
 import { getUsers } from "../api/userApi";
+import { getAvatarUrl } from "../utils/avatar";
 
 function ShareModal({ post, currentUserId, onClose, onShared }) {
   const [users, setUsers] = useState([]);
@@ -15,7 +16,7 @@ function ShareModal({ post, currentUserId, onClose, onShared }) {
   const [toast, setToast] = useState("");
   const [loadingUsers, setLoadingUsers] = useState(false);
 
-  const postUrl = `${window.location.origin}/posts/${post.id}`;
+  const postUrl = `${window.location.origin}/post/${post.id}`;
 
   useEffect(() => {
     loadUsers();
@@ -144,12 +145,7 @@ function ShareModal({ post, currentUserId, onClose, onShared }) {
                   className="flex flex-col items-center gap-2"
                 >
                   <img
-                    src={
-                      user.profilePicture ||
-                      `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                        user.username || "User"
-                      )}`
-                    }
+                    src={getAvatarUrl(user)}
                     alt={user.username || "user"}
                     className="w-16 h-16 rounded-full object-cover"
                   />

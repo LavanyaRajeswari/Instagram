@@ -28,17 +28,10 @@ export const addReply = async (postId, parentCommentId, userId, text) => {
   return data;
 };
 
-export const deleteComment = async (commentId, postId) => {
-  if (postId) {
-    try {
-      await axios.delete(`${POSTS_API_URL}/${postId}/comments/${commentId}`);
-      return true;
-    } catch (error) {
-      if (error?.response?.status !== 404) throw error;
-    }
-  }
-
-  await axios.delete(`${POSTS_API_URL}/comments/${commentId}`);
+export const deleteComment = async (postId, commentId, userId) => {
+  await axios.delete(`${POSTS_API_URL}/${postId}/comments/${commentId}`, {
+    params: { userId },
+  });
   return true;
 };
 

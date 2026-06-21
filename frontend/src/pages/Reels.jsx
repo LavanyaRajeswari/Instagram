@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import EmojiPicker from "emoji-picker-react";
 import {
   Heart,
   MessageCircle,
@@ -8,6 +9,7 @@ import {
   MoreHorizontal,
   ChevronUp,
   ChevronDown,
+  ChevronRight,
   ArrowLeft,
   Volume2,
   VolumeX,
@@ -28,14 +30,9 @@ import {
   unlikeComment,
 } from "../api/commentsApi";
 import ShareModal from "../components/ShareModal";
+import { useCurrentUser } from "../hooks/useCurrentUser";
+import { getAvatarUrl } from "../utils/avatar";
 
-const getCurrentUser = () => {
-  try {
-    return JSON.parse(localStorage.getItem("currentUser")) || { id: 1 };
-  } catch {
-    return { id: 1 };
-  }
-};
 
 const isVideoUrl = (url = "") => /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(url);
 
@@ -74,11 +71,90 @@ const getHeartClassName = (liked) =>
   `h-4 w-4 ${
     liked ? "fill-[#ed4956] stroke-[#ed4956] text-[#ed4956]" : "text-gray-400"
   }`;
+const reportOptions = {
+  main: {
+    title: "Why are you reporting this post?",
+    options: [
+      { label: "I just don't like it", next: "success" },
+      { label: "Bullying or unwanted contact", next: "bullying" },
+      { label: "Suicide, self-injury or eating disorders", next: "selfHarm" },
+      { label: "Violence, hate or exploitation", next: "violence" },
+      { label: "Selling or promoting restricted items", next: "restricted" },
+      { label: "Nudity or sexual activity", next: "nudity" },
+      { label: "Scam, fraud or spam", next: "scam" },
+      { label: "False information", next: "success" },
+    ],
+  },
+  bullying: {
+    title: "How is it bullying or unwanted contact?",
+    options: [
+      { label: "Threatening to share or sharing nude images", next: "success" },
+      { label: "Bullying or harassment", next: "success" },
+      { label: "Spam", next: "success" },
+    ],
+  },
+  selfHarm: {
+    title: "What kind of self-harm?",
+    options: [
+      { label: "Suicide or self-injury", next: "success" },
+      { label: "Eating disorder", next: "success" },
+    ],
+  },
+  violence: {
+    title: "How is it violence, hate or exploitation?",
+    options: [
+      { label: "Credible threat to safety", next: "success" },
+      { label: "Seems like terrorism or organized crime", next: "success" },
+      { label: "Seems like exploitation", next: "success" },
+      { label: "Hate speech or symbols", next: "success" },
+      { label: "Calling for violence", next: "success" },
+      { label: "Showing violence, death or severe injury", next: "success" },
+      { label: "Animal abuse", next: "success" },
+    ],
+  },
+  restricted: {
+    title: "What is being sold or promoted?",
+    options: [
+      { label: "Drugs", next: "success" },
+      { label: "Weapons", next: "success" },
+      { label: "Animals", next: "success" },
+      { label: "Gambling", next: "success" },
+      { label: "Alcohol", next: "success" },
+      { label: "Tobacco", next: "success" },
+    ],
+  },
+  nudity: {
+    title: "How is this nudity or sexual activity?",
+    options: [
+      { label: "Threatening to share or sharing nude images", next: "success" },
+      { label: "Seems like prostitution", next: "success" },
+      { label: "Seems like sexual exploitation", next: "success" },
+      { label: "Nudity or sexual activity", next: "success" },
+    ],
+  },
+  scam: {
+    title: "Which best describes the problem?",
+    options: [
+      { label: "Fraud or scam", next: "success" },
+      { label: "Spam", next: "success" },
+    ],
+  },
+};
+const restrictedReportReasons = [
+  "Drugs",
+  "Weapons",
+  "Animals",
+  "Gambling",
+  "Alcohol",
+  "Tobacco",
+];
 
 function Reels() {
   const navigate = useNavigate();
-  const currentUser = getCurrentUser();
-  const CURRENT_USER_ID = currentUser?.id || 1;
+  const { currentUser, currentUserId: CURRENT_USER_ID } = useCurrentUser();
+
+  const [embedOpen, setEmbedOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
 
   const [posts, setPosts] = useState([]);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -93,20 +169,19 @@ function Reels() {
   const [commentsMap, setCommentsMap] = useState({});
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [commentText, setCommentText] = useState("");
+  const [emojiOpen, setEmojiOpen] = useState(false);
   const [replyingTo, setReplyingTo] = useState(null);
   const [commentOptions, setCommentOptions] = useState(null);
   const [expandedReplies, setExpandedReplies] = useState({});
   const [sharePost, setSharePost] = useState(null);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
-  const [copyToast, setCopyToast] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportStep, setReportStep] = useState("main");
   const [selectedReportReason, setSelectedReportReason] = useState("");
-  const [followingMap, setFollowingMap] = useState({});
-  const [embedOpen, setEmbedOpen] = useState(false);
-  const [aboutOpen, setAboutOpen] = useState(false);
-
+  const [copyToast, setCopyToast] = useState(false);
   const videoRefs = useRef([]);
+  const commentInputRef = useRef(null);
+  const emojiPickerRef = useRef(null);
   const moreMenuRef = useRef(null);
   const loadingReelsRef = useRef(false);
   const hasMoreReelsRef = useRef(true);
@@ -183,6 +258,21 @@ function Reels() {
     return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, [moreMenuOpen]);
 
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (
+        emojiOpen &&
+        emojiPickerRef.current &&
+        !emojiPickerRef.current.contains(event.target)
+      ) {
+        setEmojiOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [emojiOpen]);
+
   const getPostsFromPageResponse = (data) => {
     if (Array.isArray(data)) return data;
     if (Array.isArray(data?.content)) return data.content;
@@ -242,8 +332,8 @@ function Reels() {
         try {
           const data = await getPosts();
           setPosts(Array.isArray(data) ? data : []);
-        } catch (fallbackError) {
-          console.error("Failed to load fallback reels:", fallbackError);
+        } catch (postsError) {
+          console.error("Failed to load posts for reels:", postsError);
           setPosts([]);
         }
       }
@@ -270,24 +360,20 @@ function Reels() {
     const nextLiked = {};
     const nextSaved = {};
     const nextMuted = {};
-    const nextFollowing = {};
 
     await Promise.all(
       reelsNeedingData.map(async (reel) => {
         try {
           const [count, status, savedStatus] = await Promise.all([
             getLikeCount(reel.id),
-            isPostLiked(reel.id, CURRENT_USER_ID),
-            isPostSaved(reel.id, CURRENT_USER_ID),
+            CURRENT_USER_ID ? isPostLiked(reel.id, CURRENT_USER_ID) : false,
+            CURRENT_USER_ID ? isPostSaved(reel.id, CURRENT_USER_ID) : false,
           ]);
 
           nextLikes[reel.id] = count || 0;
           nextLiked[reel.id] = Boolean(status);
           nextSaved[reel.id] = Boolean(savedStatus);
           nextMuted[reel.id] = true;
-
-          const userKey = getUserKey(reel);
-          if (userKey) nextFollowing[userKey] = Boolean(followingMap[userKey]);
         } catch {
           nextLikes[reel.id] = reel.likeCount || 0;
           nextLiked[reel.id] = false;
@@ -301,7 +387,6 @@ function Reels() {
     setLikedMap((prev) => ({ ...prev, ...nextLiked }));
     setSavedMap((prev) => ({ ...prev, ...nextSaved }));
     setMutedMap((prev) => ({ ...prev, ...nextMuted }));
-    setFollowingMap((prev) => ({ ...nextFollowing, ...prev }));
   };
 
   const loadComments = async (postId) => {
@@ -316,7 +401,16 @@ function Reels() {
   const getReplies = (comment) =>
     comment.replies || comment.children || comment.childComments || [];
 
-  const getUserKey = (reel) => reel?.user?.id || reel?.user?.username || "unknown";
+  const removeCommentFromTree = (items = [], commentId) =>
+    items
+      .filter((item) => item.id !== commentId)
+      .map((item) => ({
+        ...item,
+        replies: removeCommentFromTree(getReplies(item), commentId),
+      }));
+
+  const countCommentTree = (items = []) =>
+    items.reduce((total, item) => total + 1 + countCommentTree(getReplies(item)), 0);
 
   const isOwnedByCurrentUser = (item) => {
     const itemUserId = item?.user?.id ?? item?.userId;
@@ -324,28 +418,35 @@ function Reels() {
   };
 
   const getPostUrl = (reel = activeReel) =>
-    `${window.location.origin}/posts/${reel?.id || ""}`;
-
-  const getEmbedCode = () =>
-    `<blockquote class="instagram-media" data-instgrm-captioned data-instgrm-permalink="${getPostUrl()}" data-instgrm-version="14"></blockquote>`;
+    `${window.location.origin}/post/${reel?.id || ""}`;
 
   const handleLike = async (reel) => {
+    if (!CURRENT_USER_ID) {
+      alert("Please login first");
+      return;
+    }
+
     try {
-      const alreadyLiked = likedMap[reel.id];
+      const alreadyLiked = Boolean(likedMap[reel.id]);
+      const nextLiked = !alreadyLiked;
+      const nextCount = Math.max((likesMap[reel.id] || 0) + (nextLiked ? 1 : -1), 0);
 
       if (alreadyLiked) await unlikePost(reel.id, CURRENT_USER_ID);
       else await likePost(reel.id, CURRENT_USER_ID);
 
-      const count = await getLikeCount(reel.id);
-
-      setLikedMap((prev) => ({ ...prev, [reel.id]: !alreadyLiked }));
-      setLikesMap((prev) => ({ ...prev, [reel.id]: count }));
+      setLikedMap((prev) => ({ ...prev, [reel.id]: nextLiked }));
+      setLikesMap((prev) => ({ ...prev, [reel.id]: nextCount }));
     } catch {
       alert("Like action failed");
     }
   };
 
   const handleSaveToggle = async (reel) => {
+    if (!CURRENT_USER_ID) {
+      alert("Please login first");
+      return;
+    }
+
     try {
       const alreadySaved = Boolean(savedMap[reel.id]);
 
@@ -366,6 +467,10 @@ function Reels() {
   const handleAddComment = async () => {
     const text = commentText.trim();
     if (!text || !activeReel) return;
+    if (!CURRENT_USER_ID) {
+      alert("Please login first");
+      return;
+    }
 
     try {
       if (replyingTo) {
@@ -376,6 +481,7 @@ function Reels() {
       }
 
       setCommentText("");
+      setEmojiOpen(false);
       setReplyingTo(null);
       await loadComments(activeReel.id);
     } catch {
@@ -383,7 +489,31 @@ function Reels() {
     }
   };
 
+  const handleEmojiSelect = (emojiData) => {
+    const emoji = emojiData?.emoji || "";
+    if (!emoji) return;
+
+    const input = commentInputRef.current;
+    const start = input?.selectionStart ?? commentText.length;
+    const end = input?.selectionEnd ?? commentText.length;
+
+    setCommentText(
+      (prev) => `${prev.slice(0, start)}${emoji}${prev.slice(end)}`
+    );
+
+    requestAnimationFrame(() => {
+      const cursorPosition = start + emoji.length;
+      commentInputRef.current?.focus();
+      commentInputRef.current?.setSelectionRange(cursorPosition, cursorPosition);
+    });
+  };
+
   const handleCommentLike = async (comment) => {
+    if (!CURRENT_USER_ID) {
+      alert("Please login first");
+      return;
+    }
+
     try {
       if (comment.likedByCurrentUser) {
         await unlikeComment(comment.id, CURRENT_USER_ID);
@@ -397,35 +527,26 @@ function Reels() {
     }
   };
 
-  const handleDeleteComment = async () => {
+  const handleDeleteComment = async (event) => {
+    event?.preventDefault();
+    event?.stopPropagation();
+
     if (!commentOptions || !activeReel) return;
+    if (!CURRENT_USER_ID) {
+      alert("Please login first");
+      return;
+    }
 
     try {
-      await deleteComment(commentOptions.id, activeReel.id);
+      await deleteComment(activeReel.id, commentOptions.id, CURRENT_USER_ID);
+      setCommentsMap((prev) => ({
+        ...prev,
+        [activeReel.id]: removeCommentFromTree(prev[activeReel.id] || [], commentOptions.id),
+      }));
       setCommentOptions(null);
-      await loadComments(activeReel.id);
     } catch {
       alert("Delete comment failed");
     }
-  };
-
-  const handleFollowToggle = (reel) => {
-    const key = getUserKey(reel);
-    setFollowingMap((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
-  };
-
-  const handleUnfollow = () => {
-    if (!activeReel) return;
-
-    setFollowingMap((prev) => ({
-      ...prev,
-      [getUserKey(activeReel)]: false,
-    }));
-
-    setMoreMenuOpen(false);
   };
 
   const copyText = async (text, successMessage = "Link copied!") => {
@@ -444,39 +565,48 @@ function Reels() {
     setMoreMenuOpen(false);
   };
 
-  const openReport = () => {
-    setReportOpen(true);
-    setReportStep("main");
-    setSelectedReportReason("");
-    setMoreMenuOpen(false);
-  };
-
-  const closeReport = () => {
+  const closeReportModal = () => {
     setReportOpen(false);
     setReportStep("main");
     setSelectedReportReason("");
   };
 
-  const submitReport = () => {
-    alert("Report submitted");
-    closeReport();
+  const openReportModal = () => {
+    setReportStep("main");
+    setSelectedReportReason("");
+    setReportOpen(true);
+    setMoreMenuOpen(false);
   };
 
-  const openEmbed = () => {
+  const handleReportOption = (option) => {
+    setSelectedReportReason(option.label);
+    setReportStep(option.next);
+  };
+
+  const getReportUsername = () =>
+    activeReel?.user?.username || "this account";
+
+  const getEmbedCode = (reel = activeReel) =>
+    `<iframe src="${getPostUrl(reel)}" width="400" height="600" frameborder="0" allowfullscreen></iframe>`;
+
+  const handleOpenEmbed = () => {
+    if (!activeReel) return;
     setEmbedOpen(true);
     setMoreMenuOpen(false);
   };
 
-  const openAbout = () => {
-    setAboutOpen(true);
-    setMoreMenuOpen(false);
+  const handleCopyEmbed = async () => {
+    if (!activeReel) return;
+    await copyText(getEmbedCode(activeReel), "Embed code copied!");
   };
+
 
   const goNext = () => {
     if (activeIndex < reels.length - 1) {
       setActiveIndex((prev) => prev + 1);
       setCommentsOpen(false);
       setMoreMenuOpen(false);
+      closeReportModal();
     }
   };
 
@@ -485,6 +615,7 @@ function Reels() {
       setActiveIndex((prev) => prev - 1);
       setCommentsOpen(false);
       setMoreMenuOpen(false);
+      closeReportModal();
     }
   };
 
@@ -496,19 +627,6 @@ function Reels() {
     if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
     if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
     return value;
-  };
-
-  const formatDateJoined = (dateString) => {
-    if (!dateString) return "April 2023";
-
-    try {
-      return new Date(dateString).toLocaleDateString("en-US", {
-        month: "long",
-        year: "numeric",
-      });
-    } catch {
-      return "April 2023";
-    }
   };
 
   const renderSmallLikeText = (item) => {
@@ -524,8 +642,7 @@ function Reels() {
   const renderReply = (reply, depth = 1) => {
     const replies = getReplies(reply);
     const username = reply.user?.username || reply.username || "user";
-    const profilePicture =
-      reply.user?.profilePicture || "https://ui-avatars.com/api/?name=User";
+    const profilePicture = getAvatarUrl(reply.user);
     const isExpanded = expandedReplies[reply.id];
     const visualDepth = Math.min(depth, MAX_REPLY_DEPTH);
 
@@ -543,7 +660,7 @@ function Reels() {
           />
 
           <div className="min-w-0 flex-1">
-            <p className="break-words text-[13px] leading-[18px] text-[#262626] [word-break:normal]">
+            <p className="whitespace-pre-wrap text-[13px] leading-[18px] text-[#262626] [overflow-wrap:anywhere] [word-break:break-word]">
               <span className="mr-1 whitespace-nowrap font-semibold">
                 {username}
               </span>
@@ -622,8 +739,7 @@ function Reels() {
   const renderComment = (comment) => {
     const replies = getReplies(comment);
     const username = comment.user?.username || comment.username || "user";
-    const profilePicture =
-      comment.user?.profilePicture || "https://ui-avatars.com/api/?name=User";
+    const profilePicture = getAvatarUrl(comment.user);
     const isExpanded = expandedReplies[comment.id];
 
     return (
@@ -638,7 +754,7 @@ function Reels() {
         />
 
         <div className="min-w-0 flex-1">
-          <p className="break-words text-[13px] leading-[18px] text-[#262626] [word-break:normal]">
+            <p className="whitespace-pre-wrap text-[13px] leading-[18px] text-[#262626] [overflow-wrap:anywhere] [word-break:break-word]">
             <span className="mr-1 whitespace-nowrap font-semibold">
               {username}
             </span>
@@ -762,11 +878,8 @@ function Reels() {
           <div className="relative h-[92vh] max-h-[860px] w-[420px] overflow-hidden rounded-lg bg-black max-sm:w-[calc(100vw-32px)]">
             {reels.map((reel, index) => {
               const active = index === activeIndex;
-              const username = reel.user?.username || "instagram_user";
-              const profilePicture =
-                reel.user?.profilePicture || "https://ui-avatars.com/api/?name=User";
-              const userKey = getUserKey(reel);
-              const isFollowing = Boolean(followingMap[userKey]);
+              const username = reel.user?.username || "";
+              const profilePicture = getAvatarUrl(reel.user);
 
               return (
                 <div
@@ -806,16 +919,11 @@ function Reels() {
                         alt="profile"
                         className="h-8 w-8 rounded-full object-cover"
                       />
-                      <span className="text-sm font-bold">{username}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleFollowToggle(reel)}
-                        className="rounded-md border border-white px-2 py-0.5 text-xs font-semibold"
-                      >
-                        {isFollowing ? "Following" : "Follow"}
-                      </button>
+                      {username && <span className="text-sm font-bold">{username}</span>}
                     </div>
-                    <p className="text-sm">{reel.caption || ""}</p>
+                    <p className="whitespace-pre-wrap text-sm [overflow-wrap:anywhere] [word-break:break-word]">
+                      {reel.caption || ""}
+                    </p>
                   </div>
                 </div>
               );
@@ -849,7 +957,7 @@ function Reels() {
                 <MessageCircle className="h-8 w-8" />
                 <span className="text-[11px] font-semibold">
                   {formatCount(
-                    commentsMap[activeReel.id]?.length ||
+                    countCommentTree(commentsMap[activeReel.id] || []) ||
                       activeReel.commentCount ||
                       activeReel.commentsCount ||
                       0
@@ -878,25 +986,32 @@ function Reels() {
                 </button>
 
                 {moreMenuOpen && (
-                  <div className="absolute bottom-10 left-1/2 z-[100] w-[230px] -translate-x-1/2 overflow-hidden rounded-2xl bg-white text-sm shadow-2xl">
+                  <div className="absolute bottom-10 left-1/2 z-[100] w-[250px] -translate-x-1/2 overflow-hidden rounded-2xl bg-white text-sm shadow-2xl">
                     <button
                       type="button"
-                      onClick={openReport}
-                      className="block w-full px-5 py-4 text-left text-[#ed4956] hover:bg-gray-50"
+                      onClick={openReportModal}
+                      className="block w-full px-5 py-4 text-left font-semibold text-[#ed4956] hover:bg-gray-50"
                     >
                       Report
                     </button>
                     <button
                       type="button"
-                      onClick={handleUnfollow}
-                      className="block w-full px-5 py-4 text-left text-[#ed4956] hover:bg-gray-50"
+                      onClick={() => {
+                        setCopyToast("Unfollowed");
+                        setTimeout(() => setCopyToast(false), 2000);
+                        setMoreMenuOpen(false);
+                      }}
+                      className="block w-full border-t border-gray-100 px-5 py-4 text-left font-semibold text-[#ed4956] hover:bg-gray-50"
                     >
                       Unfollow
                     </button>
                     <button
                       type="button"
-                      onClick={() => setMoreMenuOpen(false)}
-                      className="block w-full px-5 py-4 text-left hover:bg-gray-50"
+                      onClick={() => {
+                        navigate("/");
+                        setMoreMenuOpen(false);
+                      }}
+                      className="block w-full border-t border-gray-100 px-5 py-4 text-left hover:bg-gray-50"
                     >
                       Go to post
                     </button>
@@ -906,28 +1021,31 @@ function Reels() {
                         setSharePost(activeReel);
                         setMoreMenuOpen(false);
                       }}
-                      className="block w-full px-5 py-4 text-left hover:bg-gray-50"
+                      className="block w-full border-t border-gray-100 px-5 py-4 text-left hover:bg-gray-50"
                     >
                       Share to...
                     </button>
                     <button
                       type="button"
                       onClick={handleCopyLink}
-                      className="block w-full px-5 py-4 text-left hover:bg-gray-50"
+                      className="block w-full border-t border-gray-100 px-5 py-4 text-left hover:bg-gray-50"
                     >
                       Copy link
                     </button>
                     <button
                       type="button"
-                      onClick={openEmbed}
-                      className="block w-full px-5 py-4 text-left hover:bg-gray-50"
+                      onClick={handleOpenEmbed}
+                      className="block w-full border-t border-gray-100 px-5 py-4 text-left hover:bg-gray-50"
                     >
                       Embed
                     </button>
                     <button
                       type="button"
-                      onClick={openAbout}
-                      className="block w-full px-5 py-4 text-left hover:bg-gray-50"
+                      onClick={() => {
+                        setAboutOpen(true);
+                        setMoreMenuOpen(false);
+                      }}
+                      className="block w-full border-t border-gray-100 px-5 py-4 text-left hover:bg-gray-50"
                     >
                       About this account
                     </button>
@@ -936,10 +1054,7 @@ function Reels() {
               </div>
 
               <img
-                src={
-                  activeReel.user?.profilePicture ||
-                  "https://ui-avatars.com/api/?name=User"
-                }
+                src={getAvatarUrl(activeReel.user)}
                 alt="profile"
                 className="h-8 w-8 rounded-md border object-cover"
               />
@@ -984,6 +1099,7 @@ function Reels() {
                 onClick={() => {
                   setReplyingTo(null);
                   setCommentText("");
+                  setEmojiOpen(false);
                 }}
                 className="ml-3 text-[#0095f6]"
               >
@@ -992,33 +1108,67 @@ function Reels() {
             </div>
           )}
 
-          <div className="flex items-center gap-2 border-t border-gray-100 px-3 py-3">
-            <img
-              src={currentUser?.profilePicture || "https://ui-avatars.com/api/?name=User"}
-              alt="me"
-              className="h-8 w-8 rounded-full object-cover"
-            />
-
-            <div className="flex flex-1 items-center rounded-full border border-gray-200 px-3 py-2">
-              <input
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleAddComment()}
-                placeholder="Add a comment..."
-                className="flex-1 bg-transparent text-sm outline-none"
+          {currentUser && (
+            <div className="flex items-center gap-2 border-t border-gray-100 px-3 py-3">
+              <img
+                src={getAvatarUrl(currentUser)}
+                alt={currentUser.username || "me"}
+                className="h-8 w-8 rounded-full object-cover"
               />
-              <Smile className="h-5 w-5 text-gray-500" />
-            </div>
 
-            <button
-              type="button"
-              disabled={!commentText.trim()}
-              onClick={handleAddComment}
-              className="text-sm font-semibold text-[#0095f6] disabled:opacity-40"
-            >
-              Post
-            </button>
-          </div>
+              <div className="relative flex flex-1 items-center rounded-full border border-gray-200 px-3 py-2">
+                <input
+                  ref={commentInputRef}
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleAddComment()}
+                  placeholder="Add a comment..."
+                  className="flex-1 bg-transparent text-sm outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setEmojiOpen((prev) => !prev);
+                  }}
+                  className="text-gray-500 hover:text-[#262626]"
+                  aria-label="Add emoji"
+                >
+                  <Smile className="h-5 w-5" />
+                </button>
+
+                {emojiOpen && (
+                  <div
+                    ref={emojiPickerRef}
+                    className="absolute bottom-10 right-0 z-[500] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <EmojiPicker
+                      onEmojiClick={handleEmojiSelect}
+                      width={310}
+                      height={360}
+                      theme="light"
+                      skinTonesDisabled={true}
+                      searchDisabled={false}
+                      previewConfig={{
+                        showPreview: false,
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <button
+                type="button"
+                disabled={!commentText.trim()}
+                onClick={handleAddComment}
+                className="text-sm font-semibold text-[#0095f6] disabled:opacity-40"
+              >
+                Post
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -1069,211 +1219,207 @@ function Reels() {
         </div>
       )}
 
-      {reportOpen && (
-        <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/60">
-          <div className="w-full max-w-[430px] overflow-hidden rounded-2xl bg-white shadow-2xl">
-            <div className="relative flex items-center justify-center border-b px-4 py-4">
-              {reportStep !== "main" && (
-                <button
-                  type="button"
-                  onClick={() => setReportStep("main")}
-                  className="absolute left-4"
-                >
-                  <ArrowLeft className="h-5 w-5" />
-                </button>
-              )}
-
-              <h3 className="text-sm font-semibold">Report</h3>
-
-              <button type="button" onClick={closeReport} className="absolute right-4">
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-
-            {reportStep === "main" ? (
-              <>
-                <h4 className="px-4 py-4 text-sm font-semibold">
-                  Why are you reporting this post?
-                </h4>
-
-                {[
-                  "I just don't like it",
-                  "Bullying or unwanted contact",
-                  "Suicide, self-injury or eating disorders",
-                  "Violence, hate or exploitation",
-                  "Selling or promoting restricted items",
-                  "Nudity or sexual activity",
-                  "Scam, fraud or spam",
-                  "False information",
-                ].map((reason) => (
-                  <button
-                    key={reason}
-                    type="button"
-                    onClick={() => {
-                      setSelectedReportReason(reason);
-                      setReportStep("detail");
-                    }}
-                    className="flex w-full items-center justify-between border-t px-4 py-4 text-left text-sm hover:bg-gray-50"
-                  >
-                    {reason}
-                    <span>›</span>
-                  </button>
-                ))}
-              </>
-            ) : (
-              <>
-                <h4 className="px-4 py-4 text-sm font-semibold">
-                  Which best describes the problem?
-                </h4>
-
-                {["Fraud or scam", "Spam"].map((reason) => (
-                  <button
-                    key={reason}
-                    type="button"
-                    onClick={() => setSelectedReportReason(reason)}
-                    className="flex w-full items-center justify-between border-t px-4 py-4 text-left text-sm hover:bg-gray-50"
-                  >
-                    {reason}
-                    <span>{selectedReportReason === reason ? "✓" : "›"}</span>
-                  </button>
-                ))}
-
-                <div className="p-4">
-                  <button
-                    type="button"
-                    onClick={submitReport}
-                    className="w-full rounded-lg bg-[#818cf8] py-2 text-sm font-semibold text-white"
-                  >
-                    Submit report
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {embedOpen && activeReel && (
-        <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/60">
-          <div className="w-full max-w-[450px] overflow-hidden rounded-2xl bg-white shadow-2xl">
-            <div className="relative flex items-center justify-center border-b px-4 py-3">
-              <h3 className="text-sm font-semibold">Embed</h3>
-              <button
-                type="button"
-                onClick={() => setEmbedOpen(false)}
-                className="absolute right-4"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="p-4">
-              <textarea
-                readOnly
-                value={getEmbedCode()}
-                className="h-12 w-full resize-none rounded-md border border-gray-300 p-2 text-xs outline-none"
-              />
-
-              <label className="mt-3 flex items-center gap-2 text-sm font-semibold">
-                <input type="checkbox" checked readOnly />
-                Include caption
-              </label>
-
-              <button
-                type="button"
-                onClick={() => copyText(getEmbedCode(), "Embed code copied!")}
-                className="mt-3 w-full rounded-lg bg-[#4f46e5] py-2 text-sm font-semibold text-white"
-              >
-                Copy embed code
-              </button>
-
-              <p className="mt-3 text-[11px] text-gray-500">
-                By using this embed, you agree to Instagram's API Terms of Use.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {aboutOpen && activeReel && (
-        <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/60">
-          <div className="w-full max-w-[450px] overflow-hidden rounded-2xl bg-white shadow-2xl">
-            <div className="relative flex items-center justify-center border-b px-4 py-4">
-              <h3 className="text-sm font-semibold">About this account</h3>
-              <button
-                type="button"
-                onClick={() => setAboutOpen(false)}
-                className="absolute right-4"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="p-5 text-center">
-              <img
-                src={
-                  activeReel.user?.profilePicture ||
-                  "https://ui-avatars.com/api/?name=User"
-                }
-                alt="profile"
-                className="mx-auto h-16 w-16 rounded-full object-cover"
-              />
-
-              <h4 className="mt-3 text-sm font-bold">
-                {activeReel.user?.username || "instagram_user"}
-              </h4>
-
-              <p className="mx-auto mt-3 max-w-[330px] text-xs leading-5 text-gray-500">
-                To help keep our community authentic, we're showing information
-                about profiles on Instagram.
-              </p>
-
-              <div className="mt-6 space-y-5 text-left">
-                <div className="flex items-center gap-4">
-                  <span className="text-xl">📅</span>
-                  <div>
-                    <p className="text-sm text-[#262626]">Date joined</p>
-                    <p className="text-sm text-gray-500">
-                      {formatDateJoined(activeReel.user?.createdAt || activeReel.createdAt)}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4">
-                  <span className="text-xl">📍</span>
-                  <div>
-                    <p className="text-sm text-[#262626]">Account based in</p>
-                    <p className="text-sm text-gray-500">India</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between border-b pb-4">
-                  <div className="flex items-center gap-4">
-                    <span className="text-xl">👤</span>
-                    <p className="text-sm text-[#262626]">Former usernames</p>
-                  </div>
-                  <span className="text-sm text-gray-500">1 ›</span>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setAboutOpen(false)}
-                className="mt-4 text-sm text-[#262626]"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {copyToast && (
         <div className="fixed left-1/2 top-20 z-[500] -translate-x-1/2 rounded-md bg-[#262626] px-5 py-2 text-xs font-semibold text-white">
           {copyToast}
         </div>
       )}
 
+{reportOpen && (
+  <div className="fixed inset-0 z-[700] flex items-center justify-center bg-black/70 px-4">
+    <div className="w-full max-w-[448px] overflow-hidden rounded-2xl bg-white shadow-2xl">
+      <div className="relative flex h-[52px] items-center justify-center border-b border-gray-200">
+        {reportStep !== "main" && reportStep !== "success" && (
+          <button
+            type="button"
+            onClick={() => setReportStep("main")}
+            className="absolute left-4 text-[#262626]"
+            aria-label="Back"
+          >
+            <ArrowLeft className="h-6 w-6" />
+          </button>
+        )}
+
+        {reportStep === "success" ? null : (
+          <h2 className="text-sm font-bold text-[#262626]">Report</h2>
+        )}
+
+        <button
+          type="button"
+          onClick={closeReportModal}
+          className="absolute right-4 text-[#262626]"
+          aria-label="Close"
+        >
+          <X className="h-6 w-6" />
+        </button>
+      </div>
+
+      {reportStep === "success" ? (
+          <div>
+            <div className="px-6 pb-8 pt-7 text-center">
+              <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-full border-2 border-green-500 text-green-500">
+                ✓
+              </div>
+
+              <h3 className="text-sm font-bold text-[#262626]">
+                Thanks for reporting this post
+              </h3>
+
+              <p className="mt-3 text-xs leading-5 text-gray-500">
+                You'll get a notification once we review your report. Thanks for
+                helping us keep Instagram a safe and supportive community.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setCopyToast(`Blocked ${getReportUsername()}`);
+                setTimeout(() => setCopyToast(false), 2000);
+                closeReportModal();
+              }}
+              className="flex w-full items-center justify-between border-t border-gray-100 px-5 py-4 text-left text-sm text-[#ed4956] hover:bg-gray-50"
+            >
+              <span>Block {getReportUsername()}</span>
+              <ChevronRight className="h-4 w-4 text-gray-400" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setCopyToast("Community Standards opened");
+                setTimeout(() => setCopyToast(false), 2000);
+              }}
+              className="flex w-full items-center justify-between border-t border-gray-100 px-5 py-4 text-left text-sm text-[#262626] hover:bg-gray-50"
+            >
+              <span>Learn more about our Community Standards</span>
+              <ChevronRight className="h-4 w-4 text-gray-400" />
+            </button>
+
+            <div className="border-t border-gray-100 p-3">
+              <button
+                type="button"
+                onClick={closeReportModal}
+                className="w-full rounded-lg bg-[#405de6] py-2.5 text-sm font-bold text-white"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <div className="border-b border-gray-100 px-4 py-4">
+              <h3 className="text-sm font-bold text-[#262626]">
+                {reportOptions[reportStep]?.title}
+              </h3>
+            </div>
+
+            <div className="py-1">
+              {(reportOptions[reportStep]?.options || []).map((option) => (
+                <button
+                  key={option.label}
+                  type="button"
+                  onClick={() => handleReportOption(option)}
+                  className="flex w-full items-center justify-between border-b border-gray-100 px-4 py-4 text-left text-xs text-[#262626] hover:bg-gray-50"
+                >
+                  <span>{option.label}</span>
+                  <ChevronRight className="h-4 w-4 text-gray-400" />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )}
+
+  {embedOpen && activeReel && (
+    <div className="fixed inset-0 z-[750] flex items-center justify-center bg-black/70 px-4">
+      <div className="w-full max-w-[460px] overflow-hidden rounded-xl bg-white shadow-2xl">
+        <div className="relative flex h-[52px] items-center justify-center border-b border-gray-100">
+          <h2 className="text-base font-semibold text-[#262626]">Embed</h2>
+          <button
+            type="button"
+            onClick={() => setEmbedOpen(false)}
+            className="absolute right-4 text-[#262626]"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="p-5">
+          <p className="mb-3 text-sm text-gray-500">
+            Copy this embed code to add this reel to another page.
+          </p>
+
+          <textarea
+            readOnly
+            value={getEmbedCode(activeReel)}
+            className="h-[130px] w-full resize-none rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-[#262626] outline-none"
+          />
+
+          <button
+            type="button"
+            onClick={handleCopyEmbed}
+            className="mt-4 w-full rounded-lg bg-[#0095f6] py-2.5 text-sm font-semibold text-white"
+          >
+            Copy embed code
+          </button>
+        </div>
+      </div>
+    </div>
+  )}
+
+  {aboutOpen && activeReel && (
+    <div className="fixed inset-0 z-[750] flex items-center justify-center bg-black/70 px-4">
+      <div className="w-full max-w-[400px] overflow-hidden rounded-xl bg-white shadow-2xl">
+        <div className="relative flex h-[52px] items-center justify-center border-b border-gray-100">
+          <h2 className="text-base font-semibold text-[#262626]">
+            About this account
+          </h2>
+          <button
+            type="button"
+            onClick={() => setAboutOpen(false)}
+            className="absolute right-4 text-[#262626]"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="p-5 text-center">
+          <img
+            src={getAvatarUrl(activeReel.user)}
+            alt="profile"
+            className="mx-auto h-16 w-16 rounded-full object-cover"
+          />
+
+          <h3 className="mt-3 text-sm font-semibold text-[#262626]">
+            {activeReel.user?.username || "user"}
+          </h3>
+
+          <p className="mt-1 text-xs text-gray-500">
+            {activeReel.user?.fullName || "Instagram user"}
+          </p>
+
+          <div className="mt-5 rounded-lg border border-gray-200 text-left">
+            <div className="border-b border-gray-100 px-4 py-3">
+              <p className="text-xs text-gray-500">Account ID</p>
+              <p className="text-sm font-semibold text-[#262626]">
+                {activeReel.user?.id || "Unavailable"}
+              </p>
+            </div>
+
+            <div className="px-4 py-3">
+              <p className="text-xs text-gray-500">Post ID</p>
+              <p className="text-sm font-semibold text-[#262626]">
+                {activeReel.id}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )}
       {sharePost && (
         <ShareModal
           post={sharePost}

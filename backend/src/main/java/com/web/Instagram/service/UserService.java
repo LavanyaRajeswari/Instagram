@@ -5,10 +5,14 @@ import com.web.Instagram.entity.User;
 import com.web.Instagram.repository.UserRepository;
 import com.web.Instagram.security.JwtService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -17,6 +21,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final CloudinaryService cloudinaryService;
 
     public List<User> getAllUsers() {
         return userRepository.findAll();
@@ -31,7 +36,7 @@ public class UserService {
         return mapToResponse(user);
     }
 
-    public UserResponse register(RegisterRequest request) {
+    public LoginResponse register(RegisterRequest request) {
 
         if ((request.getEmail() == null || request.getEmail().isBlank())
                 &&
@@ -71,10 +76,20 @@ public class UserService {
         User savedUser =
                 userRepository.save(user);
 
-        return mapToResponse(savedUser);
+        return mapToLoginResponse(savedUser);
     }
 
     public LoginResponse login(LoginRequest request) {
+        if (request == null
+                || request.getLogin() == null
+                || request.getLogin().isBlank()
+                || request.getPassword() == null
+                || request.getPassword().isBlank()) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "Invalid credentials"
+            );
+        }
 
         User user = userRepository
                 .findByUsername(request.getLogin())
@@ -85,29 +100,40 @@ public class UserService {
                         userRepository.findByMobileNumber(
                                 request.getLogin()))
                 .orElseThrow(() ->
-                        new RuntimeException("User not found"));
+                        new ResponseStatusException(
+                                HttpStatus.UNAUTHORIZED,
+                                "Invalid credentials"
+                        ));
 
         if (!passwordEncoder.matches(
                 request.getPassword(),
                 user.getPassword())) {
 
-            throw new RuntimeException(
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
                     "Invalid credentials"
             );
         }
 
-        String token =
-                jwtService.generateToken(
-                        user.getUsername()
-                );
+        return mapToLoginResponse(user);
+    }
 
-        return LoginResponse.builder()
-                .id(user.getId())
-                .username(user.getUsername())
-                .fullName(user.getFullName())
-                .profilePicture(user.getProfilePicture())
-                .token(token)
-                .build();
+    public UserResponse getCurrentUser(String username) {
+        if (username == null || username.isBlank()) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "Unauthorized"
+            );
+        }
+
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() ->
+                        new ResponseStatusException(
+                                HttpStatus.UNAUTHORIZED,
+                                "Unauthorized"
+                        ));
+
+        return mapToResponse(user);
     }
 
     public UserResponse updateUser(
@@ -121,12 +147,33 @@ public class UserService {
 
         user.setFullName(request.getFullName());
         user.setBio(request.getBio());
-        user.setProfilePicture(
-                request.getProfilePicture()
-        );
+        if (request.getProfilePicture() != null && !request.getProfilePicture().isBlank()) {
+            if (!isCloudinaryUrl(request.getProfilePicture())) {
+                throw new RuntimeException("Profile picture must be uploaded to Cloudinary");
+            }
+            user.setProfilePicture(request.getProfilePicture());
+        }
         user.setIsPrivate(
                 request.isPrivate()
         );
+
+        User updatedUser =
+                userRepository.save(user);
+
+        return mapToResponse(updatedUser);
+    }
+
+    public UserResponse updateProfilePicture(Long id, MultipartFile profilePicture) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() ->
+                        new RuntimeException("User not found"));
+
+        validateProfilePicture(profilePicture);
+
+        Map<String, Object> result =
+                cloudinaryService.uploadFile(profilePicture, "instagram/profile-pictures");
+
+        user.setProfilePicture(result.get("secure_url").toString());
 
         User updatedUser =
                 userRepository.save(user);
@@ -161,5 +208,31 @@ public class UserService {
                         )
                 )
                 .build();
+    }
+
+    private LoginResponse mapToLoginResponse(User user) {
+        String token =
+                jwtService.generateToken(
+                        user.getUsername()
+                );
+
+        return LoginResponse.builder()
+                .id(user.getId())
+                .username(user.getUsername())
+                .fullName(user.getFullName())
+                .profilePicture(user.getProfilePicture())
+                .token(token)
+                .build();
+    }
+
+    private void validateProfilePicture(MultipartFile file) {
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            throw new RuntimeException("Only image files are allowed for profile pictures");
+        }
+    }
+
+    private boolean isCloudinaryUrl(String url) {
+        return url.startsWith("https://res.cloudinary.com/");
     }
 }

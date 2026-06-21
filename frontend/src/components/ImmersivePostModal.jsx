@@ -26,19 +26,20 @@ import {
   likeComment,
   unlikeComment,
 } from "../api/commentsApi";
+import { useCurrentUser } from "../hooks/useCurrentUser";
+import { getAvatarUrl } from "../utils/avatar";
 
 function ImmersivePostModal({
   post,
   postsList = [],
   onClose,
-  onRefresh,
+  onPostUpdated,
   onSelectPost,
 }) {
-  const currentUser = JSON.parse(localStorage.getItem("currentUser"));
-  const CURRENT_USER_ID = currentUser?.id;
+  const { currentUserId: CURRENT_USER_ID } = useCurrentUser();
 
   const [liked, setLiked] = useState(false);
-  const [likesCount, setLikesCount] = useState(0);
+  const [likesCount, setLikesCount] = useState(post?.likeCount || 0);
   const [saved, setSaved] = useState(false);
   const [shareCount, setShareCount] = useState(0);
   const [shareModalOpen, setShareModalOpen] = useState(false);
@@ -52,7 +53,6 @@ function ImmersivePostModal({
   const [mediaIndex, setMediaIndex] = useState(0);
   const [commentOptions, setCommentOptions] = useState(null);
   const [deleteConfirmComment, setDeleteConfirmComment] = useState(null);
-
   const [replyingTo, setReplyingTo] = useState(null);
   const [replyText, setReplyText] = useState("");
   const [expandedReplies, setExpandedReplies] = useState({});
@@ -65,15 +65,14 @@ function ImmersivePostModal({
   const currentIndex = postsList.findIndex((p) => p.id === post?.id);
 
   const username = post?.user?.username || "user";
-  const userPic =
-    post?.user?.profilePicture || "https://ui-avatars.com/api/?name=User";
+  const userPic = getAvatarUrl(post?.user);
   const fullName = post?.user?.fullName || "";
 
   useEffect(() => {
     if (!post?.id) return;
 
     setLiked(false);
-    setLikesCount(0);
+    setLikesCount(post.likeCount || 0);
     setSaved(false);
     setShareCount(0);
     setNewCommentText("");
@@ -156,11 +155,15 @@ function ImmersivePostModal({
     if (!CURRENT_USER_ID) return alert("Please login first");
 
     try {
+      const nextLiked = !liked;
+      const nextLikesCount = Math.max(likesCount + (nextLiked ? 1 : -1), 0);
+
       if (liked) await unlikePost(post.id, CURRENT_USER_ID);
       else await likePost(post.id, CURRENT_USER_ID);
 
-      await loadLikeData();
-      onRefresh?.();
+      setLiked(nextLiked);
+      setLikesCount(nextLikesCount);
+      onPostUpdated?.({ ...post, likeCount: nextLikesCount });
     } catch (error) {
       console.error("Like failed", error);
     }
@@ -190,6 +193,8 @@ function ImmersivePostModal({
       setNewCommentText("");
       setEmojiOpen(false);
       await loadComments();
+      const nextCount = countCommentTree(commentsList) + 1;
+      onPostUpdated?.({ ...post, commentCount: nextCount, commentsCount: nextCount });
     } catch (error) {
       console.error("Comment failed", error);
     }
@@ -207,6 +212,8 @@ function ImmersivePostModal({
       setReplyingTo(null);
       setExpandedReplies((prev) => ({ ...prev, [parentCommentId]: true }));
       await loadComments();
+      const nextCount = countCommentTree(commentsList) + 1;
+      onPostUpdated?.({ ...post, commentCount: nextCount, commentsCount: nextCount });
     } catch (error) {
       console.error("Reply failed", error);
     }
@@ -228,21 +235,28 @@ function ImmersivePostModal({
     }
   };
 
-  const handleDeleteComment = async () => {
+  const handleDeleteComment = async (event) => {
+    event?.preventDefault();
+    event?.stopPropagation();
+
     if (!deleteConfirmComment) return;
+    if (!CURRENT_USER_ID) return alert("Please login first");
 
     try {
-      await deleteComment(deleteConfirmComment.id);
+      await deleteComment(post.id, deleteConfirmComment.id, CURRENT_USER_ID);
+      const removedCount = countCommentTree([deleteConfirmComment]);
+      const nextCount = Math.max(countCommentTree(commentsList) - removedCount, 0);
+      setCommentsList((prev) => removeCommentFromTree(prev, deleteConfirmComment.id));
+      onPostUpdated?.({ ...post, commentCount: nextCount, commentsCount: nextCount });
       setDeleteConfirmComment(null);
       setCommentOptions(null);
-      await loadComments();
     } catch (error) {
       console.error("Delete comment failed", error);
     }
   };
 
   const handleCopyLink = async () => {
-    await navigator.clipboard.writeText(`${window.location.origin}/posts/${post?.id || ""}`);
+    await navigator.clipboard.writeText(`${window.location.origin}/post/${post?.id || ""}`);
     setCopyToast(true);
     setShowOptionsPopup(false);
     setTimeout(() => setCopyToast(false), 2000);
@@ -325,6 +339,17 @@ function ImmersivePostModal({
     return [];
   };
 
+  const countCommentTree = (items = []) =>
+    items.reduce((total, item) => total + 1 + countCommentTree(getReplies(item)), 0);
+
+  const removeCommentFromTree = (items = [], commentId) =>
+    items
+      .filter((item) => item.id !== commentId)
+      .map((item) => ({
+        ...item,
+        replies: removeCommentFromTree(getReplies(item), commentId),
+      }));
+
   const renderComment = (comment, depth = 0) => {
     const commentUser = comment.user || {};
     const replies = getReplies(comment);
@@ -345,9 +370,7 @@ function ImmersivePostModal({
           <div className="flex items-start gap-2.5 flex-grow min-w-0">
             <img
               src={
-                commentUser.profilePicture ||
-                comment.profilePicture ||
-                "https://ui-avatars.com/api/?name=User"
+                getAvatarUrl(commentUser.profilePicture ? commentUser : comment)
               }
               alt="commenter"
               className={`${
@@ -356,11 +379,11 @@ function ImmersivePostModal({
             />
 
             <div className="min-w-0 flex-grow">
-              <p className="text-[#262626] leading-tight text-[13px]">
+              <p className="whitespace-pre-wrap text-[13px] leading-[18px] text-[#262626] [overflow-wrap:anywhere] [word-break:break-word]">
                 <span className="font-semibold mr-1.5 text-[#262626]">
                   {username}
                 </span>
-                <span className="break-words text-[#262626]">
+                <span className="text-[#262626]">
                   {comment.text}
                 </span>
               </p>
@@ -595,10 +618,10 @@ function ImmersivePostModal({
                   alt="creator avatar"
                   className="w-8 h-8 rounded-full object-cover border border-gray-100 shrink-0"
                 />
-                <div className="min-w-0">
-                  <p className="text-[13px] text-[#262626] leading-snug">
+                <div className="min-w-0 flex-1">
+                  <p className="whitespace-pre-wrap text-[14px] leading-[19px] text-[#262626] [overflow-wrap:anywhere] [word-break:break-word]">
                     <span className="font-semibold mr-1.5">{username}</span>
-                    <span className="break-words">{post.caption}</span>
+                    <span>{post.caption}</span>
                   </p>
                   <span className="text-[11px] text-gray-400">
                     {formatTimeAgo(post.createdAt)}
@@ -787,8 +810,11 @@ function ImmersivePostModal({
             onClick={(e) => e.stopPropagation()}
           >
             <button
+              type="button"
               className="block w-full py-4 text-[#ed4956] font-bold hover:bg-gray-50"
-              onClick={() => {
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
                 setDeleteConfirmComment(commentOptions);
                 setCommentOptions(null);
               }}
@@ -797,6 +823,7 @@ function ImmersivePostModal({
             </button>
 
             <button
+              type="button"
               className="block w-full py-4 border-t border-gray-100 text-gray-500 hover:bg-gray-50"
               onClick={() => setCommentOptions(null)}
             >
@@ -823,6 +850,7 @@ function ImmersivePostModal({
             </p>
 
             <button
+              type="button"
               className="block w-full py-4 border-t border-gray-100 text-[#ed4956] font-bold hover:bg-gray-50"
               onClick={handleDeleteComment}
             >
@@ -830,6 +858,7 @@ function ImmersivePostModal({
             </button>
 
             <button
+              type="button"
               className="block w-full py-4 border-t border-gray-100 text-gray-500 hover:bg-gray-50"
               onClick={() => setDeleteConfirmComment(null)}
             >

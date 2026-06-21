@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { registerUser } from "../../api/userApi";
 import { FiChevronLeft } from "react-icons/fi";
 import { FaMeta } from "react-icons/fa6";
+import { clearCurrentUserCache } from "../../hooks/useCurrentUser";
 
 function Register() {
 
@@ -65,10 +66,10 @@ function Register() {
 
             const user = await registerUser(payload);
 
-            localStorage.setItem(
-                "currentUser",
-                JSON.stringify(user)
-            );
+            if (user?.token) {
+                localStorage.setItem("authToken", user.token);
+                clearCurrentUserCache();
+            }
 
             alert("Registration successful");
 

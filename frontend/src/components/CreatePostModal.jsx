@@ -1,19 +1,19 @@
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { createPost } from "../api/postsApi";
-import { X, Image as ImageIcon, UploadCloud } from "lucide-react";
+import EmojiPicker from "emoji-picker-react";
+import { Smile, X, UploadCloud } from "lucide-react";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 
 function CreatePostModal({ onClose, onPostCreated }) {
   const [caption, setCaption] = useState("");
   const [images, setImages] = useState([]);
   const [preview, setPreview] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [emojiOpen, setEmojiOpen] = useState(false);
   const fileInputRef = useRef(null);
-
-  const activeUser = JSON.parse(
-    localStorage.getItem("currentUser") ||
-      '{"id":1,"username":"lavanya","fullName":"Lavanya","profilePicture":"https://i.pravatar.cc/100?img=5"}'
-  );
-  const userId = activeUser?.id || 1;
+  const captionRef = useRef(null);
+  const emojiPickerRef = useRef(null);
+  const { currentUserId: userId, currentUserLoading } = useCurrentUser();
 
   const handleImageChange = (e) => {
     const files = Array.from(e.target.files || []);
@@ -23,9 +23,34 @@ function CreatePostModal({ onClose, onPostCreated }) {
       return;
     }
 
+    preview.forEach((item) => URL.revokeObjectURL(item.url));
     setImages(files);
-    setPreview(files.map((file) => URL.createObjectURL(file)));
+    setPreview(files.map((file) => ({
+      url: URL.createObjectURL(file),
+      type: file.type,
+    })));
   };
+
+  useEffect(() => {
+    return () => {
+      preview.forEach((item) => URL.revokeObjectURL(item.url));
+    };
+  }, [preview]);
+
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (
+        emojiOpen &&
+        emojiPickerRef.current &&
+        !emojiPickerRef.current.contains(event.target)
+      ) {
+        setEmojiOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [emojiOpen]);
 
   const getErrorMessage = (error) => {
     const data = error?.response?.data;
@@ -45,6 +70,11 @@ function CreatePostModal({ onClose, onPostCreated }) {
       return;
     }
 
+    if (!userId || currentUserLoading) {
+      alert("Please login first");
+      return;
+    }
+
     try {
       setLoading(true);
 
@@ -55,7 +85,9 @@ function CreatePostModal({ onClose, onPostCreated }) {
       });
 
       setCaption("");
+      setEmojiOpen(false);
       setImages([]);
+      preview.forEach((item) => URL.revokeObjectURL(item.url));
       setPreview([]);
 
       onPostCreated?.();
@@ -69,6 +101,24 @@ function CreatePostModal({ onClose, onPostCreated }) {
 
   const triggerFileSelect = () => {
     fileInputRef.current?.click();
+  };
+
+  const handleEmojiSelect = (emojiData) => {
+    const emoji = emojiData?.emoji || "";
+    if (!emoji) return;
+
+    const input = captionRef.current;
+    const start = input?.selectionStart ?? caption.length;
+    const end = input?.selectionEnd ?? caption.length;
+
+    setCaption((prev) => `${prev.slice(0, start)}${emoji}${prev.slice(end)}`);
+    setEmojiOpen(false);
+
+    requestAnimationFrame(() => {
+      const cursorPosition = start + emoji.length;
+      captionRef.current?.focus();
+      captionRef.current?.setSelectionRange(cursorPosition, cursorPosition);
+    });
   };
 
   return (
@@ -116,9 +166,13 @@ function CreatePostModal({ onClose, onPostCreated }) {
           >
             {preview.length > 0 ? (
               <div className="grid grid-cols-2 gap-1.5 w-full" id="images-preview-grid">
-                {preview.map((src, index) => (
+                {preview.map((item, index) => (
                   <div key={index} className="relative aspect-square w-full rounded-lg overflow-hidden border border-gray-100">
-                    <img src={src} alt={`preview-${index}`} className="w-full h-full object-cover" />
+                    {item.type.startsWith("video/") ? (
+                      <video src={item.url} className="w-full h-full object-cover" muted playsInline />
+                    ) : (
+                      <img src={item.url} alt={`preview-${index}`} className="w-full h-full object-cover" />
+                    )}
                   </div>
                 ))}
               </div>
@@ -138,7 +192,7 @@ function CreatePostModal({ onClose, onPostCreated }) {
             <input
               type="file"
               multiple
-              accept="image/*"
+              accept="image/*,video/*"
               onChange={handleImageChange}
               ref={fileInputRef}
               className="hidden"
@@ -148,15 +202,51 @@ function CreatePostModal({ onClose, onPostCreated }) {
 
           {/* Caption Field */}
           <div className="flex flex-col gap-1 w-full" id="caption-wrapper">
-            <textarea
-              placeholder="Write a caption..."
-              value={caption}
-              onChange={(e) => setCaption(e.target.value)}
-              maxLength={2200}
-              rows={4}
-              className="w-full border border-[#dbdbdb] rounded-lg p-3 text-[14px] leading-relaxed focus:outline-none focus:border-gray-400 transition-colors resize-none"
-              id="caption-textarea"
-            />
+            <div className="relative">
+              <textarea
+                ref={captionRef}
+                placeholder="Write a caption..."
+                value={caption}
+                onChange={(e) => setCaption(e.target.value)}
+                maxLength={2200}
+                rows={4}
+                className="w-full border border-[#dbdbdb] rounded-lg p-3 pr-11 text-[14px] leading-relaxed focus:outline-none focus:border-gray-400 transition-colors resize-none"
+                id="caption-textarea"
+              />
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setEmojiOpen((prev) => !prev);
+                }}
+                className="absolute bottom-3 right-3 text-gray-500 hover:text-[#262626]"
+                aria-label="Add emoji"
+              >
+                <Smile className="h-5 w-5" />
+              </button>
+
+              {emojiOpen && (
+                <div
+                  ref={emojiPickerRef}
+                  className="absolute right-0 top-full z-[120] mt-1 max-h-[260px] overflow-y-auto rounded-xl border border-gray-200 bg-white p-1 shadow-xl"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <EmojiPicker
+                    onEmojiClick={handleEmojiSelect}
+                    width={270}
+                    height={250}
+                    theme="light"
+                    skinTonesDisabled={true}
+                    searchDisabled={true}
+                    emojiStyle="native"
+                    previewConfig={{
+                      showPreview: false,
+                    }}
+                  />
+                </div>
+              )}
+            </div>
             <div className="flex justify-end mt-1 text-right">
               <span className="text-[11px] text-gray-400 font-mono" id="caption-character-count">
                 {caption.length} / 2200

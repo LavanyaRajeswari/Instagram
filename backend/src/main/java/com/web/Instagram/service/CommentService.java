@@ -9,8 +9,10 @@ import com.web.Instagram.repository.CommentRepository;
 import com.web.Instagram.repository.PostRepository;
 import com.web.Instagram.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -92,10 +94,27 @@ public class CommentService {
     }
 
     @Transactional
-    public void deleteComment(Long commentId) {
-        Comment comment = commentRepository.findById(commentId)
-                .orElseThrow(() -> new RuntimeException("Comment not found"));
+    public void deleteComment(Long postId, Long commentId, Long userId) {
+        if (userId == null) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "User is required");
+        }
 
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() ->
+                        new ResponseStatusException(HttpStatus.NOT_FOUND, "Comment not found"));
+
+        if (postId != null && !comment.getPost().getId().equals(postId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Comment not found for this post");
+        }
+
+        Long commentOwnerId = comment.getUser().getId();
+        Long postOwnerId = comment.getPost().getUser().getId();
+
+        if (!userId.equals(commentOwnerId) && !userId.equals(postOwnerId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not allowed to delete this comment");
+        }
+
+        deleteCommentLikes(comment);
         commentRepository.delete(comment);
     }
 
@@ -156,5 +175,13 @@ public class CommentService {
         if (comment.getReplies() != null) {
             comment.getReplies().forEach(reply -> hydrateCommentTree(reply, currentUserId));
         }
+    }
+
+    private void deleteCommentLikes(Comment comment) {
+        if (comment.getReplies() != null) {
+            comment.getReplies().forEach(this::deleteCommentLikes);
+        }
+
+        commentLikeRepository.deleteByCommentId(comment.getId());
     }
 }

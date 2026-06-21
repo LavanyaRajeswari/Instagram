@@ -3,6 +3,7 @@ package com.web.Instagram.controller.api;
 import com.web.Instagram.entity.Comment;
 import com.web.Instagram.service.CommentService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -54,10 +55,23 @@ public class CommentRestController {
         return commentService.getCommentCount(postId);
     }
 
+    @DeleteMapping("/{postId}/comments/{commentId}")
+    public ResponseEntity<Void> deletePostComment(
+            @PathVariable Long postId,
+            @PathVariable Long commentId,
+            @RequestParam(required = false) Long userId
+    ) {
+        commentService.deleteComment(postId, commentId, userId);
+        return ResponseEntity.ok().build();
+    }
+
     @DeleteMapping("/comments/{commentId}")
-    public String deleteComment(@PathVariable Long commentId) {
-        commentService.deleteComment(commentId);
-        return "Comment deleted";
+    public ResponseEntity<Void> deleteComment(
+            @PathVariable Long commentId,
+            @RequestParam(required = false) Long userId
+    ) {
+        commentService.deleteComment(null, commentId, userId);
+        return ResponseEntity.ok().build();
     }
 
     @PostMapping("/comments/{commentId}/like")

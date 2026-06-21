@@ -4,7 +4,12 @@ import com.web.Instagram.entity.Media;
 import com.web.Instagram.entity.MediaType;
 import com.web.Instagram.entity.Post;
 import com.web.Instagram.entity.User;
+import com.web.Instagram.repository.CommentLikeRepository;
+import com.web.Instagram.repository.CommentRepository;
+import com.web.Instagram.repository.LikeRepository;
 import com.web.Instagram.repository.PostRepository;
+import com.web.Instagram.repository.SavedPostRepository;
+import com.web.Instagram.repository.ShareRepository;
 import com.web.Instagram.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +30,11 @@ public class PostService {
     private final PostRepository postRepository;
     private final UserRepository userRepository;
     private final CloudinaryService cloudinaryService;
+    private final CommentRepository commentRepository;
+    private final CommentLikeRepository commentLikeRepository;
+    private final LikeRepository likeRepository;
+    private final SavedPostRepository savedPostRepository;
+    private final ShareRepository shareRepository;
 
     public List<Post> getAllPosts() {
         return postRepository.findAll();
@@ -124,7 +134,15 @@ public class PostService {
     @Transactional
     public void deletePost(Long postId) {
         Post post = getPost(postId);
+
+        commentLikeRepository.deleteByCommentPostId(postId);
+        commentRepository.deleteAll(commentRepository.findByPostIdAndParentCommentIsNullOrderByCreatedAtAsc(postId));
+        likeRepository.deleteByPostId(postId);
+        savedPostRepository.deleteByPostId(postId);
+        shareRepository.deleteByPostId(postId);
+
         deleteMediaFiles(post);
+        post.getMedia().clear();
         postRepository.delete(post);
     }
 

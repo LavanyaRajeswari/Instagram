@@ -15,6 +15,10 @@ public class CloudinaryService {
     private final Cloudinary cloudinary;
 
     public Map<String, Object> uploadFile(MultipartFile file) {
+        return uploadFile(file, "instagram/posts");
+    }
+
+    public Map<String, Object> uploadFile(MultipartFile file, String folder) {
         if (file == null || file.isEmpty()) {
             throw new RuntimeException("File is empty");
         }
@@ -22,7 +26,7 @@ public class CloudinaryService {
             return cloudinary.uploader().upload(
                     file.getBytes(),
                     ObjectUtils.asMap(
-                            "folder", "instagram/posts",
+                            "folder", folder,
                             "resource_type", "auto"
                     )
             );
@@ -36,29 +40,29 @@ public class CloudinaryService {
     }
 
     public void deleteFile(String publicId) {
-    try {
-        cloudinary.uploader().destroy(
-                publicId,
-                ObjectUtils.asMap(
-                        "resource_type",
-                        "image"
-                )
-        );
-    } catch (Exception imageException) {
         try {
             cloudinary.uploader().destroy(
                     publicId,
                     ObjectUtils.asMap(
                             "resource_type",
-                            "video"
+                            "image"
                     )
             );
-        } catch (Exception videoException) {
-            throw new RuntimeException(
-                    "Delete failed: " + videoException.getMessage(),
-                    videoException
-            );
+        } catch (Exception imageException) {
+            try {
+                cloudinary.uploader().destroy(
+                        publicId,
+                        ObjectUtils.asMap(
+                                "resource_type",
+                                "video"
+                        )
+                );
+            } catch (Exception videoException) {
+                throw new RuntimeException(
+                        "Delete failed: " + videoException.getMessage(),
+                        videoException
+                );
+            }
         }
     }
-}
 }

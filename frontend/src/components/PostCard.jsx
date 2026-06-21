@@ -12,6 +12,7 @@ import {
   likeComment,
   unlikeComment,
 } from "../api/commentsApi";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 import EmojiPicker from "emoji-picker-react";
 import {
   Heart,
@@ -26,20 +27,24 @@ import {
   Volume2,
   VolumeX,
 } from "lucide-react";
+import { getAvatarUrl } from "../utils/avatar";
 
-function PostCard({ post, onRefresh, onMediaClick }) {
-  const currentUser = JSON.parse(localStorage.getItem("currentUser"));
-  const CURRENT_USER_ID = currentUser?.id;
+function PostCard({ post, onPostUpdated, onPostDeleted, onMediaClick }) {
+  const { currentUserId: CURRENT_USER_ID } = useCurrentUser();
 
   const [editing, setEditing] = useState(false);
   const [caption, setCaption] = useState(post.caption || "");
   const [liked, setLiked] = useState(false);
-  const [likes, setLikes] = useState(0);
+  const [likes, setLikes] = useState(post.likeCount || 0);
   const [saved, setSaved] = useState(false);
   const [, setShareCount] = useState(0);
   const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [modalEditing, setModalEditing] = useState(false);
+  const [modalCaption, setModalCaption] = useState(post.caption || "");
+  const [captionExpanded, setCaptionExpanded] = useState(false);
 
   const [comments, setComments] = useState([]);
+  const [localCommentCount, setLocalCommentCount] = useState(null);
   const [commentText, setCommentText] = useState("");
   const [commentsModalOpen, setCommentsModalOpen] = useState(false);
   const [commentSubmitting, setCommentSubmitting] = useState(false);
@@ -60,8 +65,7 @@ function PostCard({ post, onRefresh, onMediaClick }) {
 
   const username = post.user?.username || "user";
   const fullName = post.user?.fullName || "";
-  const profilePicture =
-    post.user?.profilePicture || "https://ui-avatars.com/api/?name=User";
+  const profilePicture = getAvatarUrl(post.user);
 
   const mediaList =
     post.media && post.media.length > 0
@@ -72,7 +76,7 @@ function PostCard({ post, onRefresh, onMediaClick }) {
 
   const currentMedia = mediaList[mediaIndex];
   const commentCount =
-    comments.length || post.commentCount || post.commentsCount || post.totalComments || 0;
+    localCommentCount ?? post.commentCount ?? post.commentsCount ?? post.totalComments ?? 0;
 
   const isOwnedByCurrentUser = (item) => {
     const itemUserId = item?.user?.id ?? item?.userId;
@@ -81,6 +85,10 @@ function PostCard({ post, onRefresh, onMediaClick }) {
 
   useEffect(() => {
     setCaption(post.caption || "");
+    setModalCaption(post.caption || "");
+    setModalEditing(false);
+    setCaptionExpanded(false);
+    setLikes(post.likeCount || 0);
     setMediaIndex(0);
     setIsMuted(true);
     loadLikeData();
@@ -162,7 +170,9 @@ function PostCard({ post, onRefresh, onMediaClick }) {
 
     try {
       const data = await getComments(post.id, CURRENT_USER_ID);
-      setComments(data || []);
+      const nextComments = data || [];
+      setComments(nextComments);
+      setLocalCommentCount(countCommentTree(nextComments));
     } catch (error) {
       console.error("Failed to load comments", error);
     }
@@ -178,11 +188,15 @@ function PostCard({ post, onRefresh, onMediaClick }) {
     if (!CURRENT_USER_ID) return alert("Please login first");
 
     try {
+      const nextLiked = !liked;
+      const nextLikes = Math.max(likes + (nextLiked ? 1 : -1), 0);
+
       if (liked) await unlikePost(post.id, CURRENT_USER_ID);
       else await likePost(post.id, CURRENT_USER_ID);
 
-      await loadLikeData();
-      onRefresh?.();
+      setLiked(nextLiked);
+      setLikes(nextLikes);
+      onPostUpdated?.({ ...post, likeCount: nextLikes });
     } catch (error) {
       alert(getErrorMessage(error, "Like action failed"));
     }
@@ -213,6 +227,9 @@ function PostCard({ post, onRefresh, onMediaClick }) {
       setCommentText("");
       setEmojiOpen(false);
       await loadComments();
+      const nextCount = commentCount + 1;
+      setLocalCommentCount(nextCount);
+      onPostUpdated?.({ ...post, commentCount: nextCount, commentsCount: nextCount });
     } catch (error) {
       alert(getErrorMessage(error, "Comment failed"));
     } finally {
@@ -232,6 +249,9 @@ function PostCard({ post, onRefresh, onMediaClick }) {
       setReplyingTo(null);
       setExpandedReplies((prev) => ({ ...prev, [parentCommentId]: true }));
       await loadComments();
+      const nextCount = commentCount + 1;
+      setLocalCommentCount(nextCount);
+      onPostUpdated?.({ ...post, commentCount: nextCount, commentsCount: nextCount });
     } catch (error) {
       alert(getErrorMessage(error, "Reply failed"));
     }
@@ -253,14 +273,22 @@ function PostCard({ post, onRefresh, onMediaClick }) {
     }
   };
 
-  const handleDeleteComment = async () => {
+  const handleDeleteComment = async (event) => {
+    event?.preventDefault();
+    event?.stopPropagation();
+
     if (!deleteConfirmComment) return;
+    if (!CURRENT_USER_ID) return alert("Please login first");
 
     try {
-      await deleteComment(deleteConfirmComment.id);
+      await deleteComment(post.id, deleteConfirmComment.id, CURRENT_USER_ID);
+      const removedCount = countCommentTree([deleteConfirmComment]);
+      setComments((prev) => removeCommentFromTree(prev, deleteConfirmComment.id));
+      const nextCount = Math.max(commentCount - removedCount, 0);
+      setLocalCommentCount(nextCount);
+      onPostUpdated?.({ ...post, commentCount: nextCount, commentsCount: nextCount });
       setDeleteConfirmComment(null);
       setCommentOptions(null);
-      await loadComments();
     } catch (error) {
       alert(getErrorMessage(error, "Delete comment failed"));
     }
@@ -271,15 +299,16 @@ function PostCard({ post, onRefresh, onMediaClick }) {
 
     try {
       await deletePost(post.id);
-      onRefresh?.();
+      onPostDeleted?.(post.id);
     } catch (error) {
-      alert(getErrorMessage(error, "Delete failed"));
+      console.error("Delete post failed", error);
+      alert("Delete failed. Please try again.");
     }
   };
 
   const handleUpdatePost = async () => {
     try {
-      await updatePost({
+      const updatedPost = await updatePost({
         postId: post.id,
         caption,
         images: [],
@@ -287,14 +316,31 @@ function PostCard({ post, onRefresh, onMediaClick }) {
 
       setEditing(false);
       setPostOptionsOpen(false);
-      onRefresh?.();
+      onPostUpdated?.({ ...post, ...updatedPost, caption });
+    } catch (error) {
+      alert(getErrorMessage(error, "Update failed"));
+    }
+  };
+
+  const handleUpdateModalCaption = async () => {
+    try {
+      const updatedPost = await updatePost({
+        postId: post.id,
+        caption: modalCaption,
+        images: [],
+      });
+
+      setCaption(modalCaption);
+      setModalEditing(false);
+      setPostOptionsOpen(false);
+      onPostUpdated?.({ ...post, ...updatedPost, caption: modalCaption });
     } catch (error) {
       alert(getErrorMessage(error, "Update failed"));
     }
   };
 
   const copyLink = async () => {
-    await navigator.clipboard.writeText(`${window.location.origin}/posts/${post.id}`);
+    await navigator.clipboard.writeText(`${window.location.origin}/post/${post.id}`);
     setCopyToast(true);
     setPostOptionsOpen(false);
     setTimeout(() => setCopyToast(false), 2000);
@@ -412,6 +458,21 @@ function PostCard({ post, onRefresh, onMediaClick }) {
     return [];
   };
 
+  const countCommentTree = (items = []) =>
+    items.reduce((total, item) => total + 1 + countCommentTree(getReplies(item)), 0);
+
+  const removeCommentFromTree = (items = [], commentId) =>
+    items
+      .filter((item) => item.id !== commentId)
+      .map((item) => ({
+        ...item,
+        replies: removeCommentFromTree(getReplies(item), commentId),
+      }));
+
+  const shouldClampCaption = caption.length > 180;
+  const visibleCaption =
+    shouldClampCaption && !captionExpanded ? `${caption.slice(0, 180).trimEnd()}...` : caption;
+
   const renderReply = (reply, depth = 1) => {
     const replyUser = reply.user || {};
     const replies = getReplies(reply);
@@ -428,13 +489,13 @@ function PostCard({ post, onRefresh, onMediaClick }) {
         <div className="flex justify-between gap-3 group">
           <div className="flex gap-3 flex-1 min-w-0">
             <img
-              src={replyUser.profilePicture || "https://ui-avatars.com/api/?name=User"}
+              src={getAvatarUrl(replyUser)}
               alt="reply user"
               className="w-7 h-7 rounded-full object-cover shrink-0"
             />
 
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-[#262626] break-words">
+              <p className="whitespace-pre-wrap text-[13px] leading-[18px] text-[#262626] [overflow-wrap:anywhere] [word-break:break-word]">
                 <span className="font-semibold mr-1.5">
                   {replyUsername}
                 </span>
@@ -543,22 +604,22 @@ function PostCard({ post, onRefresh, onMediaClick }) {
     return (
       <div key={comment.id} className="flex flex-col gap-2">
         <div className="flex items-start justify-between gap-3 group">
-          <div className="flex gap-3 flex-1">
+          <div className="flex gap-3 flex-1 min-w-0">
             <img
-              src={commentUser.profilePicture || "https://ui-avatars.com/api/?name=User"}
+              src={getAvatarUrl(commentUser)}
               alt="profile"
               className="w-8 h-8 rounded-full object-cover"
             />
 
-            <div className="flex-1">
-              <p className="text-sm text-[#262626]">
+            <div className="flex-1 min-w-0">
+              <p className="whitespace-pre-wrap text-[13px] leading-[18px] text-[#262626] [overflow-wrap:anywhere] [word-break:break-word]">
                 <span className="font-semibold mr-1.5">
                   {commentUser.username || comment.username || "user"}
                 </span>
                 {comment.text}
               </p>
 
-              <div className="flex gap-3 mt-1">
+              <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
                 <span className="text-[11px] text-gray-400">
                   {formatTimeAgo(comment.createdAt || comment.updatedAt)}
                 </span>
@@ -753,9 +814,18 @@ function PostCard({ post, onRefresh, onMediaClick }) {
               </div>
             </div>
           ) : (
-            <p className="text-[14px] text-[#262626]">
+            <p className="whitespace-pre-wrap text-[14px] leading-[19px] text-[#262626] [overflow-wrap:anywhere] [word-break:break-word]">
               <span className="font-semibold mr-1.5">{username}</span>
-              {post.caption}
+              {visibleCaption}
+              {shouldClampCaption && (
+                <button
+                  type="button"
+                  onClick={() => setCaptionExpanded((prev) => !prev)}
+                  className="ml-1 text-[13px] text-gray-500"
+                >
+                  {captionExpanded ? "less" : "more"}
+                </button>
+              )}
             </p>
           )}
 
@@ -849,11 +919,35 @@ function PostCard({ post, onRefresh, onMediaClick }) {
               <div className="flex-grow overflow-y-auto p-4 flex flex-col gap-5">
                 <div className="flex gap-3 pb-4 border-b border-gray-100">
                   <img src={profilePicture} alt="profile" className="w-8 h-8 rounded-full object-cover" />
-                  <div>
-                    <p className="text-sm text-[#262626]">
-                      <span className="font-bold mr-1.5">{username}</span>
-                      {post.caption}
-                    </p>
+                  <div className="min-w-0 flex-1">
+                    {modalEditing ? (
+                      <div>
+                        <textarea
+                          value={modalCaption}
+                          onChange={(e) => setModalCaption(e.target.value)}
+                          className="w-full min-h-[80px] border border-[#dbdbdb] rounded-lg p-2 text-sm resize-none"
+                        />
+                        <div className="flex gap-3 mt-2">
+                          <button onClick={handleUpdateModalCaption} className="text-[#0095f6] font-semibold text-xs">
+                            Save
+                          </button>
+                          <button
+                            onClick={() => {
+                              setModalEditing(false);
+                              setModalCaption(caption || "");
+                            }}
+                            className="text-gray-500 font-semibold text-xs"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="whitespace-pre-wrap text-[14px] leading-[19px] text-[#262626] [overflow-wrap:anywhere] [word-break:break-word]">
+                        <span className="font-bold mr-1.5">{username}</span>
+                        {caption}
+                      </p>
+                    )}
                     <span className="text-[11px] text-gray-400">
                       {formatTimeAgo(post.createdAt)}
                     </span>
@@ -919,7 +1013,12 @@ function PostCard({ post, onRefresh, onMediaClick }) {
             <button
               className="block w-full py-4 border-t border-gray-100 font-semibold"
               onClick={() => {
-                setEditing(true);
+                if (commentsModalOpen) {
+                  setModalCaption(caption || "");
+                  setModalEditing(true);
+                } else {
+                  setEditing(true);
+                }
                 setPostOptionsOpen(false);
               }}
             >
@@ -939,15 +1038,18 @@ function PostCard({ post, onRefresh, onMediaClick }) {
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[21000]">
           <div className="w-[320px] bg-white rounded-xl overflow-hidden text-center">
             <button
+              type="button"
               className="block w-full py-4 text-[#ed4956] font-bold"
-              onClick={() => {
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
                 setDeleteConfirmComment(commentOptions);
                 setCommentOptions(null);
               }}
             >
               Delete
             </button>
-            <button className="block w-full py-4 border-t border-gray-100 text-gray-500" onClick={() => setCommentOptions(null)}>
+            <button type="button" className="block w-full py-4 border-t border-gray-100 text-gray-500" onClick={() => setCommentOptions(null)}>
               Cancel
             </button>
           </div>
@@ -959,10 +1061,10 @@ function PostCard({ post, onRefresh, onMediaClick }) {
           <div className="w-[320px] bg-white rounded-xl overflow-hidden text-center">
             <h3 className="text-[16px] font-semibold mt-5 mb-1">Delete comment?</h3>
             <p className="text-gray-500 text-sm px-6 mb-5">This action cannot be undone.</p>
-            <button className="block w-full py-4 border-t text-[#ed4956] font-bold" onClick={handleDeleteComment}>
+            <button type="button" className="block w-full py-4 border-t text-[#ed4956] font-bold" onClick={handleDeleteComment}>
               Delete
             </button>
-            <button className="block w-full py-4 border-t text-gray-500" onClick={() => setDeleteConfirmComment(null)}>
+            <button type="button" className="block w-full py-4 border-t text-gray-500" onClick={() => setDeleteConfirmComment(null)}>
               Cancel
             </button>
           </div>

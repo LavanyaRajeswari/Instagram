@@ -2,7 +2,7 @@ import { useState } from "react";
 import Sidebar from "../components/Sidebar";
 import CreatePostModal from "../components/CreatePostModal";
 
-function PlaceholderPage({ title, description }) {
+function PlaceholderPage({ title }) {
   const [createOpen, setCreateOpen] = useState(false);
 
   return (
@@ -14,9 +14,6 @@ function PlaceholderPage({ title, description }) {
           <h2 className="m-0 text-[22px] font-semibold text-[#262626]">
             {title}
           </h2>
-          <p className="mt-3 text-sm leading-6 text-gray-500">
-            {description}
-          </p>
           <button
             type="button"
             onClick={() => setCreateOpen(true)}

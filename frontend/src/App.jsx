@@ -16,62 +16,32 @@ function App() {
 
         <Route
           path="/search"
-          element={
-            <PlaceholderPage
-              title="Search"
-              description="Search page is ready for your search UI. Sidebar navigation and create post work here."
-            />
-          }
+          element={<PlaceholderPage title="Search" />}
         />
 
         <Route
           path="/explore"
-          element={
-            <PlaceholderPage
-              title="Explore"
-              description="Explore page is ready for discovery content. Sidebar navigation and create post work here."
-            />
-          }
+          element={<PlaceholderPage title="Explore" />}
         />
 
         <Route
           path="/messages"
-          element={
-            <PlaceholderPage
-              title="Messages"
-              description="Messages page is ready for chat content. Sidebar navigation and create post work here."
-            />
-          }
+          element={<PlaceholderPage title="Messages" />}
         />
 
         <Route
           path="/notifications"
-          element={
-            <PlaceholderPage
-              title="Notifications"
-              description="Notifications page is ready for activity updates. Sidebar navigation and create post work here."
-            />
-          }
+          element={<PlaceholderPage title="Notifications" />}
         />
 
         <Route
           path="/more"
-          element={
-            <PlaceholderPage
-              title="More"
-              description="More options are ready here. Sidebar navigation and create post work here."
-            />
-          }
+          element={<PlaceholderPage title="More" />}
         />
 
         <Route
           path="/also-from-meta"
-          element={
-            <PlaceholderPage
-              title="Also from Meta"
-              description="Meta apps and tools are ready here. Sidebar navigation and create post work here."
-            />
-          }
+          element={<PlaceholderPage title="Also from Meta" />}
         />
 
         <Route path="/login" element={<Login />} />

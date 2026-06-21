@@ -2,18 +2,16 @@ import { useEffect, useState } from "react";
 import Sidebar from "../components/Sidebar";
 import ImmersivePostModal from "../components/ImmersivePostModal";
 import CreatePostModal from "../components/CreatePostModal";
-import axios from "axios";
+import { getPosts } from "../api/postsApi";
+import { useCurrentUser } from "../hooks/useCurrentUser";
+import { getAvatarUrl } from "../utils/avatar";
 
 function Profile() {
-  const currentUser = JSON.parse(localStorage.getItem("currentUser")) || {
-    id: 1,
-    username: "lavanya",
-    fullName: "Lavanya",
-    bio: "Living life, coding React, designing components 🌸✨",
-    profilePicture: "https://i.pravatar.cc/150?img=5",
-  };
-
-  const CURRENT_USER_ID = currentUser?.id;
+  const {
+    currentUser,
+    currentUserId: CURRENT_USER_ID,
+    currentUserLoading,
+  } = useCurrentUser();
 
   const [user, setUser] = useState(null);
   const [posts, setPosts] = useState([]);
@@ -25,40 +23,34 @@ function Profile() {
     try {
       setLoading(true);
 
-      let profileUser = null;
-      let allPosts = [];
-
-      // Attempt loading from her active backend port 8080
-      try {
-        const userResponse = await axios.get(
-          `http://localhost:8080/api/users/${CURRENT_USER_ID}`
-        );
-        profileUser = userResponse.data;
-      } catch (err) {
-        console.warn("Backend users api offline, using active session user");
-        profileUser = currentUser;
+      if (currentUserLoading) {
+        return;
       }
 
+      if (!CURRENT_USER_ID || !currentUser) {
+        setUser(null);
+        setPosts([]);
+        return;
+      }
+
+      let allPosts = [];
+
       try {
-        const postsResponse = await axios.get("http://localhost:8080/api/posts", {
-          params: { userId: CURRENT_USER_ID },
-        });
-        allPosts = postsResponse.data;
+        allPosts = await getPosts(CURRENT_USER_ID);
       } catch (err) {
-        console.warn("Backend posts api offline, reading local cache");
-        const cache = localStorage.getItem("instagram_posts");
-        allPosts = cache ? JSON.parse(cache) : [];
+        console.warn("Backend posts api offline");
+        allPosts = [];
       }
 
       // Filter post items matching active user credentials
       const userPosts = allPosts.filter(
         (post) =>
           post.user?.id === CURRENT_USER_ID ||
-          post.user?.username?.toLowerCase() === currentUser?.username?.toLowerCase() ||
-          post.username?.toLowerCase() === currentUser?.username?.toLowerCase()
+          post.user?.username?.toLowerCase() === currentUser.username?.toLowerCase() ||
+          post.username?.toLowerCase() === currentUser.username?.toLowerCase()
       );
 
-      setUser(profileUser);
+      setUser(currentUser);
       setPosts(userPosts);
     } catch (error) {
       console.error("Failed to load profile", error);
@@ -69,7 +61,21 @@ function Profile() {
 
   useEffect(() => {
     loadProfile();
-  }, []);
+  }, [CURRENT_USER_ID, currentUserLoading]);
+
+  const handlePostUpdated = (updatedPost) => {
+    setPosts((prev) =>
+      prev.map((item) => (item.id === updatedPost.id ? { ...item, ...updatedPost } : item))
+    );
+    setSelectedImmersivePost((prev) =>
+      prev?.id === updatedPost.id ? { ...prev, ...updatedPost } : prev
+    );
+  };
+
+  const handlePostDeleted = (postId) => {
+    setPosts((prev) => prev.filter((item) => item.id !== postId));
+    setSelectedImmersivePost((prev) => (prev?.id === postId ? null : prev));
+  };
 
   if (loading) {
     return (
@@ -88,13 +94,19 @@ function Profile() {
       <Sidebar onCreateClick={() => setCreateOpen(true)} />
 
       <main className="md:ml-[72px] xl:ml-[244px] max-w-[935px] mx-auto px-4 md:px-8 py-10 pb-[80px] md:pb-10 transition-all duration-300" id="profile-layout">
+        {!user ? (
+          <div className="text-center py-20 text-gray-400 font-medium text-sm">
+            Profile unavailable
+          </div>
+        ) : (
+          <>
         {/* Profile Header section */}
         <header className="flex flex-col md:flex-row gap-6 md:gap-20 items-center md:items-start text-center md:text-left mb-10 pb-4 border-b border-gray-100 md:border-none" id="profile-header">
           {/* Avatar frame */}
           <div className="flex-shrink-0" id="profile-photo-frame">
             <img
               className="w-[96px] h-[96px] md:w-[150px] md:h-[150px] rounded-full object-cover border border-[#dbdbdb] p-1 bg-white"
-              src={user?.profilePicture || "https://i.pravatar.cc/200?img=32"}
+              src={getAvatarUrl(user)}
               alt="profile"
             />
           </div>
@@ -121,12 +133,6 @@ function Profile() {
             <div className="flex gap-6 md:gap-9 justify-center md:justify-start text-sm border-t border-b border-gray-100 md:border-none py-3 md:py-0 w-full" id="profile-stats-row">
               <p className="m-0 text-gray-500 md:text-[#262626]">
                 <strong className="text-[#262626] font-semibold">{posts.length}</strong> posts
-              </p>
-              <p className="m-0 text-gray-500 md:text-[#262626]">
-                <strong className="text-[#262626] font-semibold">1.2k</strong> followers
-              </p>
-              <p className="m-0 text-gray-500 md:text-[#262626]">
-                <strong className="text-[#262626] font-semibold">412</strong> following
               </p>
             </div>
 
@@ -159,24 +165,32 @@ function Profile() {
             </div>
           ) : (
             posts.map((post) => {
-              const image = post.media?.[0]?.mediaUrl || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80";
+              const media = post.media?.[0];
+              if (!media?.mediaUrl) return null;
+
               return (
                 <div
                   key={post.id}
                   className="relative aspect-square bg-[#fafafa] overflow-hidden group rounded-sm border border-gray-100 shadow-sm hover:scale-[1.01] transition-transform cursor-pointer"
                   onClick={() => setSelectedImmersivePost(post)}
                 >
-                  <img src={image} alt="post item" className="w-full h-full object-cover group-hover:opacity-90 transition-opacity" />
+                  {media.mediaType?.toUpperCase() === "VIDEO" ? (
+                    <video src={media.mediaUrl} className="w-full h-full object-cover group-hover:opacity-90 transition-opacity" muted playsInline />
+                  ) : (
+                    <img src={media.mediaUrl} alt="post item" className="w-full h-full object-cover group-hover:opacity-90 transition-opacity" />
+                  )}
                   {/* Subtle hover details screen */}
                   <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-6 text-white text-[15px] font-bold transition-opacity h-full w-full">
                     <span className="flex items-center gap-1.5">❤️ {post.likeCount || 0}</span>
-                    <span className="flex items-center gap-1.5">💬 3</span>
+                    <span className="flex items-center gap-1.5">💬 {post.commentCount || post.commentsCount || post.totalComments || 0}</span>
                   </div>
                 </div>
               );
             })
           )}
         </section>
+          </>
+        )}
       </main>
 
       {selectedImmersivePost && (
@@ -184,7 +198,8 @@ function Profile() {
           post={selectedImmersivePost}
           postsList={posts}
           onClose={() => setSelectedImmersivePost(null)}
-          onRefresh={loadProfile}
+          onPostUpdated={handlePostUpdated}
+          onPostDeleted={handlePostDeleted}
           onSelectPost={(p) => setSelectedImmersivePost(p)}
         />
       )}
