@@ -4,6 +4,7 @@ import PostCard from "../components/PostCard";
 import CreatePostModal from "../components/CreatePostModal";
 import ImmersivePostModal from "../components/ImmersivePostModal";
 import { getPosts } from "../api/postsApi";
+import StoriesBar from "../components/StoriesBar";
 
 function Home() {
   const [posts, setPosts] = useState([]);
@@ -51,6 +52,8 @@ function Home() {
       <main className="md:ml-[72px] xl:ml-[244px] flex justify-center gap-[64px] px-4 md:px-8 py-8 pb-[82px] md:pb-10 transition-all duration-300" id="feed-layout">
         {/* Feed column */}
         <section className="w-full max-w-[470px]" id="feed-column">
+          <StoriesBar />
+
           {/* Load indicators */}
           {loading && (
             <div className="flex flex-col items-center justify-center py-20" id="loading-spinner">

@@ -279,18 +279,22 @@ function ImmersivePostModal({
     });
   };
 
-  const handlePrevPost = () => {
+  const handlePrevPost = (e) => {
+    e?.stopPropagation();
+
     if (currentIndex > 0 && onSelectPost) {
       onSelectPost(postsList[currentIndex - 1]);
     }
   };
 
-  const handleNextPost = () => {
+  const handleNextPost = (e) => {
+    e?.stopPropagation();
+
     if (currentIndex !== -1 && currentIndex < postsList.length - 1 && onSelectPost) {
       onSelectPost(postsList[currentIndex + 1]);
     }
   };
-
+  
   const nextMedia = (e) => {
     e.stopPropagation();
     setMediaIndex((prev) => (prev + 1) % mediaList.length);

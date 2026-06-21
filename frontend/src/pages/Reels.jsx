@@ -1370,56 +1370,76 @@ function Reels() {
     </div>
   )}
 
-  {aboutOpen && activeReel && (
-    <div className="fixed inset-0 z-[750] flex items-center justify-center bg-black/70 px-4">
-      <div className="w-full max-w-[400px] overflow-hidden rounded-xl bg-white shadow-2xl">
-        <div className="relative flex h-[52px] items-center justify-center border-b border-gray-100">
-          <h2 className="text-base font-semibold text-[#262626]">
-            About this account
-          </h2>
-          <button
-            type="button"
-            onClick={() => setAboutOpen(false)}
-            className="absolute right-4 text-[#262626]"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+{aboutOpen && activeReel && (
+  <div className="fixed inset-0 z-[750] flex items-center justify-center bg-black/70 px-4">
+    <div className="w-full max-w-[420px] overflow-hidden rounded-2xl bg-white text-[#262626] shadow-2xl">
 
-        <div className="p-5 text-center">
-          <img
-            src={getAvatarUrl(activeReel.user)}
-            alt="profile"
-            className="mx-auto h-16 w-16 rounded-full object-cover"
-          />
+      <div className="relative flex h-[52px] items-center justify-center border-b border-gray-200">
+        <h2 className="text-sm font-bold">
+          About this account
+        </h2>
 
-          <h3 className="mt-3 text-sm font-semibold text-[#262626]">
-            {activeReel.user?.username || "user"}
-          </h3>
+        <button
+          type="button"
+          onClick={() => setAboutOpen(false)}
+          className="absolute right-4"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </div>
 
-          <p className="mt-1 text-xs text-gray-500">
-            {activeReel.user?.fullName || "Instagram user"}
-          </p>
+      <div className="px-6 py-5 text-center">
+        <img
+          src={getAvatarUrl(activeReel.user)}
+          alt={activeReel.user?.username}
+          className="mx-auto h-16 w-16 rounded-full object-cover"
+        />
 
-          <div className="mt-5 rounded-lg border border-gray-200 text-left">
-            <div className="border-b border-gray-100 px-4 py-3">
-              <p className="text-xs text-gray-500">Account ID</p>
-              <p className="text-sm font-semibold text-[#262626]">
-                {activeReel.user?.id || "Unavailable"}
-              </p>
-            </div>
+        <h3 className="mt-3 text-sm font-bold">
+          {activeReel.user?.username}
+        </h3>
 
-            <div className="px-4 py-3">
-              <p className="text-xs text-gray-500">Post ID</p>
-              <p className="text-sm font-semibold text-[#262626]">
-                {activeReel.id}
+        <p className="mt-1 text-sm text-gray-700">
+          {activeReel.user?.fullName}
+        </p>
+
+        <p className="mt-3 text-[11px] leading-4 text-gray-500">
+          To help keep our community authentic, we're showing information
+          about profiles on Instagram.
+        </p>
+
+        <div className="mt-6 text-left">
+          <div className="flex gap-4">
+            <span className="text-xl">📅</span>
+
+            <div>
+              <p className="text-sm">Date joined</p>
+
+              <p className="text-xs text-gray-500">
+                {new Date(activeReel.user.createdAt).toLocaleDateString(
+                  "en-US",
+                  {
+                    month: "long",
+                    year: "numeric",
+                  }
+                )}
               </p>
             </div>
           </div>
         </div>
       </div>
+
+      <button
+        type="button"
+        onClick={() => setAboutOpen(false)}
+        className="block w-full border-t border-gray-200 py-4 text-sm"
+      >
+        Close
+      </button>
+
     </div>
-  )}
+  </div>
+)}
       {sharePost && (
         <ShareModal
           post={sharePost}

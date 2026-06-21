@@ -22,6 +22,7 @@ public class CloudinaryService {
         if (file == null || file.isEmpty()) {
             throw new RuntimeException("File is empty");
         }
+
         try {
             return cloudinary.uploader().upload(
                     file.getBytes(),
@@ -30,32 +31,50 @@ public class CloudinaryService {
                             "resource_type", "auto"
                     )
             );
-
         } catch (Exception e) {
-            throw new RuntimeException(
-                    "Upload failed: " + e.getMessage(),
-                    e
-            );
+            throw new RuntimeException("Upload failed: " + e.getMessage(), e);
         }
     }
 
+    public String uploadImage(MultipartFile file) {
+        Map<String, Object> result = uploadFile(file, "instagram/posts");
+        return result.get("secure_url").toString();
+    }
+
+    public String uploadStoryMedia(MultipartFile file) {
+        Map<String, Object> result = uploadFile(file, "instagram/stories");
+        return result.get("secure_url").toString();
+    }
+
+    public String getPublicId(Map<String, Object> uploadResult) {
+        if (uploadResult == null || uploadResult.get("public_id") == null) {
+            return null;
+        }
+        return uploadResult.get("public_id").toString();
+    }
+
+    public String getSecureUrl(Map<String, Object> uploadResult) {
+        if (uploadResult == null || uploadResult.get("secure_url") == null) {
+            throw new RuntimeException("Cloudinary secure_url missing");
+        }
+        return uploadResult.get("secure_url").toString();
+    }
+
     public void deleteFile(String publicId) {
+        if (publicId == null || publicId.isBlank()) {
+            return;
+        }
+
         try {
             cloudinary.uploader().destroy(
                     publicId,
-                    ObjectUtils.asMap(
-                            "resource_type",
-                            "image"
-                    )
+                    ObjectUtils.asMap("resource_type", "image")
             );
         } catch (Exception imageException) {
             try {
                 cloudinary.uploader().destroy(
                         publicId,
-                        ObjectUtils.asMap(
-                                "resource_type",
-                                "video"
-                        )
+                        ObjectUtils.asMap("resource_type", "video")
                 );
             } catch (Exception videoException) {
                 throw new RuntimeException(

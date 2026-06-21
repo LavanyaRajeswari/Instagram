@@ -158,49 +158,49 @@ function ShareModal({ post, currentUserId, onClose, onShared }) {
           )}
         </div>
 
-        <div className="border-t p-4 flex justify-between gap-2">
-          <button onClick={copyLink} className="flex flex-col items-center gap-1">
-            <div className="w-11 h-11 rounded-full bg-gray-100 flex items-center justify-center">
-              <Link className="w-5 h-5" />
-            </div>
-            <span className="text-[11px]">Copy link</span>
-          </button>
+      <div className="border-t p-4 flex justify-between gap-2">
+        <button onClick={copyLink} className="flex flex-col items-center gap-1">
+          <div className="w-11 h-11 rounded-full bg-[#efefef] text-[#262626] flex items-center justify-center shadow-sm">
+            <Link className="w-5 h-5 text-[#262626]" />
+          </div>
+          <span className="text-[11px]">Copy link</span>
+        </button>
 
-          <button onClick={() => openExternal("FACEBOOK")} className="flex flex-col items-center gap-1">
-            <div className="w-11 h-11 rounded-full bg-gray-100 flex items-center justify-center">
-              <FaFacebook className="w-5 h-5" />
-            </div>
-            <span className="text-[11px]">Facebook</span>
-          </button>
+        <button onClick={() => openExternal("FACEBOOK")} className="flex flex-col items-center gap-1">
+          <div className="w-11 h-11 rounded-full bg-[#efefef] flex items-center justify-center shadow-sm">
+            <FaFacebook className="w-5 h-5 text-[#1877f2]" />
+          </div>
+          <span className="text-[11px]">Facebook</span>
+        </button>
 
-          <button onClick={() => openExternal("WHATSAPP")} className="flex flex-col items-center gap-1">
-            <div className="w-11 h-11 rounded-full bg-gray-100 flex items-center justify-center">
-              <FaWhatsapp className="w-5 h-5" />
-            </div>
-            <span className="text-[11px]">WhatsApp</span>
-          </button>
+        <button onClick={() => openExternal("WHATSAPP")} className="flex flex-col items-center gap-1">
+          <div className="w-11 h-11 rounded-full bg-[#efefef] flex items-center justify-center shadow-sm">
+            <FaWhatsapp className="w-5 h-5 text-[#25d366]" />
+          </div>
+          <span className="text-[11px]">WhatsApp</span>
+        </button>
 
-          <button onClick={() => openExternal("EMAIL")} className="flex flex-col items-center gap-1">
-            <div className="w-11 h-11 rounded-full bg-gray-100 flex items-center justify-center">
-              <Mail className="w-5 h-5" />
-            </div>
-            <span className="text-[11px]">Email</span>
-          </button>
+        <button onClick={() => openExternal("EMAIL")} className="flex flex-col items-center gap-1">
+          <div className="w-11 h-11 rounded-full bg-[#efefef] flex items-center justify-center shadow-sm">
+            <Mail className="w-5 h-5 text-[#262626]" />
+          </div>
+          <span className="text-[11px]">Email</span>
+        </button>
 
-          <button onClick={() => openExternal("THREADS")} className="flex flex-col items-center gap-1">
-            <div className="w-11 h-11 rounded-full bg-gray-100 flex items-center justify-center">
-              <FaThreads className="w-5 h-5" />
-            </div>
-            <span className="text-[11px]">Threads</span>
-          </button>
+        <button onClick={() => openExternal("THREADS")} className="flex flex-col items-center gap-1">
+          <div className="w-11 h-11 rounded-full bg-[#efefef] flex items-center justify-center shadow-sm">
+            <FaThreads className="w-5 h-5 text-[#262626]" />
+          </div>
+          <span className="text-[11px]">Threads</span>
+        </button>
 
-          <button onClick={() => openExternal("X")} className="flex flex-col items-center gap-1">
-            <div className="w-11 h-11 rounded-full bg-gray-100 flex items-center justify-center">
-              <FaXTwitter className="w-5 h-5" />
-            </div>
-            <span className="text-[11px]">X</span>
-          </button>
-        </div>
+        <button onClick={() => openExternal("X")} className="flex flex-col items-center gap-1">
+          <div className="w-11 h-11 rounded-full bg-[#efefef] flex items-center justify-center shadow-sm">
+            <FaXTwitter className="w-5 h-5 text-[#262626]" />
+          </div>
+          <span className="text-[11px]">X</span>
+        </button>
+      </div>
 
         {toast && (
           <div className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-black text-white text-xs px-4 py-2 rounded">
