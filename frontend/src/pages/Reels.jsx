@@ -864,14 +864,7 @@ function Reels() {
 
   return (
     <main className="relative min-h-screen bg-white">
-      <button
-        type="button"
-        onClick={() => navigate(-1)}
-        className="fixed left-5 top-5 z-50 flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold shadow hover:bg-gray-50"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back
-      </button>
+      
 
       <section className="mx-auto flex min-h-screen max-w-[760px] items-center justify-center px-4 py-5">
         <div className="relative flex items-end gap-5">

@@ -9,7 +9,7 @@ import { getAvatarUrl } from "../utils/avatar";
 
 const isVideoUrl = (url = "") => /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(url);
 
-function Search() {
+function Search({ onCreateClick }) {
   const navigate = useNavigate();
 
   const [query, setQuery] = useState("");
@@ -86,7 +86,7 @@ function Search() {
 
   return (
     <div className="min-h-screen bg-white">
-      <Sidebar />
+      <Sidebar onCreateClick={onCreateClick} />
 
         <main className="md:ml-[72px] xl:ml-[244px] min-h-screen">
         <section className="mx-auto max-w-[935px] px-4 py-8">

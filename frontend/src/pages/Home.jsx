@@ -49,8 +49,7 @@ function Home() {
       <Sidebar onCreateClick={() => setCreateOpen(true)} />
 
       {/* Main layout container */}
-      <main className="md:ml-[72px] xl:ml-[244px] flex justify-center gap-[64px] px-4 md:px-8 py-8 pb-[82px] md:pb-10 transition-all duration-300" id="feed-layout">
-        {/* Feed column */}
+      <main className="flex justify-center gap-[64px] px-4 md:px-8 py-8 pb-[82px] md:pb-10 transition-all duration-300" id="feed-layout">        {/* Feed column */}
         <section className="w-full max-w-[470px]" id="feed-column">
           <StoriesBar />
 
