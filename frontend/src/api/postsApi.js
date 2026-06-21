@@ -61,3 +61,16 @@ export const deletePost = async (postId) => {
   await axios.delete(`${POSTS_API_URL}/${encodeURIComponent(id)}`);
   return true;
 };
+
+export const getExplorePosts = async () => {
+  const response = await axios.get(`${POSTS_API_URL}/explore`);
+  return response.data;
+};
+
+export const searchPosts = async (query) => {
+  const response = await axios.get(`${POSTS_API_URL}/search`, {
+    params: { query },
+  });
+
+  return response.data;
+};

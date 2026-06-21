@@ -8,6 +8,15 @@ const getAuthHeaders = () => {
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
+export const searchUsers = async (query) => {
+  const response = await axios.get(`${USERS_API_URL}/search`, {
+    params: { query },
+  });
+
+  return response.data;
+};
+
+
 export const registerUser = async (data) => {
   const response = await axios.post(`${USERS_API_URL}/register`, data, {
     withCredentials: true,

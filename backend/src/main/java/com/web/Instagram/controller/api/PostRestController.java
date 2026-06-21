@@ -11,6 +11,7 @@ import org.antlr.v4.runtime.tree.pattern.ParseTreePattern;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import com.web.Instagram.repository.PostRepository;
 
 import java.util.List;
 
@@ -20,17 +21,29 @@ import java.util.List;
 public class PostRestController {
 
     private final PostService postService;
+    private final PostRepository postRepository;
+    
 
-    @GetMapping
+   @GetMapping
     public List<Post> getAllPosts() {
         return postService.getAllPosts();
+    }
+
+    @GetMapping("/explore")
+    public List<Post> getExplorePosts() {
+        return postRepository.findExplorePostsByEngagement();
+    }
+
+    @GetMapping("/search")
+    public List<Post> searchPosts(@RequestParam String query) {
+        return postRepository.searchPosts(query.trim());
     }
 
     @GetMapping("/{id}")
     public Post getPost(@PathVariable Long id) {
         return postService.getPost(id);
     }
-
+    
     @PostMapping(consumes = "multipart/form-data")
     public Post createPost(@RequestParam Long userId, @RequestParam(required = false) String caption, @RequestParam MultipartFile[] images) {
         return postService.createPost(

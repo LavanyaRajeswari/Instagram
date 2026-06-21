@@ -5,6 +5,7 @@ import PlaceholderPage from "./pages/PlaceholderPage";
 import Register from "./pages/auth/Register";
 import Login from "./pages/auth/Login";
 import Reels from "./pages/Reels";
+import Search from "./pages/Search";
 
 function App() {
   return (
@@ -14,10 +15,7 @@ function App() {
         <Route path="/profile" element={<Profile />} />
         <Route path="/reels" element={<Reels />} />
 
-        <Route
-          path="/search"
-          element={<PlaceholderPage title="Search" />}
-        />
+        <Route path="/search" element={<Search />} />
 
         <Route
           path="/explore"

@@ -372,13 +372,13 @@ function StoryViewer({ user, stories = [], onClose }) {
               muted={muted}
               autoPlay
               playsInline
-              className="h-full w-full object-cover"
+              className="h-full w-full object-contain bg-black"
             />
           ) : (
             <img
               src={activeStory.mediaUrl}
               alt="story"
-              className="h-full w-full object-cover"
+              className="h-full w-full object-contain bg-black"
             />
           )}
 

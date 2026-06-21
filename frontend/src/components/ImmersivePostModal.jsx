@@ -510,7 +510,7 @@ function ImmersivePostModal({
       </button>
 
       <div
-        className="relative w-full max-w-[1040px] h-[88vh] max-h-[760px] bg-white border border-gray-200 rounded-md shadow-2xl overflow-hidden grid grid-cols-1 md:grid-cols-[minmax(0,1.35fr)_390px]"
+        className="relative grid h-[88vh] max-h-[760px] min-h-0 w-full max-w-[1040px] grid-cols-1 overflow-hidden rounded-md border border-gray-200 bg-white shadow-2xl md:grid-cols-[minmax(0,1.35fr)_390px]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="relative bg-black flex items-center justify-center min-h-[320px] md:min-h-0">
@@ -582,7 +582,7 @@ function ImmersivePostModal({
           )}
         </div>
 
-        <div className="flex min-h-0 flex-col border-l border-gray-200 bg-white">
+        <div className="grid h-full min-h-0 grid-rows-[62px_minmax(0,1fr)_auto] overflow-hidden border-l border-gray-200 bg-white">
           <div className="h-[62px] px-4 border-b border-gray-100 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-3 min-w-0">
               <img
@@ -613,7 +613,7 @@ function ImmersivePostModal({
 
           <div
             ref={commentsContainerRef}
-            className="flex-grow overflow-y-auto px-4 py-4 flex flex-col gap-4 text-left"
+            className="min-h-0 overflow-y-auto px-4 py-4 flex flex-col gap-4 text-left"
           >
             {post.caption && (
               <div className="flex items-start gap-3 pb-3 border-b border-gray-100">
@@ -649,7 +649,7 @@ function ImmersivePostModal({
             )}
           </div>
 
-          <div className="border-t border-gray-100 shrink-0">
+          <div className="border-t border-gray-100 shrink-0 bg-white">
             <div className="px-4 py-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">

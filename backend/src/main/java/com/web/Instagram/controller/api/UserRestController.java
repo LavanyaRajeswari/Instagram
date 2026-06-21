@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import com.web.Instagram.repository.UserRepository;
 
 import java.security.Principal;
 import java.util.List;
@@ -17,6 +18,12 @@ import java.util.List;
 public class UserRestController {
 
     private final UserService userService;
+    private final UserRepository userRepository;
+
+    @GetMapping("/search")
+    public List<User> searchUsers(@RequestParam String query) {
+        return userRepository.searchUsers(query.trim());
+    }
 
     @GetMapping
     public List<User> getAllUsers() {
