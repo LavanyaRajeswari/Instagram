@@ -2,7 +2,8 @@ import { useState } from "react";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 
 import Home from "./pages/Home";
-import Profile from "./pages/Profile";
+import Profile from "./pages/profile/ProfilePage";
+import EditProfilePage from "./pages/profile/EditProfilePage";
 import PlaceholderPage from "./pages/PlaceholderPage";
 import Register from "./pages/auth/Register";
 import Login from "./pages/auth/Login";
@@ -32,12 +33,9 @@ function AppLayout() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/edit-profile" element={<EditProfilePage />} />
           <Route path="/reels" element={<Reels />} />
-<Route
-  path="/search"
-  element={<Search onCreateClick={() => setCreateOpen(true)} />}
-/>
-
+          <Route  path="/search"  element={<Search onCreateClick={() => setCreateOpen(true)} />}/>
           <Route path="/explore" element={<PlaceholderPage title="Explore" />} />
           <Route path="/messages" element={<PlaceholderPage title="Messages" />} />
           <Route path="/notifications" element={<PlaceholderPage title="Notifications" />} />

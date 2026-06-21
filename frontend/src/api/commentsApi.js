@@ -48,3 +48,8 @@ export const unlikeComment = async (commentId, userId) => {
   });
   return data;
 };
+
+export const getCommentCount = async (postId) => {
+  const { data } = await axios.get(`${POSTS_API_URL}/${postId}/comments/count`);
+  return data;
+};

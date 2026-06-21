@@ -49,6 +49,19 @@ export const getUsers = async () => {
   return response.data;
 };
 
+export const getAuthToken = () => {
+  return localStorage.getItem("authToken");
+};
+
+export const uploadProfilePicture = async (file) => {
+  const currentUser = await getCurrentUser();
+
+  return updateProfilePicture({
+    userId: currentUser.id,
+    profilePicture: file,
+  });
+};
+
 export const updateProfilePicture = async ({ userId, profilePicture }) => {
   const formData = new FormData();
   formData.append("profilePicture", profilePicture);
@@ -60,6 +73,24 @@ export const updateProfilePicture = async ({ userId, profilePicture }) => {
     },
     withCredentials: true,
   });
+
+  return response.data;
+};
+
+export const updateProfile = async ({ bio, gender }) => {
+  const currentUser = await getCurrentUser();
+
+  const response = await axios.put(
+    `${USERS_API_URL}/${currentUser.id}`,
+    {
+      bio,
+      gender,
+    },
+    {
+      headers: getAuthHeaders(),
+      withCredentials: true,
+    }
+  );
 
   return response.data;
 };

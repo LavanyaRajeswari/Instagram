@@ -4,6 +4,7 @@ import { likePost, unlikePost, getLikeCount, isPostLiked } from "../api/likesApi
 import { savePost, unsavePost, isPostSaved } from "../api/savedPostsApi";
 import { getShareCount } from "../api/shareApi";
 import ShareModal from "./ShareModal";
+import { followUser, unfollowUser, isFollowingUser } from "../api/followApi";
 import {
   getComments,
   addComment,
@@ -61,6 +62,9 @@ function PostCard({ post, onPostUpdated, onPostDeleted, onMediaClick }) {
   const [copyToast, setCopyToast] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
 
+  const [following, setFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
+
   const emojiRef = useRef(null);
 
   const username = post.user?.username || "user";
@@ -78,6 +82,9 @@ function PostCard({ post, onPostUpdated, onPostDeleted, onMediaClick }) {
   const commentCount =
     localCommentCount ?? post.commentCount ?? post.commentsCount ?? post.totalComments ?? 0;
 
+  const postOwnerId = post.user?.id ?? post.userId;
+  const showFollowButton = CURRENT_USER_ID && postOwnerId && String(CURRENT_USER_ID) !== String(postOwnerId);
+
   const isOwnedByCurrentUser = (item) => {
     const itemUserId = item?.user?.id ?? item?.userId;
     return CURRENT_USER_ID != null && String(itemUserId) === String(CURRENT_USER_ID);
@@ -94,6 +101,7 @@ function PostCard({ post, onPostUpdated, onPostDeleted, onMediaClick }) {
     loadLikeData();
     loadSavedStatus();
     loadShareCount();
+    loadFollowStatus();
   }, [post.id, CURRENT_USER_ID]);
 
   useEffect(() => {
@@ -451,6 +459,39 @@ function PostCard({ post, onPostUpdated, onPostDeleted, onMediaClick }) {
     </button>
   );
 
+  const loadFollowStatus = async () => {
+    if (!CURRENT_USER_ID || !postOwnerId) return;
+    if (String(CURRENT_USER_ID) === String(postOwnerId)) return;
+
+    try {
+      const status = await isFollowingUser(postOwnerId, CURRENT_USER_ID);
+      setFollowing(status);
+    } catch (error) {
+      console.error("Failed to load follow status", error);
+    }
+  };
+
+  const handleFollowToggle = async () => {
+    if (!CURRENT_USER_ID) return alert("Please login first");
+    if (!postOwnerId) return;
+
+    try {
+      setFollowLoading(true);
+
+      if (following) {
+        await unfollowUser(postOwnerId, CURRENT_USER_ID);
+        setFollowing(false);
+      } else {
+        await followUser(postOwnerId, CURRENT_USER_ID);
+        setFollowing(true);
+      }
+    } catch (error) {
+      alert(getErrorMessage(error, "Follow action failed"));
+    } finally {
+      setFollowLoading(false);
+    }
+  };
+
   const getReplies = (comment) => {
     if (Array.isArray(comment.replies)) return comment.replies;
     if (Array.isArray(comment.children)) return comment.children;
@@ -725,7 +766,25 @@ function PostCard({ post, onPostUpdated, onPostDeleted, onMediaClick }) {
           <div className="flex items-center gap-3">
             <img src={profilePicture} alt="profile" className="w-9 h-9 rounded-full object-cover" />
             <div>
-              <h4 className="text-[14px] font-semibold text-[#262626]">{username}</h4>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-[14px] font-semibold text-[#262626]">{username}</h4>
+
+                  {showFollowButton && (
+                    <>
+                      <span className="text-gray-400">•</span>
+                      <button
+                        type="button"
+                        onClick={handleFollowToggle}
+                        disabled={followLoading}
+                        className={`text-[13px] font-semibold disabled:opacity-50 ${
+                          following ? "text-[#737373]" : "text-[#0095f6]"
+                        }`}
+                      >
+                        {following ? "Following" : "Follow"}
+                      </button>
+                    </>
+                  )}
+                </div>
               <p className="text-[11px] text-gray-500">{fullName}</p>
             </div>
           </div>
