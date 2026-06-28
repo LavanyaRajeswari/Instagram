@@ -64,30 +64,12 @@ public class User implements Serializable {
     @Column(length = 200)
     private String website;
 
-    private String profilePicturePublicId;
-
     private Boolean isPrivate = false;
 
     private Boolean isVerified = false;
 
     @Column(length = 50)
     private String pronouns;
-
-    private Boolean isProfessional = false;
-
-    private Boolean isBusiness = false;
-
-    @Column(length = 100)
-    private String category;
-
-    @Column(length = 20)
-    private String role = "USER";
-
-    @Column(length = 30)
-    private String contactPhone;
-
-    @Column(length = 200)
-    private String businessAddress;
 
     @JsonIgnore
     @OneToMany(mappedBy = "following")
@@ -121,15 +103,9 @@ public class User implements Serializable {
     @Column(length = 20)
     private String accountStatus;
 
-    @Column(length = 45)
-    private String lastActiveIp;
-
     private LocalDateTime lastActiveAt;
 
     private boolean online = false;
-
-    @Column(name = "is_creator")
-    private Boolean isCreator = false;
 
     private Boolean hideLikeCount = false;
 

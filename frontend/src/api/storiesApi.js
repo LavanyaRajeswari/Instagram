@@ -72,10 +72,6 @@ export const unsaveStory = async (storyId) => {
   const { data } = await api.delete(`${STORIES}/${storyId}/save`);
   return data;
 };
-export const getSavedStories = async () => {
-  const { data } = await api.get(`${STORIES}/saved`);
-  return unwrapPage(data);
-};
 export const archiveStory = async (storyId) => {
   const { data } = await api.post(`${STORIES}/${storyId}/archive`);
   return data;

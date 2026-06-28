@@ -90,26 +90,6 @@ export const deleteChat = async (chatId) => {
   await api.delete(`/chats/${chatId}`);
 };
 
-export const startAudioCall = async (userId) => {
-  const { data } = await api.post(`/calls/start/${userId}`, { callType: "VOICE" });
-  return data;
-};
-
-export const startVideoCall = async (userId) => {
-  const { data } = await api.post(`/calls/start/${userId}`, { callType: "VIDEO" });
-  return data;
-};
-
-export const startGroupAudioCall = async (groupId) => {
-  const { data } = await api.post(`/calls/group/start/${groupId}`, { callType: "VOICE" });
-  return data;
-};
-
-export const startGroupVideoCall = async (groupId) => {
-  const { data } = await api.post(`/calls/group/start/${groupId}`, { callType: "VIDEO" });
-  return data;
-};
-
 export const getGroups = async () => {
   const { data } = await api.get("/groups");
   return Array.isArray(data) ? data : [];

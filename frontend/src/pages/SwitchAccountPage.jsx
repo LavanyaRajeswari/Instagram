@@ -82,7 +82,7 @@ function SwitchAccountPage() {
       <div className="space-y-3">
         <button
           type="button"
-          onClick={() => navigate("/register")}
+          onClick={() => navigate("/add-account")}
           className="flex w-full items-center gap-3 rounded-lg border border-primary px-4 py-3 text-left text-sm font-semibold hover:bg-secondary"
         >
           <Plus className="h-5 w-5" />

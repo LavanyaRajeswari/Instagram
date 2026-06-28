@@ -46,11 +46,6 @@ public class PostService {
     private final TagService tagService;
 
     @Transactional(readOnly = true)
-    public Page<PostResponse> getAllPosts(Pageable pageable) {
-        return mapToResponse(postRepository.findAllPosts(pageable));
-    }
-
-    @Transactional(readOnly = true)
     @Cacheable(cacheNames = "feed", key = "#userId + ':' + #pageable.pageNumber + ':' + #pageable.pageSize + ':' + #pageable.sort.toString()")
     public Page<PostResponse> getFeed(Long userId, Pageable pageable) {
         return mapToResponse(postRepository.findFeedPosts(userId, pageable));
@@ -192,22 +187,6 @@ public class PostService {
         return toResponse(saved);
     }
 
-
-    @Transactional
-    @CacheEvict(cacheNames = {"postById", "feed", "reels"}, allEntries = true)
-    public PostResponse updateCaption(Long postId, String caption, Long userId) {
-        Post post = getPostEntity(postId);
-        if (!post.getUser().getId().equals(userId)) {
-            throw new RuntimeException("Not authorized");
-        }
-        hashtagService.removeHashtagsByPost(postId);
-        tagService.removeTagsByPost(postId);
-        post.setCaption(caption);
-        Post saved = postRepository.save(post);
-        hashtagService.saveHashtags(caption, saved.getId());
-        tagService.saveMentionTags(caption, saved.getId());
-        return toResponse(saved);
-    }
 
     @Transactional
     @CacheEvict(cacheNames = {"postById", "feed", "reels"}, allEntries = true)
@@ -375,38 +354,6 @@ public class PostService {
         }
     }
 
-    @Transactional(readOnly = true)
-    public Map<String, Object> getPostInsights(Long postId) {
-        Post post = getPostEntity(postId);
-        Map<String, Object> insights = new java.util.HashMap<>();
-        insights.put("id", post.getId());
-        insights.put("likeCount", likeRepository.countByPostId(postId));
-        insights.put("shareCount", shareRepository.countByPostId(postId));
-        insights.put("saveCount", savedPostRepository.countByPostId(postId));
-        insights.put("createdAt", post.getCreatedAt());
-        return insights;
-    }
-
-    @Transactional(readOnly = true)
-    public Map<String, Object> getPostAnalytics(Long postId) {
-        Post post = getPostEntity(postId);
-        Map<String, Object> analytics = new java.util.HashMap<>();
-        analytics.put("postId", post.getId());
-        analytics.put("likes", likeRepository.countByPostId(postId));
-        analytics.put("shares", shareRepository.countByPostId(postId));
-        analytics.put("saves", savedPostRepository.countByPostId(postId));
-        analytics.put("totalEngagement",
-            likeRepository.countByPostId(postId) +
-            shareRepository.countByPostId(postId) +
-            savedPostRepository.countByPostId(postId));
-        if (post.getUser() != null) {
-            analytics.put("hasPinnedPost", false);
-        } else {
-            analytics.put("hasPinnedPost", false);
-        }
-        return analytics;
-    }
-
     private void validateFile(MultipartFile file) {
         String contentType = file.getContentType();
         if (contentType == null || (!contentType.startsWith("image/") && !contentType.startsWith("video/"))) {
@@ -414,20 +361,6 @@ public class PostService {
                     "Only image and video files are allowed"
             );
         }
-    }
-
-    @Transactional
-    @CacheEvict(cacheNames = {"postById", "feed", "reels"}, allEntries = true)
-    public void setVisibility(Long postId, String visibility, Long userId) {
-        Post post = getPostEntity(postId);
-        if (!post.getUser().getId().equals(userId)) {
-            throw new RuntimeException("Not authorized");
-        }
-        if (!java.util.List.of("PUBLIC", "FOLLOWERS", "CLOSE_FRIENDS").contains(visibility)) {
-            throw new RuntimeException("Invalid visibility. Must be PUBLIC, FOLLOWERS, or CLOSE_FRIENDS");
-        }
-        post.setVisibility(visibility);
-        postRepository.save(post);
     }
 
     @Transactional

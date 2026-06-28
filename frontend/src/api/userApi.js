@@ -13,6 +13,11 @@ export const registerUser = async (payload) => {
   return normalizeAuthResponse(data);
 };
 
+export const addAccount = async (payload) => {
+  const { data } = await api.post(`${AUTH}/add-account`, payload);
+  return data;
+};
+
 export const logoutUser = async () => {
   try {
     const refreshToken = getRefreshToken();

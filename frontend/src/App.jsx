@@ -38,7 +38,7 @@ function AppLayout() {
   const location = useLocation();
 
   const hideSidebar =
-    location.pathname === "/login" || location.pathname === "/register" || location.pathname === "/call";
+    location.pathname === "/login" || location.pathname === "/register" || location.pathname === "/add-account" || location.pathname === "/call";
   const hideMiniMessenger = hideSidebar || location.pathname.startsWith("/profile") || location.pathname.startsWith("/messages");
 
   return (
@@ -75,6 +75,8 @@ function AppLayout() {
           <Route path="/switch-account" element={<ProtectedRoute><SwitchAccountPage /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
           <Route path="/settings/:section" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+
+          <Route path="/add-account" element={<ProtectedRoute><Register /></ProtectedRoute>} />
 
           <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
           <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />

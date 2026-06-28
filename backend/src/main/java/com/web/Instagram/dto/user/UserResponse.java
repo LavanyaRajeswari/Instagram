@@ -33,11 +33,6 @@ public class UserResponse implements Serializable {
     private Long followersCount;
     private Long followingCount;
     private String pronouns;
-    private boolean isProfessional;
-    private boolean isBusiness;
-    private boolean isCreator;
-    private String category;
-    private String role;
     private LocalDateTime lastActiveAt;
     private String accountStatus;
     private boolean commentsDisabled;

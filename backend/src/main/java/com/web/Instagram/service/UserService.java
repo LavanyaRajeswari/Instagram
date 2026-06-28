@@ -1,22 +1,8 @@
 package com.web.Instagram.service;
 
-import com.web.Instagram.dto.user.LoginRequest;
-import com.web.Instagram.dto.user.LoginResponse;
-import com.web.Instagram.dto.user.RegisterRequest;
-import com.web.Instagram.dto.user.UpdateRequest;
-import com.web.Instagram.dto.user.UserResponse;
-import com.web.Instagram.entity.LoginHistory;
-import com.web.Instagram.entity.ProfileLink;
-import com.web.Instagram.entity.SearchHistory;
-import com.web.Instagram.entity.User;
-import com.web.Instagram.repository.FollowRepository;
-import com.web.Instagram.repository.LoginHistoryRepository;
-import com.web.Instagram.repository.PostRepository;
-import com.web.Instagram.repository.ProfileLinkRepository;
-import com.web.Instagram.repository.SearchHistoryRepository;
-import com.web.Instagram.repository.UserRepository;
-import com.web.Instagram.security.JwtService;
-import lombok.RequiredArgsConstructor;
+import java.util.List;
+import java.util.Map;
+
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
@@ -26,8 +12,20 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.List;
-import java.util.Map;
+import com.web.Instagram.dto.user.LoginRequest;
+import com.web.Instagram.dto.user.LoginResponse;
+import com.web.Instagram.dto.user.RegisterRequest;
+import com.web.Instagram.dto.user.UpdateRequest;
+import com.web.Instagram.dto.user.UserResponse;
+import com.web.Instagram.entity.LoginHistory;
+import com.web.Instagram.entity.User;
+import com.web.Instagram.repository.FollowRepository;
+import com.web.Instagram.repository.LoginHistoryRepository;
+import com.web.Instagram.repository.PostRepository;
+import com.web.Instagram.repository.UserRepository;
+import com.web.Instagram.security.JwtService;
+
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -39,8 +37,6 @@ public class UserService {
     private final CloudinaryService cloudinaryService;
     private final PostRepository postRepository;
     private final FollowRepository followRepository;
-    private final SearchHistoryRepository searchHistoryRepository;
-    private final ProfileLinkRepository profileLinkRepository;
     private final LoginHistoryRepository loginHistoryRepository;
 
     public List<UserResponse> getAllUsers(int limit) {
@@ -165,25 +161,6 @@ public class UserService {
         return mapToResponse(updatedUser);
     }
 
-    public void changePassword(Long userId, String currentPassword, String newPassword) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
-            throw new RuntimeException("Current password is incorrect");
-        }
-
-        user.setPassword(passwordEncoder.encode(newPassword));
-        userRepository.save(user);
-    }
-
-    @CacheEvict(cacheNames = {"userProfiles", "feed"}, allEntries = true)
-    public void deleteUser(Long id) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        userRepository.delete(user);
-    }
-
     public UserResponse mapToResponse(User user) {
         return UserResponse.builder()
                 .id(user.getId())
@@ -197,11 +174,6 @@ public class UserService {
                 .isPrivate(Boolean.TRUE.equals(user.getIsPrivate()))
                 .isVerified(Boolean.TRUE.equals(user.getIsVerified()))
                 .pronouns(user.getPronouns())
-                .isProfessional(Boolean.TRUE.equals(user.getIsProfessional()))
-                .isBusiness(Boolean.TRUE.equals(user.getIsBusiness()))
-                .isCreator(Boolean.TRUE.equals(user.getIsCreator()))
-                .category(user.getCategory())
-                .role(user.getRole() != null ? user.getRole() : "USER")
                 .postsCount(postRepository.countByUserId(user.getId()))
                 .followersCount(followRepository.countByFollowingId(user.getId()))
                 .followingCount(followRepository.countByFollowerId(user.getId()))
@@ -248,21 +220,6 @@ public class UserService {
         return url.startsWith("https://res.cloudinary.com/");
     }
 
-    public List<UserResponse> getMutualFollowers(Long currentUserId, Long targetUserId) {
-        List<Long> currentUserFollowingIds = followRepository.findByFollowerId(currentUserId)
-                .stream().map(f -> f.getFollowing().getId()).toList();
-        List<Long> targetUserFollowerIds = followRepository.findByFollowingId(targetUserId)
-                .stream().map(f -> f.getFollower().getId()).toList();
-
-        List<Long> mutualIds = currentUserFollowingIds.stream()
-                .filter(targetUserFollowerIds::contains)
-                .toList();
-
-        return userRepository.findAllById(mutualIds).stream()
-                .map(this::mapToResponse)
-                .toList();
-    }
-
     @Transactional
     public void removeFollower(Long userId, Long followerId) {
         followRepository.deleteByFollowerIdAndFollowingId(followerId, userId);
@@ -270,92 +227,6 @@ public class UserService {
 
     public boolean isFollowing(Long followerId, Long followingId) {
         return followRepository.existsByFollowerIdAndFollowingId(followerId, followingId);
-    }
-
-    public UserResponse setProfessionalAccount(Long userId, String category) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        user.setIsProfessional(true);
-        user.setIsBusiness(false);
-        if (category != null) user.setCategory(category);
-        return mapToResponse(userRepository.save(user));
-    }
-
-    public UserResponse setBusinessAccount(Long userId, String category) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        user.setIsBusiness(true);
-        user.setIsProfessional(false);
-        if (category != null) user.setCategory(category);
-        return mapToResponse(userRepository.save(user));
-    }
-
-    public UserResponse removeProfessionalAccount(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        user.setIsProfessional(false);
-        user.setIsBusiness(false);
-        user.setIsCreator(false);
-        user.setCategory(null);
-        return mapToResponse(userRepository.save(user));
-    }
-
-    public UserResponse setCreatorAccount(Long userId, String category) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        user.setIsCreator(true);
-        user.setIsProfessional(false);
-        user.setIsBusiness(false);
-        if (category != null) user.setCategory(category);
-        return mapToResponse(userRepository.save(user));
-    }
-
-    public List<SearchHistory> getSearchHistory(Long userId) {
-        return searchHistoryRepository.findByUserIdOrderByCreatedAtDesc(userId);
-    }
-
-    @Transactional
-    public void saveSearchHistory(Long userId, String query, String type, Long targetId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        SearchHistory history = SearchHistory.builder()
-                .user(user)
-                .query(query)
-                .type(type)
-                .targetId(targetId)
-                .build();
-        searchHistoryRepository.save(history);
-    }
-
-    @Transactional
-    public void clearSearchHistory(Long userId) {
-        searchHistoryRepository.deleteByUserId(userId);
-    }
-
-    public List<ProfileLink> getProfileLinks(Long userId) {
-        return profileLinkRepository.findByUserIdOrderByCreatedAtAsc(userId);
-    }
-
-    @Transactional
-    public ProfileLink addProfileLink(Long userId, String url, String title) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        ProfileLink link = ProfileLink.builder()
-                .user(user)
-                .url(url)
-                .title(title)
-                .build();
-        return profileLinkRepository.save(link);
-    }
-
-    @Transactional
-    public void removeProfileLink(Long linkId, Long userId) {
-        ProfileLink link = profileLinkRepository.findById(linkId)
-                .orElseThrow(() -> new RuntimeException("Link not found"));
-        if (!link.getUser().getId().equals(userId)) {
-            throw new RuntimeException("Not authorized");
-        }
-        profileLinkRepository.delete(link);
     }
 
     @Transactional
@@ -394,10 +265,5 @@ public class UserService {
 
     public List<LoginHistory> getLoginHistory(Long userId) {
         return loginHistoryRepository.findByUserIdOrderByCreatedAtDesc(userId);
-    }
-
-    public long getSuspiciousLoginCount(Long userId) {
-        return loginHistoryRepository.countByUserIdAndSuccessfulFalseAndCreatedAtAfter(
-                userId, java.time.LocalDateTime.now().minusHours(24));
     }
 }

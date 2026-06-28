@@ -11,7 +11,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -59,40 +58,6 @@ public class ReportService {
 
     public long getPendingCount() {
         return reportRepository.countByStatus("PENDING");
-    }
-
-    @Transactional
-    public void bulkResolve(List<Long> reportIds) {
-        reportRepository.findAllById(reportIds).forEach(report -> {
-            report.setStatus("RESOLVED");
-            reportRepository.save(report);
-        });
-    }
-
-    public Map<String, Object> getReportAnalytics() {
-        return Map.of(
-            "byStatus", Map.of(
-                "PENDING", reportRepository.countByStatus("PENDING"),
-                "RESOLVED", reportRepository.countByStatus("RESOLVED"),
-                "DISMISSED", reportRepository.countByStatus("DISMISSED")
-            ),
-            "byReason", Map.of(
-                "SPAM", countByReason("SPAM"),
-                "HARASSMENT", countByReason("HARASSMENT"),
-                "INAPPROPRIATE", countByReason("INAPPROPRIATE"),
-                "OTHER", countByReason("OTHER")
-            ),
-            "byTargetType", Map.of(
-                "POST", reportRepository.countByTargetType("POST"),
-                "USER", reportRepository.countByTargetType("USER"),
-                "COMMENT", reportRepository.countByTargetType("COMMENT"),
-                "STORY", reportRepository.countByTargetType("STORY")
-            )
-        );
-    }
-
-    public long getReportCountByStatus(String status) {
-        return reportRepository.countByStatus(status);
     }
 
     private long countByReason(String reason) {

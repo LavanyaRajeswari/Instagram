@@ -79,7 +79,6 @@ public class AuthService {
         user.setMobileNumber(request.getMobileNumber());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setBirthDate(request.getBirthDate());
-        user.setRole("USER");
 
         userRepository.save(user);
 
@@ -179,6 +178,7 @@ public class AuthService {
         userRepository.save(user);
     }
 
+    @Transactional
     public LoginResponse addAccount(String parentUsername, RegisterRequest request) {
         LoginResponse response = register(request, null);
         User parent = userRepository.findByUsername(parentUsername)
@@ -190,6 +190,7 @@ public class AuthService {
         return response;
     }
 
+    @Transactional(readOnly = true)
     public List<Map<String, Object>> getLinkedAccounts(String username) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));

@@ -25,7 +25,4 @@ export const unlikeComment = async (commentId) => {
   const { data } = await api.delete(`${POSTS}/comments/${commentId}/like`);
   return data;
 };
-export const getCommentCount = async (postId) => {
-  const { data } = await api.get(`${POSTS}/${postId}/comments/count`);
-  return typeof data === "number" ? data : data?.count ?? data?.commentCount ?? 0;
-};
+

@@ -24,38 +24,26 @@ public class HashtagService {
 
     private static final Pattern HASHTAG_PATTERN = Pattern.compile("(?<![\\p{Alnum}_])#([\\p{Alnum}_][\\p{Alnum}_\\p{Pd}-]*)");
 
-    public String normalizeTag(String tag) {
-        if (tag == null) return "";
-        return tag.trim()
-            .replaceFirst("^#", "")
-            .replace('\u2010', '-')
-            .replace('\u2011', '-')
-            .replace('\u2012', '-')
-            .replace('\u2013', '-')
-            .replace('\u2014', '-')
-            .replace('\u2212', '-')
-            .toLowerCase();
-    }
-
     public List<String> extractHashtags(String caption) {
         List<String> tags = new ArrayList<>();
         if (caption == null || caption.isBlank()) return tags;
         Matcher matcher = HASHTAG_PATTERN.matcher(caption);
         while (matcher.find()) {
-            tags.add(normalizeTag(matcher.group(1)));
+            String t = matcher.group(1);
+            tags.add(t == null ? "" : t.trim().replaceFirst("^#", "")
+                .replace('\u2010', '-').replace('\u2011', '-')
+                .replace('\u2012', '-').replace('\u2013', '-')
+                .replace('\u2014', '-').replace('\u2212', '-').toLowerCase());
         }
         return tags;
     }
 
-    public boolean captionContainsHashtag(String caption, String tag) {
-        String normalizedTarget = normalizeTag(tag);
-        String compactTarget = compactTag(normalizedTarget);
-        return extractHashtags(caption).stream()
-            .anyMatch(found -> found.equals(normalizedTarget) || compactTag(found).equals(compactTarget));
-    }
-
     private String compactTag(String tag) {
-        return normalizeTag(tag).replace("-", "");
+        String n = tag == null ? "" : tag.trim().replaceFirst("^#", "")
+            .replace('\u2010', '-').replace('\u2011', '-')
+            .replace('\u2012', '-').replace('\u2013', '-')
+            .replace('\u2014', '-').replace('\u2212', '-').toLowerCase();
+        return n.replace("-", "");
     }
 
     @Transactional
@@ -79,7 +67,10 @@ public class HashtagService {
     }
 
     public Page<Post> getVisiblePostsByTag(String tag, String requesterUsername, int page, int size) {
-        String normalizedTag = normalizeTag(tag);
+        String normalizedTag = tag == null ? "" : tag.trim().replaceFirst("^#", "")
+            .replace('\u2010', '-').replace('\u2011', '-')
+            .replace('\u2012', '-').replace('\u2013', '-')
+            .replace('\u2014', '-').replace('\u2212', '-').toLowerCase();
         return postRepository.findVisiblePostsByHashtag(
             normalizedTag,
             compactTag(normalizedTag),
@@ -89,7 +80,10 @@ public class HashtagService {
     }
 
     public long getVisiblePostCountByTag(String tag, String requesterUsername) {
-        String normalizedTag = normalizeTag(tag);
+        String normalizedTag = tag == null ? "" : tag.trim().replaceFirst("^#", "")
+            .replace('\u2010', '-').replace('\u2011', '-')
+            .replace('\u2012', '-').replace('\u2013', '-')
+            .replace('\u2014', '-').replace('\u2212', '-').toLowerCase();
         return postRepository.countVisiblePostsByHashtag(normalizedTag, compactTag(normalizedTag), requesterUsername);
     }
 

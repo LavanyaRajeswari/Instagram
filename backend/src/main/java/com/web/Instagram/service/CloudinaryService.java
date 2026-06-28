@@ -37,11 +37,6 @@ public class CloudinaryService {
         }
     }
 
-    public String uploadImage(MultipartFile file) {
-        Map<String, Object> result = uploadFile(file, "instagram/posts");
-        return result.get("secure_url").toString();
-    }
-
     public String uploadStoryMedia(MultipartFile file) {
         Map<String, Object> result = uploadFile(file, "instagram/stories");
         return result.get("secure_url").toString();

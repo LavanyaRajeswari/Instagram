@@ -29,7 +29,7 @@ public class CustomUserDetailsService
                                         "User not found"));
 
         List<GrantedAuthority> authorities = List.of(
-                new SimpleGrantedAuthority("ROLE_" + (user.getRole() != null ? user.getRole() : "USER"))
+                new SimpleGrantedAuthority("ROLE_USER")
         );
 
         return org.springframework.security.core.userdetails.User

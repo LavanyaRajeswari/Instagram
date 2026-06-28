@@ -157,16 +157,6 @@ public class StoryRestController {
         return ResponseEntity.ok().build();
     }
 
-    @PutMapping("/{storyId}/audience")
-    public ResponseEntity<Void> setStoryAudience(
-            Principal principal,
-            @PathVariable Long storyId,
-            @RequestParam String audience) {
-        Long userId = userService.getCurrentUser(principal.getName()).getId();
-        storyService.setAudience(storyId, audience, userId);
-        return ResponseEntity.ok().build();
-    }
-
     @PutMapping("/{storyId}/music")
     public ResponseEntity<Void> setMusic(
             Principal principal,
@@ -174,17 +164,6 @@ public class StoryRestController {
             @RequestParam Long musicId) {
         Long userId = userService.getCurrentUser(principal.getName()).getId();
         storyService.setMusic(storyId, musicId, userId);
-        return ResponseEntity.ok().build();
-    }
-
-    @PutMapping("/{storyId}/font-style")
-    public ResponseEntity<Void> setFontStyle(
-            Principal principal,
-            @PathVariable Long storyId,
-            @RequestParam String fontStyle,
-            @RequestParam(required = false, defaultValue = "false") boolean showFontStyle) {
-        Long userId = userService.getCurrentUser(principal.getName()).getId();
-        storyService.setFontStyle(storyId, fontStyle, showFontStyle, userId);
         return ResponseEntity.ok().build();
     }
 

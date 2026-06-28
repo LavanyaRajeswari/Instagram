@@ -15,7 +15,6 @@ import org.springframework.web.multipart.MultipartFile;
 import java.security.Principal;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
@@ -24,11 +23,6 @@ public class PostRestController {
 
     private final PostService postService;
     private final UserService userService;
-
-    @GetMapping
-    public ResponseEntity<Page<PostResponse>> getAllPosts(Principal principal, @PageableDefault(size = 20) Pageable pageable) {
-        return ResponseEntity.ok(filterVisible(postService.getAllPosts(pageable), principal, pageable));
-    }
 
     @GetMapping("/feed")
     public ResponseEntity<Page<PostResponse>> getFeed(Principal principal, @PageableDefault(size = 20) Pageable pageable) {
@@ -97,41 +91,12 @@ public class PostRestController {
         return ResponseEntity.ok(postService.editPost(id, caption, images, musicId, userId));
     }
 
-    @PutMapping("/{id}/caption")
-    public ResponseEntity<PostResponse> updateCaption(
-            Principal principal,
-            @PathVariable Long id,
-            @RequestParam String caption) {
-        Long userId = userService.getCurrentUser(principal.getName()).getId();
-        return ResponseEntity.ok(postService.updateCaption(id, caption, userId));
-    }
-
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletePost(
             Principal principal,
             @PathVariable Long id) {
         Long userId = userService.getCurrentUser(principal.getName()).getId();
         postService.deletePost(id, userId);
-        return ResponseEntity.ok().build();
-    }
-
-    @GetMapping("/{id}/insights")
-    public ResponseEntity<Map<String, Object>> getPostInsights(@PathVariable Long id) {
-        return ResponseEntity.ok(postService.getPostInsights(id));
-    }
-
-    @GetMapping("/{id}/analytics")
-    public ResponseEntity<Map<String, Object>> getPostAnalytics(@PathVariable Long id) {
-        return ResponseEntity.ok(postService.getPostAnalytics(id));
-    }
-
-    @PutMapping("/{id}/visibility")
-    public ResponseEntity<Void> setVisibility(
-            Principal principal,
-            @PathVariable Long id,
-            @RequestParam String visibility) {
-        Long userId = userService.getCurrentUser(principal.getName()).getId();
-        postService.setVisibility(id, visibility, userId);
         return ResponseEntity.ok().build();
     }
 

@@ -213,12 +213,4 @@ public class CallRestController {
             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(callService.getCallHistory(page, size).map(this::callResponse));
     }
-
-    @GetMapping("/history/{userId}")
-    public ResponseEntity<Page<Map<String, Object>>> getCallHistoryWithUser(
-            @PathVariable Long userId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(callService.getCallHistoryWithUser(userId, page, size).map(this::callResponse));
-    }
 }

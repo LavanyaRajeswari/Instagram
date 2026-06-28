@@ -165,22 +165,6 @@ public class CallService {
                 PageRequest.of(page, size, Sort.by("createdAt").descending()));
     }
 
-    public Page<Call> getCallHistoryWithUser(Long otherUserId, int page, int size) {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        User currentUser = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        return callRepository.findByUsers(currentUser.getId(), otherUserId,
-                PageRequest.of(page, size, Sort.by("createdAt").descending()));
-    }
-
-    @Transactional
-    public void toggleRecording(Long callId, boolean recording) {
-        Call call = callRepository.findById(callId)
-                .orElseThrow(() -> new RuntimeException("Call not found"));
-        call.setRecording(recording);
-        callRepository.save(call);
-    }
-
     @Transactional
     public void addParticipant(Long callId, Long userId) {
         if (!participantRepository.existsByCallIdAndUserId(callId, userId)) {

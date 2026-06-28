@@ -33,23 +33,6 @@ public class ChatRestController {
         );
     }
 
-    @GetMapping("/archived")
-    public ResponseEntity<List<ChatDto>> getArchivedChats() {
-        return ResponseEntity.ok(chatService.getArchivedChats());
-    }
-
-    @PutMapping("/{chatId}/pin")
-    public ResponseEntity<Void> togglePin(@PathVariable Long chatId) {
-        chatService.togglePinChat(chatId);
-        return ResponseEntity.ok().build();
-    }
-
-    @PutMapping("/{chatId}/archive")
-    public ResponseEntity<Void> toggleArchive(@PathVariable Long chatId) {
-        chatService.toggleArchiveChat(chatId);
-        return ResponseEntity.ok().build();
-    }
-
     @DeleteMapping("/{chatId}")
     public ResponseEntity<Void> deleteChat(@PathVariable Long chatId) {
         chatService.deleteChat(chatId);
@@ -66,24 +49,6 @@ public class ChatRestController {
     @DeleteMapping("/{chatId}/mute")
     public ResponseEntity<Void> unmuteChat(@PathVariable Long chatId) {
         chatService.unmuteChat(chatId);
-        return ResponseEntity.ok().build();
-    }
-
-    @PutMapping("/{chatId}/vanish-mode")
-    public ResponseEntity<Void> setVanishMode(@PathVariable Long chatId, @RequestBody Map<String, String> body) {
-        chatService.setVanishMode(chatId, body.get("mode"));
-        return ResponseEntity.ok().build();
-    }
-
-    @PutMapping("/{chatId}/theme")
-    public ResponseEntity<Void> setTheme(@PathVariable Long chatId, @RequestBody Map<String, String> body) {
-        chatService.setChatTheme(chatId, body.get("theme"));
-        return ResponseEntity.ok().build();
-    }
-
-    @PutMapping("/{chatId}/wallpaper")
-    public ResponseEntity<Void> setWallpaper(@PathVariable Long chatId, @RequestBody Map<String, String> body) {
-        chatService.setChatWallpaper(chatId, body.get("wallpaper"));
         return ResponseEntity.ok().build();
     }
 

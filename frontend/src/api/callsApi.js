@@ -30,11 +30,6 @@ export const leaveCall = async (callId) => {
   return data;
 };
 
-export const getCallHistoryWithUser = async (userId) => {
-  const { data } = await api.get(`/calls/history/${userId}`);
-  return unwrapPage(data);
-};
-
 export const startCall = async (userId, callType = "VOICE") => {
   const { data } = await api.post(`/calls/start/${userId}`, { callType });
   return data;

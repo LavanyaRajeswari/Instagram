@@ -29,14 +29,6 @@ public class StoryMusicService {
         return storyMusicRepository.save(music);
     }
 
-    @Transactional
-    public void incrementUsage(Long musicId) {
-        storyMusicRepository.findById(musicId).ifPresent(music -> {
-            music.setUsageCount(music.getUsageCount() + 1);
-            storyMusicRepository.save(music);
-        });
-    }
-
     public List<StoryMusic> getTrending(int limit) {
         return storyMusicRepository.findByIsTrendingTrueOrderByUsageCountDesc(PageRequest.of(0, limit));
     }

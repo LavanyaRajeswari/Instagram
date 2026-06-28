@@ -2,16 +2,12 @@ package com.web.Instagram.controller.api;
 
 import com.web.Instagram.dto.chat.GroupMessageDto;
 import com.web.Instagram.entity.GroupChat;
-import com.web.Instagram.entity.GroupChatMessageReaction;
-import com.web.Instagram.entity.User;
 import com.web.Instagram.service.GroupChatService;
-import com.web.Instagram.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.security.Principal;
 import java.util.List;
 import java.util.Map;
 
@@ -21,7 +17,6 @@ import java.util.Map;
 public class GroupChatRestController {
 
     private final GroupChatService groupChatService;
-    private final UserService userService;
 
     @PostMapping
     public ResponseEntity<GroupChat> createGroup(@RequestBody Map<String, Object> body) {
@@ -96,64 +91,4 @@ public class GroupChatRestController {
         return ResponseEntity.ok(groupChatService.deleteMessage(groupId, messageId));
     }
 
-    @PutMapping("/{groupId}/nickname")
-    public ResponseEntity<Void> setNickname(@PathVariable Long groupId, @RequestBody Map<String, String> body) {
-        groupChatService.setGroupNickname(groupId, body.get("nickname"));
-        return ResponseEntity.ok().build();
-    }
-
-    @PutMapping("/{groupId}/theme")
-    public ResponseEntity<Void> setTheme(@PathVariable Long groupId, @RequestBody Map<String, String> body) {
-        groupChatService.setGroupTheme(groupId, body.get("theme"));
-        return ResponseEntity.ok().build();
-    }
-
-    @PostMapping("/{groupId}/admin/{userId}")
-    public ResponseEntity<Void> promoteAdmin(@PathVariable Long groupId, @PathVariable Long userId) {
-        groupChatService.promoteToAdmin(groupId, userId);
-        return ResponseEntity.ok().build();
-    }
-
-    @DeleteMapping("/{groupId}/admin/{userId}")
-    public ResponseEntity<Void> demoteAdmin(@PathVariable Long groupId, @PathVariable Long userId) {
-        groupChatService.demoteAdmin(groupId, userId);
-        return ResponseEntity.ok().build();
-    }
-
-    @GetMapping("/{groupId}/admins")
-    public ResponseEntity<List<User>> getAdmins(@PathVariable Long groupId) {
-        return ResponseEntity.ok(groupChatService.getAdmins(groupId));
-    }
-
-    @PutMapping("/{groupId}/description")
-    public ResponseEntity<Void> updateDescription(@PathVariable Long groupId, @RequestBody Map<String, String> body) {
-        groupChatService.updateGroupDescription(groupId, body.get("description"));
-        return ResponseEntity.ok().build();
-    }
-
-    @PostMapping("/{groupId}/mute")
-    public ResponseEntity<Void> muteGroup(Principal principal, @PathVariable Long groupId, @RequestParam boolean muted) {
-        Long userId = userService.getCurrentUser(principal.getName()).getId();
-        groupChatService.muteGroup(groupId, userId, muted);
-        return ResponseEntity.ok().build();
-    }
-
-    @PostMapping("/{groupId}/messages/{messageId}/react")
-    public ResponseEntity<GroupChatMessageReaction> reactToMessage(
-            Principal principal, @PathVariable Long messageId, @RequestParam String reaction) {
-        Long userId = userService.getCurrentUser(principal.getName()).getId();
-        return ResponseEntity.ok(groupChatService.reactToGroupMessage(messageId, userId, reaction));
-    }
-
-    @GetMapping("/{groupId}/messages/{messageId}/reactions")
-    public ResponseEntity<List<GroupChatMessageReaction>> getMessageReactions(@PathVariable Long messageId) {
-        return ResponseEntity.ok(groupChatService.getGroupMessageReactions(messageId));
-    }
-
-    @DeleteMapping("/{groupId}/messages/{messageId}/react")
-    public ResponseEntity<Void> removeReaction(Principal principal, @PathVariable Long messageId) {
-        Long userId = userService.getCurrentUser(principal.getName()).getId();
-        groupChatService.removeGroupMessageReaction(messageId, userId);
-        return ResponseEntity.ok().build();
-    }
 }

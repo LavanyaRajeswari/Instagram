@@ -18,12 +18,6 @@ public class NoteRestController {
     private final NoteService noteService;
     private final UserService userService;
 
-    @GetMapping
-    public ResponseEntity<List<NoteResponse>> getActiveNotes(Principal principal) {
-        Long userId = userService.getCurrentUser(principal.getName()).getId();
-        return ResponseEntity.ok(noteService.getActiveNotes(userId));
-    }
-
     @GetMapping("/active")
     public ResponseEntity<List<NoteResponse>> getActiveNotesAlt(Principal principal) {
         Long userId = userService.getCurrentUser(principal.getName()).getId();

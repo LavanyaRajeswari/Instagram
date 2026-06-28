@@ -60,7 +60,4 @@ export const reportStory = async (storyId, { reason, description = "" }) => {
   return data;
 };
 
-export const getMyReports = async () => {
-  const { data } = await api.get("/reports/my");
-  return Array.isArray(data) ? data : [];
-};
+

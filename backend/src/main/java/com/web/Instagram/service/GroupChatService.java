@@ -1,16 +1,12 @@
 package com.web.Instagram.service;
 
 import com.web.Instagram.dto.chat.GroupMessageDto;
-import com.web.Instagram.entity.ChatSetting;
 import com.web.Instagram.entity.GroupChat;
 import com.web.Instagram.entity.GroupChatAdmin;
 import com.web.Instagram.entity.GroupChatMessage;
-import com.web.Instagram.entity.GroupChatMessageReaction;
 import com.web.Instagram.entity.User;
-import com.web.Instagram.repository.ChatSettingRepository;
 import com.web.Instagram.repository.GroupChatAdminRepository;
 import com.web.Instagram.repository.GroupChatMessageRepository;
-import com.web.Instagram.repository.GroupChatMessageReactionRepository;
 import com.web.Instagram.repository.GroupChatRepository;
 import com.web.Instagram.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -30,9 +26,7 @@ public class GroupChatService {
     private final GroupChatRepository groupChatRepository;
     private final GroupChatMessageRepository groupChatMessageRepository;
     private final GroupChatAdminRepository groupChatAdminRepository;
-    private final GroupChatMessageReactionRepository groupChatMessageReactionRepository;
     private final UserRepository userRepository;
-    private final ChatSettingRepository chatSettingRepository;
     private final NotificationService notificationService;
 
     @Transactional
@@ -217,137 +211,8 @@ public class GroupChatService {
         return toDto(groupChatMessageRepository.save(message));
     }
 
-    @Transactional
-    public void setGroupNickname(Long groupChatId, String nickname) {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        User currentUser = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        GroupChat groupChat = groupChatRepository.findById(groupChatId)
-                .orElseThrow(() -> new RuntimeException("Group chat not found"));
-
-        ChatSetting setting = chatSettingRepository.findByUserIdAndGroupChatId(currentUser.getId(), groupChatId)
-                .orElseGet(() -> {
-                    ChatSetting s = new ChatSetting();
-                    s.setUser(currentUser);
-                    s.setGroupChat(groupChat);
-                    return s;
-                });
-        setting.setNickname(nickname);
-        chatSettingRepository.save(setting);
-    }
-
-    @Transactional
-    public void setGroupTheme(Long groupChatId, String theme) {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        User currentUser = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        GroupChat groupChat = groupChatRepository.findById(groupChatId)
-                .orElseThrow(() -> new RuntimeException("Group chat not found"));
-
-        ChatSetting setting = chatSettingRepository.findByUserIdAndGroupChatId(currentUser.getId(), groupChatId)
-                .orElseGet(() -> {
-                    ChatSetting s = new ChatSetting();
-                    s.setUser(currentUser);
-                    s.setGroupChat(groupChat);
-                    return s;
-                });
-        setting.setTheme(theme);
-        chatSettingRepository.save(setting);
-    }
-
-    @Transactional
-    public void promoteToAdmin(Long groupChatId, Long userId) {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        User currentUser = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        GroupChat groupChat = groupChatRepository.findById(groupChatId)
-                .orElseThrow(() -> new RuntimeException("Group chat not found"));
-        if (!groupChat.getCreatedBy().getId().equals(currentUser.getId())) {
-            throw new RuntimeException("Only group creator can promote admins");
-        }
-        if (!groupChatAdminRepository.existsByGroupChatIdAndUserId(groupChatId, userId)) {
-            User target = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-            groupChatAdminRepository.save(GroupChatAdmin.builder()
-                .groupChat(groupChat).user(target).build());
-        }
-    }
-
-    @Transactional
-    public void demoteAdmin(Long groupChatId, Long userId) {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        User currentUser = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        GroupChat groupChat = groupChatRepository.findById(groupChatId)
-                .orElseThrow(() -> new RuntimeException("Group chat not found"));
-        if (!groupChat.getCreatedBy().getId().equals(currentUser.getId())) {
-            throw new RuntimeException("Only group creator can demote admins");
-        }
-        groupChatAdminRepository.deleteByGroupChatIdAndUserId(groupChatId, userId);
-    }
-
     public boolean isAdmin(Long groupChatId, Long userId) {
         return groupChatAdminRepository.existsByGroupChatIdAndUserId(groupChatId, userId);
-    }
-
-    public List<User> getAdmins(Long groupChatId) {
-        return groupChatAdminRepository.findByGroupChatId(groupChatId).stream()
-            .map(GroupChatAdmin::getUser).toList();
-    }
-
-    @Transactional
-    public void updateGroupDescription(Long groupChatId, String description) {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        User currentUser = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        GroupChat groupChat = groupChatRepository.findById(groupChatId)
-                .orElseThrow(() -> new RuntimeException("Group chat not found"));
-        if (!groupChat.getCreatedBy().getId().equals(currentUser.getId()) &&
-            !groupChatAdminRepository.existsByGroupChatIdAndUserId(groupChatId, currentUser.getId())) {
-            throw new RuntimeException("Only admins can update group description");
-        }
-        groupChat.setDescription(description);
-        groupChatRepository.save(groupChat);
-    }
-
-    @Transactional
-    public void muteGroup(Long groupChatId, Long userId, boolean muted) {
-        GroupChat groupChat = groupChatRepository.findById(groupChatId)
-                .orElseThrow(() -> new RuntimeException("Group chat not found"));
-        User currentUser = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        ChatSetting setting = chatSettingRepository.findByUserIdAndGroupChatId(userId, groupChatId)
-                .orElseGet(() -> {
-                    ChatSetting s = new ChatSetting();
-                    s.setUser(currentUser);
-                    s.setGroupChat(groupChat);
-                    return s;
-                });
-        setting.setMutedNotifications(muted);
-        chatSettingRepository.save(setting);
-    }
-
-    @Transactional
-    public GroupChatMessageReaction reactToGroupMessage(Long messageId, Long userId, String reaction) {
-        GroupChatMessage message = groupChatMessageRepository.findById(messageId)
-            .orElseThrow(() -> new RuntimeException("Message not found"));
-        User user = userRepository.findById(userId)
-            .orElseThrow(() -> new RuntimeException("User not found"));
-        groupChatMessageReactionRepository.findByMessageIdAndUserId(messageId, userId)
-            .ifPresent(groupChatMessageReactionRepository::delete);
-        return groupChatMessageReactionRepository.save(GroupChatMessageReaction.builder()
-            .message(message).user(user).reaction(reaction).build());
-    }
-
-    public List<GroupChatMessageReaction> getGroupMessageReactions(Long messageId) {
-        return groupChatMessageReactionRepository.findByMessageId(messageId);
-    }
-
-    @Transactional
-    public void removeGroupMessageReaction(Long messageId, Long userId) {
-        groupChatMessageReactionRepository.deleteByMessageIdAndUserId(messageId, userId);
     }
 
     private User getCurrentUser() {

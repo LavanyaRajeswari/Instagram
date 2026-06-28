@@ -80,42 +80,6 @@ public class ChatService {
         return List.copyOf(chatsByOtherUser.values());
     }
 
-    public List<ChatDto> getArchivedChats() {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        User currentUser = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        return chatRepository.findByUserIdAndArchivedTrue(currentUser.getId())
-                .stream()
-                .map(chat -> convert(chat, currentUser.getId()))
-                .toList();
-    }
-
-    @Transactional
-    public void togglePinChat(Long chatId) {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        User currentUser = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        Chat chat = chatRepository.findById(chatId)
-                .orElseThrow(() -> new RuntimeException("Chat not found"));
-        validateParticipant(chat, currentUser.getId());
-        chat.setPinned(!chat.isPinned());
-        chatRepository.save(chat);
-    }
-
-    @Transactional
-    public void toggleArchiveChat(Long chatId) {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        User currentUser = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        Chat chat = chatRepository.findById(chatId)
-                .orElseThrow(() -> new RuntimeException("Chat not found"));
-        validateParticipant(chat, currentUser.getId());
-        chat.setArchived(!chat.isArchived());
-        chatRepository.save(chat);
-    }
-
     @Transactional
     public void deleteChat(Long chatId) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -154,59 +118,6 @@ public class ChatService {
         chat.setMuted(false);
         chat.setMuteUntil(null);
         chatRepository.save(chat);
-    }
-
-    @Transactional
-    public void setVanishMode(Long chatId, String mode) {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        User currentUser = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        Chat chat = chatRepository.findById(chatId)
-                .orElseThrow(() -> new RuntimeException("Chat not found"));
-        validateParticipant(chat, currentUser.getId());
-        chat.setVanishMode(mode);
-        chatRepository.save(chat);
-    }
-
-    @Transactional
-    public void setChatTheme(Long chatId, String theme) {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        User currentUser = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        Chat chat = chatRepository.findById(chatId)
-                .orElseThrow(() -> new RuntimeException("Chat not found"));
-        validateParticipant(chat, currentUser.getId());
-        ChatSetting setting = chatSettingRepository.findByUserIdAndChatId(currentUser.getId(), chatId)
-                .orElseGet(() -> {
-                    ChatSetting s = new ChatSetting();
-                    s.setUser(currentUser);
-                    s.setChat(chat);
-                    return s;
-                });
-        setting.setTheme(theme);
-        chatSettingRepository.save(setting);
-    }
-
-    @Transactional
-    public void setChatWallpaper(Long chatId, String wallpaper) {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        User currentUser = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        Chat chat = chatRepository.findById(chatId)
-                .orElseThrow(() -> new RuntimeException("Chat not found"));
-        validateParticipant(chat, currentUser.getId());
-        ChatSetting setting = chatSettingRepository.findByUserIdAndChatId(currentUser.getId(), chatId)
-                .orElseGet(() -> {
-                    ChatSetting s = new ChatSetting();
-                    s.setUser(currentUser);
-                    s.setChat(chat);
-                    return s;
-                });
-        setting.setWallpaper(wallpaper);
-        chatSettingRepository.save(setting);
     }
 
     @Transactional

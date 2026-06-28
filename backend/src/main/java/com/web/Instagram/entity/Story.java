@@ -27,21 +27,13 @@ public class Story implements Serializable {
     private String mediaType;
 
     private String caption;
+    
+    private Long musicId;
 
     private LocalDateTime createdAt;
 
     private LocalDateTime expiresAt;
 
-    @Column(length = 20)
-    private String audience;
-
-    private Long musicId;
-
-    @Column(length = 50)
-    private String fontStyle;
-
-    @Builder.Default
-    private Boolean showFontStyle = false;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")

@@ -1,7 +1,6 @@
 package com.web.Instagram.service;
 
 import com.web.Instagram.dto.story.StoryResponse;
-import com.web.Instagram.entity.Hashtag;
 import com.web.Instagram.entity.Story;
 import com.web.Instagram.entity.StoryArchive;
 import com.web.Instagram.entity.StoryLike;
@@ -10,7 +9,6 @@ import com.web.Instagram.entity.StoryView;
 import com.web.Instagram.entity.User;
 import com.web.Instagram.entity.SavedStory;
 import com.web.Instagram.repository.FollowRepository;
-import com.web.Instagram.repository.HashtagRepository;
 import com.web.Instagram.repository.HighlightRepository;
 import com.web.Instagram.repository.StoryArchiveRepository;
 import com.web.Instagram.repository.StoryLikeRepository;
@@ -48,9 +46,6 @@ public class StoryService {
     private final StoryMusicRepository storyMusicRepository;
     private final HighlightRepository highlightRepository;
     private final ShareRepository shareRepository;
-    private final HashtagService hashtagService;
-    private final HashtagRepository hashtagRepository;
-    private final TagService tagService;
 
     public List<StoryResponse> getActiveStories(Long currentUserId) {
         User currentUser = getUserOrThrow(currentUserId);
@@ -170,19 +165,6 @@ public class StoryService {
 
     public long getViewCount(Long storyId) {
         return storyViewRepository.countByStoryId(storyId);
-    }
-
-    @Transactional
-    public void setAudience(Long storyId, String audience, Long userId) {
-        Story story = getStoryOrThrow(storyId);
-        if (!story.getUser().getId().equals(userId)) {
-            throw new RuntimeException("Not authorized");
-        }
-        if (!java.util.List.of("PUBLIC", "FOLLOWERS", "CLOSE_FRIENDS").contains(audience)) {
-            throw new RuntimeException("Invalid audience. Must be PUBLIC, FOLLOWERS, or CLOSE_FRIENDS");
-        }
-        story.setAudience(audience);
-        storyRepository.save(story);
     }
 
     private List<StoryResponse> batchToResponse(List<Story> stories, Long currentUserId) {
@@ -311,38 +293,6 @@ public class StoryService {
                 .orElseThrow(() -> new RuntimeException("Music not found"));
         story.setMusicId(musicId);
         storyRepository.save(story);
-    }
-
-    @Transactional
-    public void setFontStyle(Long storyId, String fontStyle, Boolean showFontStyle, Long userId) {
-        Story story = getStoryOrThrow(storyId);
-        if (!story.getUser().getId().equals(userId)) {
-            throw new RuntimeException("Not authorized");
-        }
-        story.setFontStyle(fontStyle);
-        if (showFontStyle != null) {
-            story.setShowFontStyle(showFontStyle);
-        }
-        storyRepository.save(story);
-    }
-
-    @Transactional
-    public List<String> extractHashtagsFromStory(Long storyId) {
-        Story story = getStoryOrThrow(storyId);
-        List<String> hashtags = hashtagService.extractHashtags(story.getCaption());
-        for (String tag : hashtags) {
-            Hashtag hashtag = Hashtag.builder()
-                    .tag(tag)
-                    .postId(storyId)
-                    .build();
-            hashtagRepository.save(hashtag);
-        }
-        return hashtags;
-    }
-
-    public List<String> extractMentionsFromStory(Long storyId) {
-        Story story = getStoryOrThrow(storyId);
-        return tagService.extractMentions(story.getCaption());
     }
 
     private Story getStoryOrThrow(Long storyId) {

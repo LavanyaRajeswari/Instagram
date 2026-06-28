@@ -16,7 +16,4 @@ export const shareStory = async ({ storyId, receiverId = null, shareType = "COPY
   const { data } = await api.post(`/stories/${storyId}/share`, null, { params });
   return data;
 };
-export const getStoryShareCount = async (storyId) => {
-  const { data } = await api.get(`/stories/${storyId}/shares`);
-  return typeof data === "number" ? data : data?.count ?? data?.shareCount ?? 0;
-};
+

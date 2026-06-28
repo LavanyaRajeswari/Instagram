@@ -1,12 +1,14 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { FaMeta } from "react-icons/fa6";
 import { ArrowLeft } from "lucide-react";
-import { registerUser } from "../../api/userApi";
+import { registerUser, addAccount } from "../../api/userApi";
 import { clearCurrentUserCache } from "../../hooks/useCurrentUser";
 
 function Register() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isAddAccount = location.pathname === "/add-account";
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
@@ -95,9 +97,14 @@ function Register() {
         payload.mobileNumber = formData.mobileOrEmail.trim();
       }
 
-      await registerUser(payload);
-      clearCurrentUserCache();
-      navigate("/", { replace: true });
+      if (isAddAccount) {
+        await addAccount(payload);
+        navigate("/switch-account", { replace: true });
+      } else {
+        await registerUser(payload);
+        clearCurrentUserCache();
+        navigate("/", { replace: true });
+      }
     } catch (err) {
       const msg = err.response?.data;
       setError(typeof msg === "string" ? msg : msg?.message || "Registration failed. Please try again.");
@@ -115,9 +122,9 @@ function Register() {
         <div className="flex items-center gap-3 mb-6">
           <button
             type="button"
-            onClick={() => navigate("/login")}
+            onClick={() => navigate(isAddAccount ? "/switch-account" : "/login")}
             className="p-2 rounded-full hover:bg-secondary transition-colors text-primary"
-            aria-label="Back to login"
+            aria-label={isAddAccount ? "Back to switch accounts" : "Back to login"}
           >
             <ArrowLeft className="h-6 w-6" />
           </button>
@@ -254,13 +261,15 @@ function Register() {
           </button>
         </form>
 
-        <button
-          type="button"
-          onClick={() => navigate("/login")}
-          className="w-full h-[58px] border border-primary bg-card rounded-full mt-5 text-[17px] font-medium text-primary hover:bg-secondary transition-colors"
-        >
-          I already have an account
-        </button>
+        {!isAddAccount && (
+          <button
+            type="button"
+            onClick={() => navigate("/login")}
+            className="w-full h-[58px] border border-primary bg-card rounded-full mt-5 text-[17px] font-medium text-primary hover:bg-secondary transition-colors"
+          >
+            I already have an account
+          </button>
+        )}
       </div>
     </div>
   );

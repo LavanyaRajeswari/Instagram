@@ -12,7 +12,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -94,17 +93,4 @@ public class FollowService {
         followRepository.deleteByFollowerIdAndFollowingId(followerId, userId);
     }
 
-    public List<User> getFollowersUsers(Long userId) {
-        return followRepository.findByFollowingId(userId)
-                .stream()
-                .map(Follow::getFollower)
-                .toList();
-    }
-
-    public List<User> getFollowingUsers(Long userId) {
-        return followRepository.findByFollowerId(userId)
-                .stream()
-                .map(Follow::getFollowing)
-                .toList();
-    }
 }
