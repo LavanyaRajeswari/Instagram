@@ -1,0 +1,110 @@
+# Java
+*.class
+*.log
+*.ctxt
+
+# Maven
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# Gradle
+.gradle/
+build/
+
+# Spring Boot
+HELP.md
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# VS Code
+.vscode/
+
+# Eclipse / STS
+.apt_generated/
+.classpath
+.factorypath
+.project
+.settings/
+.springBeans
+.sts4-cache/
+
+# NetBeans
+nbproject/private/
+build/
+dist/
+nbbuild/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Vite
+dist/
+.vite/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Coverage
+coverage/
+
+# Cache
+.cache/
+.parcel-cache/
+.eslintcache
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+tmp/
+temp/
+
+# Runtime files
+*.pid
+*.seed
+*.pid.lock
+
+# Archives
+*.zip
+*.tar
+*.gz
+*.rar
+*.7z
+
+# Generated files
+out/
+bin/
+
+# Mac
+.AppleDouble
+.LSOverride
+
+# Linux
+*~
+
+# Windows
+Desktop.ini
+
+# IntelliJ
+.idea_modules/
+
+# React
+*.tsbuildinfo
+
+# Optional uploads directory
+uploads/
