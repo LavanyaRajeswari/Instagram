@@ -2,8 +2,8 @@ import "@testing-library/jest-dom";
 
 vi.stubGlobal("import.meta", {
   env: {
-    VITE_API_BASE_URL: "https://InstagramClone.us-east-1.elasticbeanstalk.com/api",
-    VITE_WS_URL: "https://InstagramClone.us-east-1.elasticbeanstalk.com/ws",
+    VITE_API_BASE_URL: "https://api.noninsta.com/api",
+    VITE_WS_URL: "https://api.noninsta.com/ws",
   },
 });
 
