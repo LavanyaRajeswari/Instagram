@@ -166,21 +166,10 @@ public class DataSeeder implements CommandLineRunner {
     };
 
     private static final String[] SAMPLE_VIDEOS = {
-        "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-        "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
-        "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
-        "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
-        "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4",
-        "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-        "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
-        "https://storage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
-        "https://storage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4",
-        "https://storage.googleapis.com/gtv-videos-bucket/sample/VolkswagenGTIReview.mp4",
-        "https://storage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4",
-        "https://storage.googleapis.com/gtv-videos-bucket/sample/WhatCarCanYouGetForAGrand.mp4",
-        "https://storage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
-        "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/720/Big_Buck_Bunny_720_10s_1MB.mp4",
-        "https://www.w3schools.com/html/mov_bbb.mp4"
+        "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
+        "https://www.w3schools.com/html/mov_bbb.mp4",
+        "https://media.w3.org/2010/05/sintel/trailer.mp4",
+        "https://media.w3.org/2010/05/bunny/trailer.mp4"
     };
 
     private static final String[] AUDIO_URLS = {
@@ -255,6 +244,7 @@ public class DataSeeder implements CommandLineRunner {
         if (storyMusicRepository.count() == 0) {
             createStoryMusic();
         }
+        repairSeededReelVideos();
 
         if (userRepository.count() > 0) {
             return;
@@ -431,6 +421,34 @@ public class DataSeeder implements CommandLineRunner {
         }
 
         return mediaRepository.saveAll(list);
+    }
+
+    private void repairSeededReelVideos() {
+        List<Media> repaired = mediaRepository.findAll().stream()
+                .filter(media -> media.getMediaType() == MediaType.VIDEO)
+                .filter(media -> media.getPublicId() != null && media.getPublicId().startsWith("public_post_"))
+                .filter(media -> isUnavailableSeedVideo(media.getMediaUrl()))
+                .peek(media -> media.setMediaUrl(seedVideoUrlFor(media.getPublicId())))
+                .toList();
+        if (!repaired.isEmpty()) {
+            mediaRepository.saveAll(repaired);
+        }
+    }
+
+    private boolean isUnavailableSeedVideo(String mediaUrl) {
+        return mediaUrl != null
+                && (mediaUrl.contains("storage.googleapis.com/gtv-videos-bucket")
+                || mediaUrl.contains("test-videos.co.uk"));
+    }
+
+    private String seedVideoUrlFor(String publicId) {
+        try {
+            String postNumber = publicId.substring("public_post_".length()).split("_")[0];
+            int index = Math.max(Integer.parseInt(postNumber), 0);
+            return SAMPLE_VIDEOS[index % SAMPLE_VIDEOS.length];
+        } catch (RuntimeException ignored) {
+            return SAMPLE_VIDEOS[0];
+        }
     }
 
     private void createLikes(List<User> users, List<Post> posts) {

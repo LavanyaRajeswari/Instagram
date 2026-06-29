@@ -149,6 +149,10 @@ function CallPage() {
   const createOfferFor = useCallback(async (targetUserId) => {
     const key = String(targetUserId || "");
     if (!key || !callId || !currentUserId || key === String(currentUserId)) return;
+    if (!streamRef.current) {
+      pendingOfferTargetsRef.current.add(key);
+      return;
+    }
     if (offerTargetsRef.current.has(key)) return;
     offerTargetsRef.current.add(key);
 
@@ -172,6 +176,10 @@ function CallPage() {
   const handleRemoteOffer = useCallback(async (event) => {
     const senderId = event?.fromId || event?.callerId;
     if (!senderId || !event?.offer || !callId || !currentUserId) return;
+    if (!streamRef.current) {
+      pendingRemoteOffersRef.current.push(event);
+      return;
+    }
 
     try {
       const pc = getPeerConnection(senderId);
@@ -323,7 +331,8 @@ function CallPage() {
         removeParticipant(event.participantId);
         stopPeer(event.participantId);
       } else if (event.type === "CALL_OFFER") {
-        handleRemoteOffer(event);
+        if (streamRef.current) handleRemoteOffer(event);
+        else pendingRemoteOffersRef.current.push(event);
       } else if (event.type === "CALL_ANSWER") {
         handleRemoteAnswer(event);
       } else if (event.type === "ICE_CANDIDATE") {
@@ -361,6 +370,13 @@ function CallPage() {
         if (call?.groupMembers) upsertMembers(call.groupMembers);
         if (call?.participants) replaceParticipants(call.participants);
         const status = String(call?.status || "").toUpperCase();
+        if (status === "ANSWERED" && callStatus !== "connected") {
+          setCallStatus("connected");
+          if (!isGroupCall && peerUserId) {
+            window.setTimeout(() => createOfferFor(peerUserId), 300);
+          }
+          return;
+        }
         if (!terminalStatuses.has(status) || endedRef.current) return;
 
         endedRef.current = true;
@@ -374,7 +390,7 @@ function CallPage() {
     const intervalId = window.setInterval(pollCallStatus, 2500);
     pollCallStatus();
     return () => window.clearInterval(intervalId);
-  }, [callId, cleanupCall, navigate, replaceParticipants, returnTo, upsertMembers]);
+  }, [callId, callStatus, cleanupCall, createOfferFor, isGroupCall, navigate, peerUserId, replaceParticipants, returnTo, upsertMembers]);
 
   useEffect(() => {
     if (callStatus !== "connected") return;

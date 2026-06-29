@@ -998,7 +998,7 @@ function Reels() {
                     className="h-full w-full object-contain"
                     autoPlay={active}
                     loop
-                    muted={mutedMap[reel.id] ?? false}
+                    muted={mutedMap[reel.id] ?? true}
                     playsInline
                   />
 
@@ -1007,7 +1007,7 @@ function Reels() {
                     onClick={() => toggleMute(reel.id)}
                     className="absolute bottom-5 right-5 z-30 rounded-full bg-black/50 p-2 text-white"
                   >
-                    {mutedMap[reel.id] ?? false ? (
+                    {mutedMap[reel.id] ?? true ? (
                       <VolumeX className="h-5 w-5" />
                     ) : (
                       <Volume2 className="h-5 w-5" />
