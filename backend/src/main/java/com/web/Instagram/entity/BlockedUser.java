@@ -13,7 +13,10 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Table(name = "blocked_users", uniqueConstraints = {
+@Table(name = "blocked_users", indexes = {
+    @Index(name = "idx_blocked_users_blocker_id", columnList = "blocker_id"),
+    @Index(name = "idx_blocked_users_blocked_id", columnList = "blocked_id")
+}, uniqueConstraints = {
     @UniqueConstraint(columnNames = {"blocker_id", "blocked_id"})
 })
 public class BlockedUser implements Serializable {

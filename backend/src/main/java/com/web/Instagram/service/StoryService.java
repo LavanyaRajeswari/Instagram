@@ -20,6 +20,7 @@ import com.web.Instagram.repository.SavedStoryRepository;
 import com.web.Instagram.repository.ShareRepository;
 import com.web.Instagram.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -151,11 +152,14 @@ public class StoryService {
             return;
         }
         if (!storyViewRepository.existsByStoryIdAndUserId(storyId, userId)) {
-            User user = getUserOrThrow(userId);
-            storyViewRepository.save(StoryView.builder()
-                .story(story)
-                .user(user)
-                .build());
+            try {
+                User user = getUserOrThrow(userId);
+                storyViewRepository.save(StoryView.builder()
+                    .story(story)
+                    .user(user)
+                    .build());
+            } catch (DataIntegrityViolationException ignored) {
+            }
         }
     }
 

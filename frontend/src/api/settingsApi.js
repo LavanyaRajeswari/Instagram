@@ -1,18 +1,5 @@
 import { api } from "./client";
 
-export const getCloseFriends = async () => {
-  const { data } = await api.get("/close-friends");
-  return Array.isArray(data) ? data : [];
-};
-
-export const addCloseFriend = async (friendId) => {
-  await api.post("/close-friends", { friendId });
-};
-
-export const removeCloseFriend = async (friendId) => {
-  await api.delete(`/close-friends/${friendId}`);
-};
-
 export const getBlockedAccounts = async () => {
   const { data } = await api.get("/users/blocked");
   return Array.isArray(data) ? data : [];
@@ -92,11 +79,6 @@ export const updateSensitiveContent = async (value) => {
 
 export const updateReelDownloads = async (value) => {
   await api.put("/settings/reel-downloads", null, { params: { value } });
-};
-
-export const getLoginHistory = async () => {
-  const { data } = await api.get("/users/login-history");
-  return Array.isArray(data) ? data : [];
 };
 
 export const getRestrictedAccounts = async () => {

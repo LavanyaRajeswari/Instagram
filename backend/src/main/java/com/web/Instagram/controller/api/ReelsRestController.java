@@ -22,7 +22,10 @@ public class ReelsRestController {
             Principal principal,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        Long userId = principal != null ? userService.getCurrentUser(principal.getName()).getId() : null;
+        Long userId = null;
+        if (principal != null) {
+            try { userId = userService.getCurrentUser(principal.getName()).getId(); } catch (RuntimeException ignored) {}
+        }
         return postService.getReels(userId, page, size);
     }
 

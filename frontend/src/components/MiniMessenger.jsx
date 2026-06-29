@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Maximize2, MessageCircle, X } from "lucide-react";
 import { getChats, getMessages, markMessagesSeen, sendMessage } from "../api/messagesApi";
@@ -15,6 +15,7 @@ function MiniMessenger() {
   const [text, setText] = useState("");
   const [typing, setTyping] = useState({});
   const bottomRef = useRef(null);
+  const lastTypingRef = useRef(0);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -182,8 +183,10 @@ function MiniMessenger() {
                   <input value={text} onChange={(event) => {
                     const value = event.target.value;
                     setText(value);
-                    if (selectedChat && currentUser) {
+                    const now = Date.now();
+                    if (selectedChat && currentUser && now - lastTypingRef.current > 2000) {
                       sendTyping(selectedChat.id, currentUser.id, value.length > 0);
+                      lastTypingRef.current = now;
                     }
                   }} placeholder="Message..." className="min-w-0 flex-1 bg-transparent text-sm outline-none" />
                   <button type="submit" disabled={!text.trim()} className="text-sm font-semibold text-[#0095f6] disabled:opacity-40">
@@ -205,4 +208,4 @@ function MiniMessenger() {
   );
 }
 
-export default MiniMessenger;
+export default React.memo(MiniMessenger);

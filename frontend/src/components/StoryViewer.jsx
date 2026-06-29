@@ -111,7 +111,7 @@ function StoryViewer({ user, stories = [], onClose }) {
   const { currentUserId } = useCurrentUser();
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
-  const [muted, setMuted] = useState(true);
+  const [muted, setMuted] = useState(false);
   const [progress, setProgress] = useState(0);
   const [replyText, setReplyText] = useState("");
   const [liked, setLiked] = useState(false);
@@ -136,6 +136,18 @@ function StoryViewer({ user, stories = [], onClose }) {
   const wasHolding = useRef(false);
 
   const activeStory = stories[index];
+
+  const goNext = () => {
+    if (index < stories.length - 1) {
+      setIndex((prev) => prev + 1);
+    } else {
+      onClose();
+    }
+  };
+
+  const goPrevious = () => {
+    if (index > 0) setIndex((prev) => prev - 1);
+  };
 
   const formatTimeAgo = (dateValue) => {
     if (!dateValue) return "";
@@ -175,7 +187,7 @@ function StoryViewer({ user, stories = [], onClose }) {
     trackStoryView(activeStory.id).catch(() => {});
   }, [activeStory?.id]);
 
-  const goNextRef = useRef(goNext);
+  const goNextRef = useRef(null);
   useEffect(() => { goNextRef.current = goNext; }, [goNext]);
 
   useEffect(() => {
@@ -184,7 +196,7 @@ function StoryViewer({ user, stories = [], onClose }) {
     const interval = setInterval(() => {
       setProgress((prev) => {
         if (prev >= 100) {
-          goNextRef.current();
+          setTimeout(() => goNextRef.current?.(), 0);
           return 0;
         }
         return prev + 100 / (storyDuration / 100);
@@ -262,18 +274,6 @@ function StoryViewer({ user, stories = [], onClose }) {
       setViewCount(Math.max(Number(activeStory.viewCount || 0) - (isOwnStory ? 1 : 0), 0));
       setReplyCount(activeStory.replyCount ?? 0);
     }
-  };
-
-  const goNext = () => {
-    if (index < stories.length - 1) {
-      setIndex((prev) => prev + 1);
-    } else {
-      onClose();
-    }
-  };
-
-  const goPrevious = () => {
-    if (index > 0) setIndex((prev) => prev - 1);
   };
 
   const handleLike = async () => {

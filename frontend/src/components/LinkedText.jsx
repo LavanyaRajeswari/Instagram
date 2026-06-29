@@ -1,3 +1,4 @@
+import React from "react";
 import { useNavigate } from "react-router-dom";
 
 const HASHTAG_PATTERN = /^#[A-Za-z0-9_][A-Za-z0-9_\-\u2010-\u2015\u2212]*$/;
@@ -47,4 +48,4 @@ function LinkedText({ text = "", onLinkClick }) {
   );
 }
 
-export default LinkedText;
+export default React.memo(LinkedText);

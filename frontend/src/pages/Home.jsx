@@ -96,10 +96,14 @@ function Home() {
         const users = await getSuggestedUsers();
         const list = Array.isArray(users) ? users.filter((u) => String(u.id) !== String(currentUserId)) : [];
         setSuggestedUsers(list.slice(0, 5));
+        const results = await Promise.all(
+          list.slice(0, 5).map(async (u) => {
+            try { return { id: u.id, following: await isFollowingUser(u.id) }; }
+            catch { return { id: u.id, following: false }; }
+          })
+        );
         const map = {};
-        for (const u of list.slice(0, 5)) {
-          try { map[u.id] = await isFollowingUser(u.id); } catch { map[u.id] = false; }
-        }
+        results.forEach((r) => { map[r.id] = r.following; });
         setFollowingMap(map);
       } catch { setSuggestedUsers([]); }
       finally { setSuggestionsLoading(false); }

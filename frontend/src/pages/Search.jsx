@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import React, { memo, useEffect, useRef, useState } from "react";
 import { Clock, Hash, Search as SearchIcon, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import ImmersivePostModal from "../components/ImmersivePostModal";
@@ -83,7 +83,7 @@ function Search({ onCreateClick }) {
   const loadTrendingHashtags = async () => {
     try {
       const data = await getTrendingHashtags(10);
-      setTrendingHashtags(data);
+      setTrendingHashtags(Array.isArray(data) ? [...new Set(data)] : []);
     } catch {
       setTrendingHashtags([]);
     }
@@ -140,7 +140,7 @@ function Search({ onCreateClick }) {
       ]);
       setUserResults(Array.isArray(users) ? users : []);
       setPostResults(Array.isArray(posts) ? posts : []);
-      setHashtagResults(Array.isArray(hashtags) ? hashtags : []);
+      setHashtagResults(Array.isArray(hashtags) ? [...new Set(hashtags)] : []);
     } catch {
       setUserResults([]);
       setPostResults([]);
@@ -493,4 +493,4 @@ function Search({ onCreateClick }) {
   );
 }
 
-export default Search;
+export default memo(Search);

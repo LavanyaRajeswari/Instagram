@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { getNotifications, markNotificationSeen, markAllNotificationsSeen } from "../api/notificationsApi";
+import { getNotifications, markNotificationSeen } from "../api/notificationsApi";
 import { followUser, unfollowUser, isFollowingUser } from "../api/followApi";
 import { acceptFollowRequest, rejectFollowRequest } from "../api/followRequestsApi";
 import { getAvatarUrl } from "../utils/avatar";
@@ -77,13 +77,7 @@ function Notifications() {
           });
         }
 
-        setTimeout(() => {
-          if (!cancelled) {
-            markAllNotificationsSeen().then(() => {
-              window.dispatchEvent(new CustomEvent("notifications-seen"));
-            });
-          }
-        }, 2000);
+
       })
       .catch(() => {
         if (!cancelled) setItems([]);
@@ -281,4 +275,4 @@ function Notifications() {
   );
 }
 
-export default Notifications;
+export default React.memo(Notifications);

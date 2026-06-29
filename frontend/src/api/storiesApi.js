@@ -17,8 +17,12 @@ export const setStoryMusic = async (storyId, musicId) => {
   return data;
 };
 export const getStoryMusic = async () => {
-  const { data } = await api.get("/story-music/trending");
+  const { data } = await api.get("/story-music");
   return Array.isArray(data) ? data : [];
+};
+export const searchStoryMusic = async (query) => {
+  const { data } = await api.get("/story-music/search", { params: { query, size: 50 } });
+  return Array.isArray(data?.content) ? data.content : [];
 };
 export const likeStory = async (storyId) => {
   const { data } = await api.post(`${STORIES}/${storyId}/like`);

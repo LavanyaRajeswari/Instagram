@@ -3,6 +3,7 @@ package com.web.Instagram.controller.api;
 import java.security.Principal;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -13,10 +14,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.web.Instagram.dto.user.LoginHistoryResponse;
 import com.web.Instagram.dto.user.LoginRequest;
 import com.web.Instagram.dto.user.LoginResponse;
 import com.web.Instagram.dto.user.RegisterRequest;
+import com.web.Instagram.dto.user.SearchHistoryRequest;
+import com.web.Instagram.dto.user.SearchHistoryResponse;
 import com.web.Instagram.dto.user.UpdateRequest;
 import com.web.Instagram.dto.user.UserResponse;
 import com.web.Instagram.service.UserService;
@@ -40,8 +42,15 @@ public class UserRestController {
     public ResponseEntity<List<UserResponse>> getSuggestedUsers(
             Principal principal,
             @RequestParam(defaultValue = "20") int limit) {
-        Long userId = userService.getCurrentUser(principal.getName()).getId();
-        return ResponseEntity.ok(userService.getSuggestedUsers(userId, limit));
+        if (principal == null) {
+            return ResponseEntity.ok(userService.getAllUsers(limit));
+        }
+        try {
+            Long userId = userService.getCurrentUser(principal.getName()).getId();
+            return ResponseEntity.ok(userService.getSuggestedUsers(userId, limit));
+        } catch (RuntimeException e) {
+            return ResponseEntity.ok(userService.getAllUsers(limit));
+        }
     }
 
     @GetMapping
@@ -103,20 +112,24 @@ public class UserRestController {
         return ResponseEntity.ok().build();
     }
 
-    @GetMapping("/login-history")
-    public ResponseEntity<List<LoginHistoryResponse>> getLoginHistory(Principal principal) {
+    @GetMapping("/search-history")
+    public ResponseEntity<List<SearchHistoryResponse>> getSearchHistory(Principal principal) {
         Long userId = userService.getCurrentUser(principal.getName()).getId();
-        List<LoginHistoryResponse> response = userService.getLoginHistory(userId).stream()
-                .map(h -> LoginHistoryResponse.builder()
-                        .id(h.getId())
-                        .ipAddress(h.getIpAddress())
-                        .deviceName(h.getDeviceName())
-                        .deviceType(h.getDeviceType())
-                        .successful(h.isSuccessful())
-                        .createdAt(h.getCreatedAt())
-                        .build())
-                .toList();
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(userService.getSearchHistory(userId));
+    }
+
+    @PostMapping("/search-history")
+    public ResponseEntity<Void> saveSearchHistory(Principal principal, @RequestBody SearchHistoryRequest request) {
+        Long userId = userService.getCurrentUser(principal.getName()).getId();
+        userService.saveSearchHistory(userId, request);
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/search-history")
+    public ResponseEntity<Void> clearSearchHistory(Principal principal) {
+        Long userId = userService.getCurrentUser(principal.getName()).getId();
+        userService.clearSearchHistory(userId);
+        return ResponseEntity.ok().build();
     }
 
 }

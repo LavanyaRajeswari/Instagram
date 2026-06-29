@@ -11,6 +11,7 @@ import java.util.List;
 public interface CommentLikeRepository extends JpaRepository<CommentLike, Long> {
 
     boolean existsByUserIdAndCommentId(Long userId, Long commentId);
+    List<CommentLike> findByUserIdAndCommentIdIn(Long userId, List<Long> commentIds);
 
     long countByCommentId(Long commentId);
 

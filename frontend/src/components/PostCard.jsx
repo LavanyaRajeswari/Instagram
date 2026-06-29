@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { deletePost, repostPost, updatePost } from "../api/postsApi";
 import { likePost, unlikePost, getLikeCount, isPostLiked } from "../api/likesApi";
@@ -49,6 +49,45 @@ const hasCommentsDisabled = (item) =>
     item?.user?.disableComments,
   ].some(isEnabledFlag);
 
+const getErrorMessage = (error, fallback) => {
+  const data = error?.response?.data;
+  if (typeof data === "string") return data;
+  if (data?.message) return data.message;
+  if (data?.error) return data.error;
+  return error.message || fallback;
+};
+
+const formatTimeAgo = (dateString) => {
+  if (!dateString) return "now";
+  const seconds = Math.floor((new Date() - new Date(dateString)) / 1000);
+  if (seconds < 60) return "now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d`;
+  return `${Math.floor(days / 7)}w`;
+};
+
+const getReplies = (comment) => {
+  if (Array.isArray(comment.replies)) return comment.replies;
+  if (Array.isArray(comment.children)) return comment.children;
+  if (Array.isArray(comment.childComments)) return comment.childComments;
+  return [];
+};
+
+const countCommentTree = (items = []) =>
+  items.reduce((total, item) => total + 1 + countCommentTree(getReplies(item)), 0);
+
+const removeCommentFromTree = (items = [], commentId) =>
+  items
+    .filter((item) => item.id !== commentId)
+    .map((item) => ({
+      ...item,
+      replies: removeCommentFromTree(getReplies(item), commentId),
+    }));
+
 function PostCard({ post, onPostUpdated, onPostDeleted, onMediaClick }) {
   const navigate = useNavigate();
   const { currentUserId: CURRENT_USER_ID } = useCurrentUser();
@@ -58,7 +97,8 @@ function PostCard({ post, onPostUpdated, onPostDeleted, onMediaClick }) {
   const [liked, setLiked] = useState(false);
   const [likes, setLikes] = useState(post.likeCount || 0);
   const [saved, setSaved] = useState(false);
-  const [, setShareCount] = useState(0);
+  const shareCountRef = useRef(0);
+  const setShareCount = (count) => { shareCountRef.current = count; };
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [likesModalOpen, setLikesModalOpen] = useState(false);
   const [modalEditing, setModalEditing] = useState(false);
@@ -102,12 +142,13 @@ function PostCard({ post, onPostUpdated, onPostDeleted, onMediaClick }) {
   const originalPostUser = post.originalPostUser;
   const originalPostUsername = originalPostUser?.username;
 
-  const mediaList =
-    post.media && post.media.length > 0
+  const mediaList = useMemo(() => {
+    return post.media && post.media.length > 0
       ? post.media
       : post.imageUrls && post.imageUrls.length > 0
         ? post.imageUrls.map((url) => ({ mediaUrl: url, mediaType: "IMAGE" }))
         : [];
+  }, [post.media, post.imageUrls]);
 
   const currentMedia = mediaList[mediaIndex];
   const commentCount =
@@ -167,31 +208,16 @@ function PostCard({ post, onPostUpdated, onPostDeleted, onMediaClick }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const getErrorMessage = (error, fallback) => {
-    const data = error?.response?.data;
-    if (typeof data === "string") return data;
-    if (data?.message) return data.message;
-    if (data?.error) return data.error;
-    return error.message || fallback;
-  };
-
+  const toastTimerRef = useRef(null);
   const showToast = (message, duration = 2000) => {
     setToastMessage(message);
-    window.setTimeout(() => setToastMessage(""), duration);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToastMessage(""), duration);
   };
 
-  const formatTimeAgo = (dateString) => {
-    if (!dateString) return "now";
-    const seconds = Math.floor((new Date() - new Date(dateString)) / 1000);
-    if (seconds < 60) return "now";
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `${minutes}m`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h`;
-    const days = Math.floor(hours / 24);
-    if (days < 7) return `${days}d`;
-    return `${Math.floor(days / 7)}w`;
-  };
+  useEffect(() => {
+    return () => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current); };
+  }, []);
 
   const loadLikeData = async () => {
     if (!post.id || !CURRENT_USER_ID) return;
@@ -615,24 +641,6 @@ function PostCard({ post, onPostUpdated, onPostDeleted, onMediaClick }) {
       setFollowLoading(false);
     }
   };
-
-  const getReplies = (comment) => {
-    if (Array.isArray(comment.replies)) return comment.replies;
-    if (Array.isArray(comment.children)) return comment.children;
-    if (Array.isArray(comment.childComments)) return comment.childComments;
-    return [];
-  };
-
-  const countCommentTree = (items = []) =>
-    items.reduce((total, item) => total + 1 + countCommentTree(getReplies(item)), 0);
-
-  const removeCommentFromTree = (items = [], commentId) =>
-    items
-      .filter((item) => item.id !== commentId)
-      .map((item) => ({
-        ...item,
-        replies: removeCommentFromTree(getReplies(item), commentId),
-      }));
 
   const shouldClampCaption = caption.length > 180;
   const visibleCaption =
@@ -1491,4 +1499,4 @@ function PostCard({ post, onPostUpdated, onPostDeleted, onMediaClick }) {
   );
 }
 
-export default PostCard;
+export default React.memo(PostCard, (prev, next) => prev.post?.id === next.post?.id);

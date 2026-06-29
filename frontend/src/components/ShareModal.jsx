@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { X, Link, Mail, Search } from "lucide-react";
 import {
   FaFacebook,
@@ -154,14 +154,14 @@ function ShareModal({ post, currentUserId, onClose, onShared }) {
     } catch {  setToast("Share failed"); }
   };
 
-  const filteredUsers = users.filter((user) =>
+  const filteredUsers = useMemo(() => users.filter((user) =>
     `${user.username || ""} ${user.fullName || ""}`
       .toLowerCase()
       .includes(search.toLowerCase())
-  );
-  const filteredGroups = groups.filter((group) =>
+  ), [users, search]);
+  const filteredGroups = useMemo(() => groups.filter((group) =>
     `${group.name || ""}`.toLowerCase().includes(search.toLowerCase())
-  );
+  ), [groups, search]);
   const visibleItems = activeTab === "groups" ? filteredGroups : filteredUsers;
 
   return (

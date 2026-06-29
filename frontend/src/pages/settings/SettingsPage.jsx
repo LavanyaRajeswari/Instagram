@@ -5,17 +5,14 @@ import { ChevronLeft, Moon, Sun } from "lucide-react";
 import { searchUsers } from "../../api/userApi";
 import { useTheme } from "../../context/ThemeContext";
 import {
-  addCloseFriend,
   addHiddenStoryUser,
   blockUser,
   getBlockedAccounts,
-  getCloseFriends,
   getHiddenStoryUsers,
   getMessagePrivacySettings,
   getNotificationSettings,
   getRestrictedAccounts,
   getSettings,
-  removeCloseFriend,
   removeHiddenStoryUser,
   restrictUser,
   unRestrictUser,
@@ -55,8 +52,7 @@ function MissingEndpoint({ endpoints }) {
 
 const normalizeUser = (item, key) => item?.[key] || item?.user || item;
 
-function UserListSettings({ title, type, currentUserId }) {
-  const isCloseFriends = type === "close-friends";
+function UserListSettings({ title, currentUserId }) {
   const [items, setItems] = useState([]);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
@@ -66,7 +62,7 @@ function UserListSettings({ title, type, currentUserId }) {
   const loadItems = async () => {
     setLoading(true);
     try {
-      const data = isCloseFriends ? await getCloseFriends() : await getBlockedAccounts();
+      const data = await getBlockedAccounts();
       setItems(data);
     } catch (error) {
      
@@ -78,7 +74,7 @@ function UserListSettings({ title, type, currentUserId }) {
 
   useEffect(() => {
     loadItems();
-  }, [type]);
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(async () => {
@@ -99,14 +95,13 @@ function UserListSettings({ title, type, currentUserId }) {
     return () => clearTimeout(timer);
   }, [query, currentUserId]);
 
-  const listedUsers = items.map((item) => normalizeUser(item, isCloseFriends ? "friend" : "blocked")).filter(Boolean);
+  const listedUsers = items.map((item) => normalizeUser(item, "blocked")).filter(Boolean);
   const listedUserIds = new Set(listedUsers.map((user) => String(user.id)));
 
   const addUser = async (userId) => {
     setSavingId(userId);
     try {
-      if (isCloseFriends) await addCloseFriend(userId);
-      else await blockUser(userId);
+      await blockUser(userId);
       setQuery("");
       setResults([]);
       await loadItems();
@@ -118,8 +113,7 @@ function UserListSettings({ title, type, currentUserId }) {
   const removeUser = async (userId) => {
     setSavingId(userId);
     try {
-      if (isCloseFriends) await removeCloseFriend(userId);
-      else await unblockUser(userId);
+      await unblockUser(userId);
       await loadItems();
     } finally {
       setSavingId(null);
@@ -875,7 +869,7 @@ function SettingsPage() {
     "edit-profile": <div className="overflow-auto"><EditProfilePage /></div>,
     notifications: <NotificationSettingsComponent />,
     privacy: <PrivacySettings currentUser={currentUser} />,
-    "blocked-accounts": <UserListSettings title="Blocked Accounts" type="blocked-accounts" currentUserId={currentUser?.id} />,
+    "blocked-accounts": <UserListSettings title="Blocked Accounts" currentUserId={currentUser?.id} />,
     "story-location": <StoryLocationSettings currentUserId={currentUser?.id} />,
     "messages-replies": <MessageStoryReplySettings />,
     "restricted-accounts": <RestrictedListSettings currentUserId={currentUser?.id} />,

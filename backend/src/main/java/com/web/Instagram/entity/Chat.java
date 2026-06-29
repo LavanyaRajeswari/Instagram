@@ -12,7 +12,11 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "chats")
+@Table(name = "chats", indexes = {
+    @Index(name = "idx_chats_user_one_id", columnList = "user_one_id"),
+    @Index(name = "idx_chats_user_two_id", columnList = "user_two_id"),
+    @Index(name = "idx_chats_last_message_at", columnList = "lastMessageAt")
+})
 public class Chat implements Serializable {
     private static final long serialVersionUID = 1L;
 

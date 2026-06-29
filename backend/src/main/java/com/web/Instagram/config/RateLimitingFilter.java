@@ -4,9 +4,11 @@ import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.core.annotation.Order;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -41,9 +43,21 @@ public class RateLimitingFilter implements Filter {
         filterChain.doFilter(servletRequest, servletResponse);
     }
 
+    @Scheduled(fixedRate = 60_000)
+    public void cleanupStaleEntries() {
+        long now = System.currentTimeMillis();
+        Iterator<Map.Entry<String, UserRequestTracker>> it = requestCounts.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<String, UserRequestTracker> entry = it.next();
+            if (now - entry.getValue().windowStart > WINDOW_SIZE_MS) {
+                it.remove();
+            }
+        }
+    }
+
     private static class UserRequestTracker {
         private final AtomicInteger count = new AtomicInteger(0);
-        private long windowStart = System.currentTimeMillis();
+        long windowStart = System.currentTimeMillis();
 
         public boolean allowRequest() {
             long now = System.currentTimeMillis();

@@ -23,7 +23,21 @@ import { logoutUser } from "../api/userApi";
 import { clearCurrentUserCache } from "../hooks/useCurrentUser";
 import { getUnreadNotificationCount } from "../api/notificationsApi";
 import { subscribeToNotifications, connect } from "../hooks/useWebSocket";
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+
+const navItems = [
+  { name: "Home", path: "/", icon: Home, match: ["/"] },
+  { name: "Reels", path: "/reels", icon: Film, match: ["/reels"] },
+  { name: "Messages", path: "/messages", icon: Send, match: ["/messages"] },
+  { name: "Search", path: "/search", icon: Search, match: ["/search"] },
+  { name: "Notifications", path: "/notifications", icon: Heart, match: ["/notifications"] },
+];
+
+const metaItems = [
+  { label: "WhatsApp", icon: FaWhatsapp, href: "https://www.whatsapp.com/" },
+  { label: "Threads", icon: FaThreads, href: "https://www.threads.net/" },
+  { label: "Meta AI", icon: Bot, href: "https://www.meta.ai/" },
+];
 
 function Sidebar({ onCreateClick, compact = false }) {
   const location = useLocation();
@@ -68,12 +82,19 @@ function Sidebar({ onCreateClick, compact = false }) {
     }
   }, [location.pathname]);
 
-  const navItems = [
-    { name: "Home", path: "/", icon: Home, match: ["/"] },
-    { name: "Reels", path: "/reels", icon: Film, match: ["/reels"] },
-    { name: "Messages", path: "/messages", icon: Send, match: ["/messages"] },
-    { name: "Search", path: "/search", icon: Search, match: ["/search"] },
-    { name: "Notifications", path: "/notifications", icon: Heart, match: ["/notifications"] },
+  const handleLogout = async () => {
+    await logoutUser();
+    clearCurrentUserCache();
+    navigate("/login", { replace: true });
+  };
+
+  const moreItems = [
+    { label: "Settings", icon: Settings, action: () => navigate("/settings/edit-profile") },
+    { label: "Your Activity", icon: Activity, action: () => navigate("/settings/activity") },
+    { label: "Saved", icon: Bookmark, action: () => navigate("/saved") },
+    { label: "Switch Appearance", icon: Moon, action: () => navigate("/settings/appearance") },
+    { label: "Switch Accounts", icon: Repeat, action: () => navigate("/switch-account") },
+    { label: "Log Out", icon: LogOut, action: handleLogout },
   ];
 
   const profileActive =
@@ -110,31 +131,10 @@ function Sidebar({ onCreateClick, compact = false }) {
     return () => document.removeEventListener("mousedown", handleOutside);
   }, []);
 
-  const handleLogout = async () => {
-    await logoutUser();
-    clearCurrentUserCache();
-    navigate("/login", { replace: true });
-  };
-
   const handleHomeClick = () => {
     setMoreOpen(false);
     setMetaOpen(false);
   };
-
-  const moreItems = [
-    { label: "Settings", icon: Settings, action: () => navigate("/settings/edit-profile") },
-    { label: "Your Activity", icon: Activity, action: () => navigate("/settings/activity") },
-    { label: "Saved", icon: Bookmark, action: () => navigate("/saved") },
-    { label: "Switch Appearance", icon: Moon, action: () => navigate("/settings/appearance") },
-    { label: "Switch Accounts", icon: Repeat, action: () => navigate("/switch-account") },
-    { label: "Log Out", icon: LogOut, action: handleLogout },
-  ];
-
-  const metaItems = [
-    { label: "WhatsApp", icon: FaWhatsapp, href: "https://www.whatsapp.com/" },
-    { label: "Threads", icon: FaThreads, href: "https://www.threads.net/" },
-    { label: "Meta AI", icon: Bot, href: "https://www.meta.ai/" },
-  ];
 
   return (
     <>
@@ -329,4 +329,4 @@ function Sidebar({ onCreateClick, compact = false }) {
   );
 }
 
-export default Sidebar;
+export default React.memo(Sidebar);

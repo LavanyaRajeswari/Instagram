@@ -11,6 +11,7 @@ let sharedClient = null;
 let pendingSubscriptions = [];
 let pendingMessages = [];
 let isConnecting = false;
+let wsErrorCount = 0;
 
 
 function getClient() {
@@ -22,6 +23,7 @@ function getClient() {
       },
       onConnect: () => {
         isConnecting = false;
+        wsErrorCount = 0;
         const pending = pendingSubscriptions;
         pendingSubscriptions = [];
         pending.forEach(({ destination, callback }) => {
@@ -46,7 +48,17 @@ function getClient() {
           sharedClient = null;
         }
       },
-      reconnectDelay: 5000,
+      onWebSocketError: () => {
+        wsErrorCount++;
+        if (wsErrorCount >= 5) {
+          isConnecting = false;
+          if (sharedClient) {
+            try { sharedClient.deactivate(); } catch {}
+            sharedClient = null;
+          }
+        }
+      },
+      reconnectDelay: 30000,
       heartbeatIncoming: 10000,
       heartbeatOutgoing: 10000,
     });

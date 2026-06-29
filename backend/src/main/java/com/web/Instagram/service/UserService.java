@@ -15,13 +15,15 @@ import org.springframework.web.server.ResponseStatusException;
 import com.web.Instagram.dto.user.LoginRequest;
 import com.web.Instagram.dto.user.LoginResponse;
 import com.web.Instagram.dto.user.RegisterRequest;
+import com.web.Instagram.dto.user.SearchHistoryRequest;
+import com.web.Instagram.dto.user.SearchHistoryResponse;
 import com.web.Instagram.dto.user.UpdateRequest;
 import com.web.Instagram.dto.user.UserResponse;
-import com.web.Instagram.entity.LoginHistory;
+import com.web.Instagram.entity.SearchHistory;
 import com.web.Instagram.entity.User;
 import com.web.Instagram.repository.FollowRepository;
-import com.web.Instagram.repository.LoginHistoryRepository;
 import com.web.Instagram.repository.PostRepository;
+import com.web.Instagram.repository.SearchHistoryRepository;
 import com.web.Instagram.repository.UserRepository;
 import com.web.Instagram.security.JwtService;
 
@@ -37,7 +39,7 @@ public class UserService {
     private final CloudinaryService cloudinaryService;
     private final PostRepository postRepository;
     private final FollowRepository followRepository;
-    private final LoginHistoryRepository loginHistoryRepository;
+    private final SearchHistoryRepository searchHistoryRepository;
 
     public List<UserResponse> getAllUsers(int limit) {
         int safeLimit = Math.min(Math.max(limit, 1), 100);
@@ -263,7 +265,34 @@ public class UserService {
         return canViewUserPosts(requesterUsername, targetUserId);
     }
 
-    public List<LoginHistory> getLoginHistory(Long userId) {
-        return loginHistoryRepository.findByUserIdOrderByCreatedAtDesc(userId);
+    @Transactional
+    public void saveSearchHistory(Long userId, SearchHistoryRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        SearchHistory history = SearchHistory.builder()
+                .user(user)
+                .query(request.getQuery())
+                .type(request.getType())
+                .targetId(request.getTargetId())
+                .build();
+        searchHistoryRepository.save(history);
+    }
+
+    @Transactional(readOnly = true)
+    public List<SearchHistoryResponse> getSearchHistory(Long userId) {
+        return searchHistoryRepository.findByUserIdOrderByCreatedAtDesc(userId)
+                .stream().map(h -> SearchHistoryResponse.builder()
+                        .id(h.getId())
+                        .query(h.getQuery())
+                        .type(h.getType())
+                        .targetId(h.getTargetId())
+                        .createdAt(h.getCreatedAt())
+                        .build())
+                .toList();
+    }
+
+    @Transactional
+    public void clearSearchHistory(Long userId) {
+        searchHistoryRepository.deleteByUserId(userId);
     }
 }

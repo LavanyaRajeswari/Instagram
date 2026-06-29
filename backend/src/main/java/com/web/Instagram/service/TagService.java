@@ -42,18 +42,27 @@ public class TagService {
         Post post = postRepository.findById(postId).orElse(null);
         if (post == null) return;
         List<String> usernames = extractMentions(text);
+        if (usernames.isEmpty()) return;
+
+        List<User> mentionedUsers = userRepository.findAllByUsernameIn(usernames);
+        if (mentionedUsers.isEmpty()) return;
+
+        List<Long> alreadyTaggedUserIds = tagRepository.findByPostId(postId).stream()
+            .map(t -> t.getUser().getId())
+            .toList();
+
         List<Tag> newTags = new ArrayList<>();
-        for (String username : usernames) {
-            User user = userRepository.findByUsername(username).orElse(null);
-            if (user == null) continue;
-            if (tagRepository.existsByPostIdAndUserId(postId, user.getId())) continue;
+        Long postOwnerId = (post.getUser() != null) ? post.getUser().getId() : null;
+        for (User user : mentionedUsers) {
+            if (alreadyTaggedUserIds.contains(user.getId())) continue;
             newTags.add(Tag.builder().post(post).user(user).x(0.0).y(0.0).build());
-            Long postOwnerId = (post.getUser() != null) ? post.getUser().getId() : user.getId();
-            try {
-                notificationService.createNotification(
-                    user.getId(), postOwnerId, "TAG", postId, null, "tagged you in a post"
-                );
-            } catch (Exception ignored) {}
+            if (postOwnerId != null) {
+                try {
+                    notificationService.createNotification(
+                        user.getId(), postOwnerId, "TAG", postId, null, "tagged you in a post"
+                    );
+                } catch (Exception ignored) {}
+            }
         }
         if (!newTags.isEmpty()) {
             tagRepository.saveAll(newTags);

@@ -16,6 +16,11 @@ public class StoryMusicRestController {
 
     private final StoryMusicService storyMusicService;
 
+    @GetMapping
+    public ResponseEntity<List<StoryMusic>> getAll() {
+        return ResponseEntity.ok(storyMusicService.getAllMusic());
+    }
+
     @GetMapping("/trending")
     public ResponseEntity<List<StoryMusic>> getTrending() {
         return ResponseEntity.ok(storyMusicService.getTrendingMusic());

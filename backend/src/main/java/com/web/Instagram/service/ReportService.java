@@ -59,10 +59,4 @@ public class ReportService {
     public long getPendingCount() {
         return reportRepository.countByStatus("PENDING");
     }
-
-    private long countByReason(String reason) {
-        return reportRepository.findAll().stream()
-            .filter(r -> r.getReason().equalsIgnoreCase(reason))
-            .count();
-    }
 }

@@ -9,8 +9,10 @@ import com.web.Instagram.repository.HighlightRepository;
 import com.web.Instagram.repository.StoryRepository;
 import com.web.Instagram.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -47,9 +49,13 @@ public class HighlightService {
     }
 
     @Transactional
-    public HighlightResponse updateHighlight(Long highlightId, String title, List<Long> storyIds, String coverUrl) {
+    public HighlightResponse updateHighlight(Long highlightId, Long userId, String title, List<Long> storyIds, String coverUrl) {
         Highlight highlight = highlightRepository.findById(highlightId)
-                .orElseThrow(() -> new RuntimeException("Highlight not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Highlight not found"));
+
+        if (!highlight.getUser().getId().equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not own this highlight");
+        }
 
         if (title != null) highlight.setTitle(title);
         if (coverUrl != null) highlight.setCoverUrl(coverUrl);
@@ -133,7 +139,12 @@ public class HighlightService {
     }
 
     @Transactional
-    public void deleteHighlight(Long highlightId) {
+    public void deleteHighlight(Long highlightId, Long userId) {
+        Highlight highlight = highlightRepository.findById(highlightId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Highlight not found"));
+        if (!highlight.getUser().getId().equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not own this highlight");
+        }
         highlightRepository.deleteById(highlightId);
     }
 }

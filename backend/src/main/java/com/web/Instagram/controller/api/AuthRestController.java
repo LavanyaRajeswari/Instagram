@@ -4,7 +4,6 @@ import com.web.Instagram.dto.user.LoginResponse;
 import com.web.Instagram.dto.user.LoginRequest;
 import com.web.Instagram.dto.user.RegisterRequest;
 import com.web.Instagram.service.AuthService;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -22,13 +21,13 @@ public class AuthRestController {
     private final AuthService authService;
 
     @PostMapping("/register")
-    public ResponseEntity<LoginResponse> register(@Valid @RequestBody RegisterRequest request, HttpServletRequest httpRequest) {
-        return ResponseEntity.ok(authService.register(request, httpRequest));
+    public ResponseEntity<LoginResponse> register(@Valid @RequestBody RegisterRequest request) {
+        return ResponseEntity.ok(authService.register(request));
     }
 
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
-        return ResponseEntity.ok(authService.login(request, httpRequest));
+    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
+        return ResponseEntity.ok(authService.login(request));
     }
 
     @PostMapping("/refresh")
@@ -66,6 +65,17 @@ public class AuthRestController {
             Principal principal,
             @Valid @RequestBody RegisterRequest request) {
         return ResponseEntity.ok(authService.addAccount(principal.getName(), request));
+    }
+
+    @PostMapping("/switch")
+    public ResponseEntity<LoginResponse> switchAccount(
+            Principal principal,
+            @RequestBody Map<String, String> body) {
+        String targetUsername = body.get("username");
+        if (targetUsername == null || targetUsername.isBlank()) {
+            return ResponseEntity.badRequest().build();
+        }
+        return ResponseEntity.ok(authService.switchAccount(principal.getName(), targetUsername));
     }
 
     @GetMapping("/linked-accounts")

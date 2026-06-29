@@ -7,7 +7,10 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "calls")
+@Table(name = "calls", indexes = {
+    @Index(name = "idx_calls_caller_id", columnList = "caller_id"),
+    @Index(name = "idx_calls_callee_id", columnList = "callee_id")
+})
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Call {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)

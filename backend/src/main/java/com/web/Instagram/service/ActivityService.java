@@ -4,10 +4,10 @@ import com.web.Instagram.dto.notification.NotificationResponse;
 import com.web.Instagram.entity.Notification;
 import com.web.Instagram.repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -17,11 +17,9 @@ public class ActivityService {
     private final NotificationRepository notificationRepository;
 
     public List<NotificationResponse> getRecentActivity(Long userId) {
-        List<Notification> notifications = notificationRepository.findByRecipientIdOrderByCreatedAtDesc(userId);
-        List<NotificationResponse> activities = new ArrayList<>();
-
-        for (Notification n : notifications) {
-            NotificationResponse response = NotificationResponse.builder()
+        return notificationRepository.findByRecipientIdOrderByCreatedAtDesc(userId, PageRequest.of(0, 50))
+            .stream()
+            .map(n -> NotificationResponse.builder()
                 .id(n.getId())
                 .type(n.getType())
                 .actorId(n.getSender() != null ? n.getSender().getId() : null)
@@ -32,11 +30,7 @@ public class ActivityService {
                 .commentText(n.getText())
                 .seen(n.isSeen())
                 .createdAt(n.getCreatedAt())
-                .build();
-            activities.add(response);
-        }
-
-        activities.sort(Comparator.comparing(NotificationResponse::getCreatedAt).reversed());
-        return activities.size() > 50 ? activities.subList(0, 50) : activities;
+                .build())
+            .toList();
     }
 }

@@ -19,6 +19,7 @@ function IncomingCallProvider() {
   const dismissedCallIdsRef = useRef(new Set());
   const activePopupIdRef = useRef("");
   const pollIntervalRef = useRef(null);
+  const failCountRef = useRef(0);
 
   const shouldPoll =
     Boolean(getAuthToken()) &&
@@ -56,9 +57,18 @@ function IncomingCallProvider() {
       }
     });
 
+    const startPolling = (delayMs) => {
+      if (pollIntervalRef.current) window.clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = window.setInterval(pollIncomingCalls, delayMs);
+    };
+
     const pollIncomingCalls = async () => {
       try {
         const history = await getCallHistory();
+        if (failCountRef.current > 0) {
+          failCountRef.current = 0;
+          startPolling(4000);
+        }
         const call = findLatestIncomingCall(history, currentUser.id);
         const callId = getCallId(call);
         const normalizedCallId = String(callId || "");
@@ -70,12 +80,15 @@ function IncomingCallProvider() {
         activePopupIdRef.current = normalizedCallId;
         setError("");
         setIncomingCall(normalizeIncomingCall(call));
-      } catch (_err) {
+      } catch {
+        failCountRef.current++;
+        if (failCountRef.current === 3) startPolling(30000);
+        else if (failCountRef.current >= 5) startPolling(60000);
       }
     };
 
     pollIncomingCalls();
-    pollIntervalRef.current = window.setInterval(pollIncomingCalls, 4000);
+    startPolling(4000);
 
     return () => {
       if (unsubCall) unsubCall();

@@ -48,17 +48,20 @@ public class NoteRestController {
 
     @PutMapping("/{id}")
     public ResponseEntity<NoteResponse> editNote(
+            Principal principal,
             @PathVariable Long id,
             @RequestParam(required = false) String text,
             @RequestParam(required = false) String color,
             @RequestParam(required = false) String audience,
             @RequestParam(required = false) Integer expiryHours) {
-        return ResponseEntity.ok(noteService.editNote(id, text, color, audience, expiryHours));
+        Long userId = userService.getCurrentUser(principal.getName()).getId();
+        return ResponseEntity.ok(noteService.editNote(id, userId, text, color, audience, expiryHours));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteNote(@PathVariable Long id) {
-        noteService.deleteNote(id);
+    public ResponseEntity<Void> deleteNote(Principal principal, @PathVariable Long id) {
+        Long userId = userService.getCurrentUser(principal.getName()).getId();
+        noteService.deleteNote(id, userId);
         return ResponseEntity.ok().build();
     }
 

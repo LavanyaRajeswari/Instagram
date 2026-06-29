@@ -26,7 +26,13 @@ public class PostRestController {
 
     @GetMapping("/feed")
     public ResponseEntity<Page<PostResponse>> getFeed(Principal principal, @PageableDefault(size = 20) Pageable pageable) {
-        Long userId = userService.getCurrentUser(principal.getName()).getId();
+        if (principal == null) return ResponseEntity.ok(Page.empty(pageable));
+        Long userId;
+        try {
+            userId = userService.getCurrentUser(principal.getName()).getId();
+        } catch (RuntimeException e) {
+            return ResponseEntity.ok(Page.empty(pageable));
+        }
         return ResponseEntity.ok(postService.getFeed(userId, pageable));
     }
 

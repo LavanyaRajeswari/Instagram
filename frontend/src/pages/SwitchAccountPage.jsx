@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Plus, Repeat } from "lucide-react";
 import { api } from "../api/client";
 import { clearCurrentUserCache, useCurrentUser } from "../hooks/useCurrentUser";
-import { clearAuthToken } from "../api/config";
+import { clearAuthToken, normalizeAuthResponse } from "../api/config";
 import { getAvatarUrl } from "../utils/avatar";
 
 function SwitchAccountPage() {
@@ -20,9 +20,16 @@ function SwitchAccountPage() {
   }, []);
 
   const handleSwitch = async (account) => {
-    clearAuthToken();
-    clearCurrentUserCache();
-    navigate(`/login?username=${encodeURIComponent(account.username || "")}`);
+    try {
+      const { data } = await api.post("/auth/switch", { username: account.username });
+      normalizeAuthResponse(data);
+      clearCurrentUserCache();
+      navigate("/");
+    } catch {
+      clearAuthToken();
+      clearCurrentUserCache();
+      navigate("/login");
+    }
   };
 
   const handleLogout = () => {

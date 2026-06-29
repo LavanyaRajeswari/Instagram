@@ -16,13 +16,12 @@ import org.springframework.web.server.ResponseStatusException;
 import com.web.Instagram.dto.user.LoginRequest;
 import com.web.Instagram.dto.user.LoginResponse;
 import com.web.Instagram.dto.user.RegisterRequest;
-import com.web.Instagram.entity.LoginHistory;
+import com.web.Instagram.entity.RefreshToken;
 import com.web.Instagram.entity.User;
-import com.web.Instagram.repository.LoginHistoryRepository;
+import com.web.Instagram.repository.RefreshTokenRepository;
 import com.web.Instagram.repository.UserRepository;
 import com.web.Instagram.security.JwtService;
 
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -32,10 +31,9 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
-    private final LoginHistoryRepository loginHistoryRepository;
-    private final Map<String, String> refreshTokenStore = new HashMap<>();
+    private final RefreshTokenRepository refreshTokenRepository;
 
-    public LoginResponse register(RegisterRequest request, HttpServletRequest httpRequest) {
+    public LoginResponse register(RegisterRequest request) {
         if ((request.getEmail() == null || request.getEmail().isBlank())
                 && (request.getMobileNumber() == null || request.getMobileNumber().isBlank())) {
             throw new RuntimeException("Email or Mobile Number is required");
@@ -56,6 +54,10 @@ public class AuthService {
 
         if (!request.getPassword().matches(".*[A-Z].*") || !request.getPassword().matches(".*[a-z].*") || !request.getPassword().matches(".*\\d.*")) {
             throw new RuntimeException("Password must contain at least one uppercase letter, one lowercase letter, and one number");
+        }
+
+        if (!request.getPassword().matches(".*[!@#$%^&*(),.?\":{}|<>].*")) {
+            throw new RuntimeException("Password must include a special character (e.g. !@#$%^&*)");
         }
 
         if (userRepository.existsByUsername(request.getUsername())) {
@@ -83,8 +85,7 @@ public class AuthService {
         userRepository.save(user);
 
         String accessToken = jwtService.generateToken(user.getUsername());
-        String refreshToken = UUID.randomUUID().toString();
-        refreshTokenStore.put(refreshToken, user.getUsername());
+        String refreshToken = saveRefreshToken(user.getUsername());
 
         return LoginResponse.builder()
                 .id(user.getId())
@@ -96,7 +97,7 @@ public class AuthService {
                 .build();
     }
 
-    public LoginResponse login(LoginRequest request, HttpServletRequest httpRequest) {
+    public LoginResponse login(LoginRequest request) {
         if (request == null || request.getLogin() == null || request.getLogin().isBlank()
                 || request.getPassword() == null || request.getPassword().isBlank()) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
@@ -107,8 +108,11 @@ public class AuthService {
                 .or(() -> userRepository.findByMobileNumber(request.getLogin()))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials"));
 
+        if ("DEACTIVATED".equals(user.getAccountStatus())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Account is deactivated");
+        }
+
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            recordLoginHistory(user, httpRequest, false);
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
         }
 
@@ -116,11 +120,8 @@ public class AuthService {
         user.setOnline(true);
         userRepository.save(user);
 
-        recordLoginHistory(user, httpRequest, true);
-
         String accessToken = jwtService.generateToken(user.getUsername());
-        String refreshToken = UUID.randomUUID().toString();
-        refreshTokenStore.put(refreshToken, user.getUsername());
+        String refreshToken = saveRefreshToken(user.getUsername());
 
         return LoginResponse.builder()
                 .id(user.getId())
@@ -132,15 +133,16 @@ public class AuthService {
                 .build();
     }
 
-    public Map<String, String> refreshToken(String refreshToken) {
-        String username = refreshTokenStore.get(refreshToken);
-        if (username == null) {
-            throw new RuntimeException("Invalid refresh token");
-        }
+    @Transactional
+    public Map<String, String> refreshToken(String refreshTokenValue) {
+        RefreshToken stored = refreshTokenRepository.findByToken(refreshTokenValue)
+                .orElseThrow(() -> new RuntimeException("Invalid refresh token"));
+
+        String username = stored.getUsername();
+        refreshTokenRepository.deleteByToken(refreshTokenValue);
+
         String newAccessToken = jwtService.generateToken(username);
-        String newRefreshToken = UUID.randomUUID().toString();
-        refreshTokenStore.remove(refreshToken);
-        refreshTokenStore.put(newRefreshToken, username);
+        String newRefreshToken = saveRefreshToken(username);
 
         Map<String, String> result = new HashMap<>();
         result.put("token", newAccessToken);
@@ -151,13 +153,25 @@ public class AuthService {
     @Transactional
     public void logout(String username, String refreshToken) {
         if (refreshToken != null) {
-            refreshTokenStore.remove(refreshToken);
+            refreshTokenRepository.deleteByToken(refreshToken);
         }
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
         user.setOnline(false);
         user.setLastActiveAt(LocalDateTime.now());
         userRepository.save(user);
+    }
+
+    private String saveRefreshToken(String username) {
+        String token = UUID.randomUUID().toString();
+        RefreshToken refreshTokenEntity = RefreshToken.builder()
+                .token(token)
+                .username(username)
+                .createdAt(LocalDateTime.now())
+                .expiresAt(LocalDateTime.now().plusDays(30))
+                .build();
+        refreshTokenRepository.save(refreshTokenEntity);
+        return token;
     }
 
     @Transactional
@@ -180,7 +194,7 @@ public class AuthService {
 
     @Transactional
     public LoginResponse addAccount(String parentUsername, RegisterRequest request) {
-        LoginResponse response = register(request, null);
+        LoginResponse response = register(request);
         User parent = userRepository.findByUsername(parentUsername)
                 .orElseThrow(() -> new RuntimeException("Parent user not found"));
         User child = userRepository.findByUsername(response.getUsername())
@@ -188,6 +202,42 @@ public class AuthService {
         child.setParentUser(parent);
         userRepository.save(child);
         return response;
+    }
+
+    @Transactional
+    public LoginResponse switchAccount(String currentUsername, String targetUsername) {
+        User currentUser = userRepository.findByUsername(currentUsername)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Current user not found"));
+        User targetUser = userRepository.findByUsername(targetUsername)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Target user not found"));
+
+        boolean isLinked = false;
+        if (currentUser.getParentUser() != null && currentUser.getParentUser().getUsername().equals(targetUsername)) {
+            isLinked = true;
+        }
+        if (!isLinked && currentUser.getChildAccounts() != null) {
+            isLinked = currentUser.getChildAccounts().stream()
+                    .anyMatch(c -> c.getUsername().equals(targetUsername));
+        }
+        if (!isLinked) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Account not linked");
+        }
+
+        targetUser.setLastActiveAt(LocalDateTime.now());
+        targetUser.setOnline(true);
+        userRepository.save(targetUser);
+
+        String accessToken = jwtService.generateToken(targetUser.getUsername());
+        String refreshToken = saveRefreshToken(targetUser.getUsername());
+
+        return LoginResponse.builder()
+                .id(targetUser.getId())
+                .username(targetUser.getUsername())
+                .fullName(targetUser.getFullName())
+                .profilePicture(targetUser.getProfilePicture())
+                .token(accessToken)
+                .refreshToken(refreshToken)
+                .build();
     }
 
     @Transactional(readOnly = true)
@@ -215,19 +265,5 @@ public class AuthService {
         }
 
         return accounts;
-    }
-
-    private void recordLoginHistory(User user, HttpServletRequest request, boolean successful) {
-        try {
-            LoginHistory history = LoginHistory.builder()
-                    .user(user)
-                    .ipAddress(request != null ? request.getRemoteAddr() : "unknown")
-                    .deviceName(request != null ? request.getHeader("User-Agent") : "unknown")
-                    .deviceType(request != null ? request.getHeader("User-Agent") : "unknown")
-                    .successful(successful)
-                    .build();
-            loginHistoryRepository.save(history);
-        } catch (Exception e) {
-        }
     }
 }

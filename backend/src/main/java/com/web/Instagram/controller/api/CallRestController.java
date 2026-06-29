@@ -137,9 +137,10 @@ public class CallRestController {
         event.put("type", type);
         event.put("callId", call.getId());
         event.put("callType", call.getCallType());
-        event.put("callerId", call.getCaller().getId());
-        event.put("callerUsername", call.getCaller().getUsername());
-        event.put("callerProfilePicture", call.getCaller().getProfilePicture());
+        var evCaller = call.getCaller();
+        event.put("callerId", evCaller != null ? evCaller.getId() : null);
+        event.put("callerUsername", evCaller != null ? evCaller.getUsername() : null);
+        event.put("callerProfilePicture", evCaller != null ? evCaller.getProfilePicture() : null);
         event.put("groupCall", Boolean.TRUE.equals(call.getGroupCall()));
         if (call.getGroupChat() != null) {
             event.put("groupId", call.getGroupChat().getId());
@@ -157,12 +158,14 @@ public class CallRestController {
         response.put("callId", call.getId());
         response.put("callType", call.getCallType());
         response.put("status", call.getStatus());
-        response.put("callerId", call.getCaller().getId());
-        response.put("callerUsername", call.getCaller().getUsername());
-        response.put("callerProfilePicture", call.getCaller().getProfilePicture());
-        response.put("calleeId", call.getCallee().getId());
-        response.put("calleeUsername", call.getCallee().getUsername());
-        response.put("calleeProfilePicture", call.getCallee().getProfilePicture());
+        var caller = call.getCaller();
+        response.put("callerId", caller != null ? caller.getId() : null);
+        response.put("callerUsername", caller != null ? caller.getUsername() : null);
+        response.put("callerProfilePicture", caller != null ? caller.getProfilePicture() : null);
+        var callee = call.getCallee();
+        response.put("calleeId", callee != null ? callee.getId() : null);
+        response.put("calleeUsername", callee != null ? callee.getUsername() : null);
+        response.put("calleeProfilePicture", callee != null ? callee.getProfilePicture() : null);
         response.put("groupCall", Boolean.TRUE.equals(call.getGroupCall()));
         response.put("participantCount", callService.getParticipantCount(call.getId()));
         if (call.getGroupChat() != null) {

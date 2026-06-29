@@ -32,15 +32,10 @@ public class NotificationRestController {
     }
 
     @PutMapping("/{id}/seen")
-    public ResponseEntity<Void> markSeen(@PathVariable Long id) {
-        notificationService.markSeen(id);
+    public ResponseEntity<Void> markSeen(Principal principal, @PathVariable Long id) {
+        Long userId = userService.getCurrentUser(principal.getName()).getId();
+        notificationService.markSeen(id, userId);
         return ResponseEntity.ok().build();
     }
 
-    @PutMapping("/seen/all")
-    public ResponseEntity<Void> markAllSeen(Principal principal) {
-        Long userId = userService.getCurrentUser(principal.getName()).getId();
-        notificationService.markAllSeen(userId);
-        return ResponseEntity.ok().build();
-    }
 }

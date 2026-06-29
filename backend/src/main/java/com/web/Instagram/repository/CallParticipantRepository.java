@@ -10,4 +10,5 @@ public interface CallParticipantRepository extends JpaRepository<CallParticipant
     List<CallParticipant> findByCallId(Long callId);
     boolean existsByCallIdAndUserId(Long callId, Long userId);
     void deleteByCallIdAndUserId(Long callId, Long userId);
+    long countByCallId(Long callId);
 }

@@ -1,19 +1,22 @@
 package com.web.Instagram.service;
 
 import com.web.Instagram.dto.notification.NotificationResponse;
-import com.web.Instagram.entity.FollowRequest;
 import com.web.Instagram.entity.Notification;
 import com.web.Instagram.entity.User;
 import com.web.Instagram.repository.FollowRequestRepository;
 import com.web.Instagram.repository.NotificationRepository;
 import com.web.Instagram.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -46,7 +49,7 @@ public class NotificationService {
         Notification saved = notificationRepository.save(notification);
 
         try {
-            NotificationResponse response = toResponse(saved);
+            NotificationResponse response = toResponse(saved, java.util.Collections.emptyMap());
             messagingTemplate.convertAndSendToUser(
                 recipient.getUsername(), "/queue/notifications", response);
         } catch (Exception e) {
@@ -55,15 +58,32 @@ public class NotificationService {
         return saved;
     }
 
+    @Transactional(readOnly = true)
     public List<NotificationResponse> getNotifications(Long userId) {
-        return notificationRepository.findByRecipientIdOrderByCreatedAtDesc(userId)
-                .stream()
-                .map(this::toResponse)
+        List<Notification> notifications =
+                notificationRepository.findByRecipientIdOrderByCreatedAtDesc(userId);
+
+        // Batch-load all pending follow requests for this user to avoid N+1 queries
+        Map<Long, Long> pendingFollowRequestBySenderId = new HashMap<>();
+        boolean hasFollowRequests = notifications.stream()
+                .anyMatch(n -> "FOLLOW_REQUEST".equalsIgnoreCase(n.getType()));
+        if (hasFollowRequests) {
+            followRequestRepository
+                    .findByFollowingIdAndStatusOrderByCreatedAtDesc(userId, "PENDING")
+                    .forEach(fr -> pendingFollowRequestBySenderId.put(fr.getFollower().getId(), fr.getId()));
+        }
+
+        return notifications.stream()
+                .map(n -> toResponse(n, pendingFollowRequestBySenderId))
                 .toList();
     }
 
-    private NotificationResponse toResponse(Notification n) {
+    private NotificationResponse toResponse(Notification n, Map<Long, Long> pendingFollowRequestBySenderId) {
         User actor = n.getSender();
+        Long followRequestId = null;
+        if ("FOLLOW_REQUEST".equalsIgnoreCase(n.getType()) && actor != null) {
+            followRequestId = pendingFollowRequestBySenderId.get(actor.getId());
+        }
         return NotificationResponse.builder()
                 .id(n.getId())
                 .type(n.getType())
@@ -72,25 +92,11 @@ public class NotificationService {
                 .actorProfilePicture(actor != null ? actor.getProfilePicture() : null)
                 .postId(n.getPostId())
                 .commentId(n.getCommentId())
-                .followRequestId(getFollowRequestId(n))
+                .followRequestId(followRequestId)
                 .commentText(n.getText())
                 .seen(n.isSeen())
                 .createdAt(n.getCreatedAt())
                 .build();
-    }
-
-    private Long getFollowRequestId(Notification notification) {
-        if (!"FOLLOW_REQUEST".equalsIgnoreCase(notification.getType())
-                || notification.getSender() == null
-                || notification.getRecipient() == null) {
-            return null;
-        }
-
-        return followRequestRepository
-                .findByFollowerIdAndFollowingId(notification.getSender().getId(), notification.getRecipient().getId())
-                .filter(request -> "PENDING".equalsIgnoreCase(request.getStatus()))
-                .map(FollowRequest::getId)
-                .orElse(null);
     }
 
     public long getUnreadCount(Long userId) {
@@ -98,17 +104,14 @@ public class NotificationService {
     }
 
     @Transactional
-    public void markSeen(Long notificationId) {
+    public void markSeen(Long notificationId, Long userId) {
         Notification notification = notificationRepository.findById(notificationId)
-                .orElseThrow(() -> new RuntimeException("Notification not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Notification not found"));
+        if (!notification.getRecipient().getId().equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Notification does not belong to you");
+        }
         notification.setSeen(true);
         notificationRepository.save(notification);
     }
 
-    @Transactional
-    public void markAllSeen(Long userId) {
-        List<Notification> notifications = notificationRepository.findByRecipientIdOrderByCreatedAtDesc(userId);
-        notifications.forEach(n -> n.setSeen(true));
-        notificationRepository.saveAll(notifications);
-    }
 }

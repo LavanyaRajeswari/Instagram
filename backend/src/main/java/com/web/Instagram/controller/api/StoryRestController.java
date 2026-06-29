@@ -59,8 +59,13 @@ public class StoryRestController {
 
     @GetMapping("/{storyId}/liked")
     public ResponseEntity<Boolean> isLiked(Principal principal, @PathVariable Long storyId) {
-        Long userId = userService.getCurrentUser(principal.getName()).getId();
-        return ResponseEntity.ok(storyService.isLiked(storyId, userId));
+        if (principal == null) return ResponseEntity.ok(false);
+        try {
+            Long userId = userService.getCurrentUser(principal.getName()).getId();
+            return ResponseEntity.ok(storyService.isLiked(storyId, userId));
+        } catch (RuntimeException e) {
+            return ResponseEntity.ok(false);
+        }
     }
 
     @GetMapping("/{storyId}/likes")
@@ -106,7 +111,13 @@ public class StoryRestController {
 
     @GetMapping("/{storyId}/viewers")
     public ResponseEntity<List<Map<String, Object>>> getStoryViewers(Principal principal, @PathVariable Long storyId) {
-        Long userId = userService.getCurrentUser(principal.getName()).getId();
+        if (principal == null) return ResponseEntity.ok(List.of());
+        Long userId;
+        try {
+            userId = userService.getCurrentUser(principal.getName()).getId();
+        } catch (RuntimeException e) {
+            return ResponseEntity.ok(List.of());
+        }
         List<StoryView> views = storyService.getStoryViews(storyId);
         List<Map<String, Object>> result = views.stream()
         .filter(v -> v.getUser() == null || !v.getUser().getId().equals(userId))
@@ -133,8 +144,13 @@ public class StoryRestController {
 
     @GetMapping("/archived")
     public ResponseEntity<List<StoryArchive>> getArchivedStories(Principal principal) {
-        Long userId = userService.getCurrentUser(principal.getName()).getId();
-        return ResponseEntity.ok(storyService.getArchivedStories(userId));
+        if (principal == null) return ResponseEntity.status(401).build();
+        try {
+            Long userId = userService.getCurrentUser(principal.getName()).getId();
+            return ResponseEntity.ok(storyService.getArchivedStories(userId));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(401).build();
+        }
     }
 
     @DeleteMapping("/archived/{archiveId}")
@@ -183,7 +199,12 @@ public class StoryRestController {
 
     @GetMapping("/saved")
     public ResponseEntity<List<com.web.Instagram.entity.SavedStory>> getSavedStories(Principal principal) {
-        return ResponseEntity.ok(storyService.getSavedStories(
-                userService.getCurrentUser(principal.getName()).getId()));
+        if (principal == null) return ResponseEntity.status(401).build();
+        try {
+            return ResponseEntity.ok(storyService.getSavedStories(
+                    userService.getCurrentUser(principal.getName()).getId()));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(401).build();
+        }
     }
 }

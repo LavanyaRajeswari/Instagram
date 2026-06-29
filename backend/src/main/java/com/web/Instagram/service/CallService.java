@@ -189,7 +189,7 @@ public class CallService {
     }
 
     public int getParticipantCount(Long callId) {
-        return participantRepository.findByCallId(callId).size();
+        return (int) participantRepository.countByCallId(callId);
     }
 
     private void saveCallSummary(Call call, User actor, String content) {

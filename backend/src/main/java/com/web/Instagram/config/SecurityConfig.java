@@ -77,16 +77,23 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/auth/register",
                                 "/api/auth/login",
+                                "/api/auth/refresh",
+                                "/api/auth/reactivate",
                                 "/api/users/register",
                                 "/api/users/login",
-                                "/api/stories/**",
-                                "/api/reels/**",
                                 "/ws/**"
                         ).permitAll()
 
                         .requestMatchers(
                                 HttpMethod.GET,
-                                "/api/users/*"
+                                "/api/stories/**",
+                                "/api/reels/**",
+                                "/api/story-music/**",
+                                "/api/users/*",
+                                "/api/users/*/followers",
+                                "/api/users/*/following",
+                                "/api/users/*/followers/count",
+                                "/api/users/*/following/count"
                         ).permitAll()
 
                         .anyRequest()

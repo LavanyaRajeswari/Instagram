@@ -13,7 +13,10 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Table(name = "notes")
+@Table(name = "notes", indexes = {
+    @Index(name = "idx_notes_user_id", columnList = "user_id"),
+    @Index(name = "idx_notes_expires_at", columnList = "expires_at")
+})
 public class Note implements Serializable {
     private static final long serialVersionUID = 1L;
 

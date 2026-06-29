@@ -6,11 +6,10 @@ import java.time.LocalDateTime;
 
 @Data
 @Builder
-public class LoginHistoryResponse {
+public class SearchHistoryResponse {
     private Long id;
-    private String ipAddress;
-    private String deviceName;
-    private String deviceType;
-    private boolean successful;
+    private String query;
+    private String type;
+    private Long targetId;
     private LocalDateTime createdAt;
 }

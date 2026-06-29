@@ -42,16 +42,19 @@ public class HighlightRestController {
 
     @PutMapping("/{id}")
     public ResponseEntity<HighlightResponse> updateHighlight(
+            Principal principal,
             @PathVariable Long id,
             @RequestParam(required = false) String title,
             @RequestParam(required = false) List<Long> storyIds,
             @RequestParam(required = false) String coverUrl) {
-        return ResponseEntity.ok(highlightService.updateHighlight(id, title, storyIds, coverUrl));
+        Long userId = userService.getCurrentUser(principal.getName()).getId();
+        return ResponseEntity.ok(highlightService.updateHighlight(id, userId, title, storyIds, coverUrl));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteHighlight(@PathVariable Long id) {
-        highlightService.deleteHighlight(id);
+    public ResponseEntity<Void> deleteHighlight(Principal principal, @PathVariable Long id) {
+        Long userId = userService.getCurrentUser(principal.getName()).getId();
+        highlightService.deleteHighlight(id, userId);
         return ResponseEntity.ok().build();
     }
 }

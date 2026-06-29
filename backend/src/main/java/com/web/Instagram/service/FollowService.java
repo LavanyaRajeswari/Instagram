@@ -7,6 +7,7 @@ import com.web.Instagram.repository.FollowRepository;
 import com.web.Instagram.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -22,7 +23,7 @@ public class FollowService {
     private final NotificationService notificationService;
     private final FollowRequestService followRequestService;
 
-    @Transactional
+    @Transactional(noRollbackFor = DataIntegrityViolationException.class)
     @CacheEvict(cacheNames = {"userProfiles", "feed"}, allEntries = true)
     public void followUser(Long followerId, Long followingId) {
         if (followerId.equals(followingId)) {
@@ -44,8 +45,11 @@ public class FollowService {
         Follow follow = new Follow();
         follow.setFollower(follower);
         follow.setFollowing(following);
-        followRepository.save(follow);
-
+        try {
+            followRepository.save(follow);
+        } catch (DataIntegrityViolationException ignored) {
+            return;
+        }
         notificationService.createNotification(followingId, followerId, "FOLLOW", null, null, null);
     }
 

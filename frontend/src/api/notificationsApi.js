@@ -15,7 +15,3 @@ export const markNotificationSeen = async (id) => {
   return true;
 };
 
-export const markAllNotificationsSeen = async () => {
-  await api.put("/notifications/seen/all");
-  return true;
-};

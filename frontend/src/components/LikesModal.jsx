@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { memo, useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { getPostLikeUsers } from "../api/likesApi";
@@ -105,4 +105,4 @@ function LikesModal({ postId, currentUserId, onClose }) {
   );
 }
 
-export default LikesModal;
+export default memo(LikesModal);

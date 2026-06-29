@@ -4,8 +4,10 @@ import com.web.Instagram.dto.note.NoteResponse;
 import com.web.Instagram.entity.*;
 import com.web.Instagram.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -42,10 +44,7 @@ public class NoteService {
     public NoteResponse createNote(Long userId, String text, String color, Integer expiryHours) {
         User user = getUserOrThrow(userId);
         if (expiryHours == null) expiryHours = 24;
-        List<Note> existingNotes = noteRepository.findByUserId(userId);
-        for (Note existingNote : existingNotes) {
-            noteRepository.delete(existingNote);
-        }
+        noteRepository.deleteByUserId(userId);
         Note note = Note.builder()
             .user(user).text(text).color(color)
             .audience("FOLLOWERS")
@@ -55,9 +54,12 @@ public class NoteService {
     }
 
     @Transactional
-    public NoteResponse editNote(Long noteId, String text, String color, String audience, Integer expiryHours) {
+    public NoteResponse editNote(Long noteId, Long currentUserId, String text, String color, String audience, Integer expiryHours) {
         Note note = noteRepository.findById(noteId)
-            .orElseThrow(() -> new RuntimeException("Note not found"));
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Note not found"));
+        if (!note.getUser().getId().equals(currentUserId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not own this note");
+        }
         if (text != null) note.setText(text);
         if (color != null) note.setColor(color);
         if (audience != null) note.setAudience(audience);
@@ -66,7 +68,12 @@ public class NoteService {
     }
 
     @Transactional
-    public void deleteNote(Long noteId) {
+    public void deleteNote(Long noteId, Long currentUserId) {
+        Note note = noteRepository.findById(noteId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Note not found"));
+        if (!note.getUser().getId().equals(currentUserId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not own this note");
+        }
         noteRepository.deleteById(noteId);
     }
 

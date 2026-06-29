@@ -6,7 +6,9 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "reports")
+@Table(name = "reports", indexes = {
+    @Index(name = "idx_reports_reporter_id", columnList = "reporter_id")
+})
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Report {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)

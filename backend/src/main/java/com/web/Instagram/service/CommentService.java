@@ -19,6 +19,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -122,11 +123,32 @@ public class CommentService {
         Map<Long, Long> likeCounts = commentLikeRepository.countByCommentIdIn(ids).stream()
                 .collect(Collectors.toMap(r -> ((Number) r[0]).longValue(), r -> ((Number) r[1]).longValue()));
 
+        Set<Long> likedCommentIds = currentUserId != null ?
+                commentLikeRepository.findByUserIdAndCommentIdIn(currentUserId, ids).stream()
+                        .map(cl -> cl.getComment().getId())
+                        .collect(Collectors.toSet())
+                : Set.of();
+
+        List<Long> allReplyIds = comments.stream()
+                .filter(c -> c.getReplies() != null)
+                .flatMap(c -> c.getReplies().stream())
+                .map(Comment::getId)
+                .toList();
+
+        Map<Long, Long> replyLikeCounts = allReplyIds.isEmpty() ? Map.of() :
+                commentLikeRepository.countByCommentIdIn(allReplyIds).stream()
+                        .collect(Collectors.toMap(r -> ((Number) r[0]).longValue(), r -> ((Number) r[1]).longValue()));
+
+        Set<Long> likedReplyIds = currentUserId != null && !allReplyIds.isEmpty() ?
+                commentLikeRepository.findByUserIdAndCommentIdIn(currentUserId, allReplyIds).stream()
+                        .map(cl -> cl.getComment().getId())
+                        .collect(Collectors.toSet())
+                : Set.of();
+
         return comments.stream().map(comment -> {
             User user = comment.getUser();
             long likeCount = likeCounts.getOrDefault(comment.getId(), 0L);
-            boolean likedByCurrentUser = currentUserId != null &&
-                    commentLikeRepository.existsByUserIdAndCommentId(currentUserId, comment.getId());
+            boolean likedByCurrentUser = likedCommentIds.contains(comment.getId());
 
             CommentResponse.CommentUser commentUser = CommentResponse.CommentUser.builder()
                     .id(user.getId())
@@ -138,7 +160,9 @@ public class CommentService {
             List<CommentResponse> replies = null;
             if (comment.getReplies() != null) {
                 replies = comment.getReplies().stream()
-                        .map(reply -> toResponse(reply, currentUserId, true))
+                        .map(reply -> toResponse(reply, currentUserId, true,
+                                replyLikeCounts.getOrDefault(reply.getId(), 0L),
+                                likedReplyIds.contains(reply.getId())))
                         .toList();
             }
 
@@ -226,7 +250,14 @@ public class CommentService {
     private CommentResponse toResponse(Comment comment, Long currentUserId, boolean includeReplies) {
         long likeCount = commentLikeRepository.countByCommentId(comment.getId());
         boolean likedByCurrentUser = currentUserId != null && commentLikeRepository.existsByUserIdAndCommentId(currentUserId, comment.getId());
+        return buildCommentResponse(comment, currentUserId, includeReplies, likeCount, likedByCurrentUser);
+    }
 
+    private CommentResponse toResponse(Comment comment, Long currentUserId, boolean includeReplies, long likeCount, boolean likedByCurrentUser) {
+        return buildCommentResponse(comment, currentUserId, includeReplies, likeCount, likedByCurrentUser);
+    }
+
+    private CommentResponse buildCommentResponse(Comment comment, Long currentUserId, boolean includeReplies, long likeCount, boolean likedByCurrentUser) {
         User user = comment.getUser();
         CommentResponse.CommentUser commentUser = CommentResponse.CommentUser.builder()
                 .id(user.getId())

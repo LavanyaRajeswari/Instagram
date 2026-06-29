@@ -22,6 +22,8 @@ public class CorsConfig {
                         .allowedOriginPatterns(
                                 "http://localhost:*",
                                 "https://instagramweb-olive.vercel.app",
+                                "https://noninsta.com",
+                                "https://*.noninsta.com",
                                 "http://127.0.0.1:*"
                         )
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
@@ -37,6 +39,8 @@ public class CorsConfig {
         config.setAllowedOriginPatterns(List.of(
                 "http://localhost:*",
                 "https://instagramweb-olive.vercel.app",
+                "https://noninsta.com",
+                "https://*.noninsta.com",
                 "http://127.0.0.1:*"
         ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
