@@ -307,7 +307,6 @@ public class DataSeeder implements CommandLineRunner {
         createNotificationSettings(users);
         List<Chat> chats = createChats(users);
         createMessages(chats);
-        createChatSettings(chats);
         List<GroupChat> groupChats = createGroupChats(users);
         createGroupChatMessages(users, groupChats);
         createGroupChatAdmins(groupChats);
@@ -642,9 +641,7 @@ public class DataSeeder implements CommandLineRunner {
                     c.setUserTwo(u2);
                     c.setLastMessage(QUOTES[list.size() % QUOTES.length]);
                     c.setLastMessageAt(LocalDateTime.now().minusHours(list.size()));
-                    c.setPinned(list.size() < 10);
                     c.setMuted(list.size() >= 100);
-                    if (list.size() % 15 == 0) c.setVanishMode("ENABLED");
                     list.add(c);
                 }
             }
@@ -686,30 +683,6 @@ public class DataSeeder implements CommandLineRunner {
         }
 
         messageRepository.saveAll(list);
-    }
-
-    private void createChatSettings(List<Chat> chats) {
-        List<ChatSetting> list = new ArrayList<>();
-        Set<String> seen = new HashSet<>();
-        Random rnd = new Random(890);
-
-        for (Chat chat : chats) {
-            for (int j = 0; j < 2; j++) {
-                User user = j == 0 ? chat.getUserOne() : chat.getUserTwo();
-                String key = user.getId() + ":" + chat.getId();
-                if (seen.add(key)) {
-                    ChatSetting cs = new ChatSetting();
-                    cs.setUser(user);
-                    cs.setChat(chat);
-                    cs.setTheme(rnd.nextBoolean() ? "DARK" : "LIGHT");
-                    cs.setMutedNotifications(list.size() > 200);
-                    cs.setMuteCalls(false);
-                    list.add(cs);
-                }
-            }
-        }
-
-        chatSettingRepository.saveAll(list);
     }
 
     private List<GroupChat> createGroupChats(List<User> users) {

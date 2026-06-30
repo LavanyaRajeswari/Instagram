@@ -73,7 +73,7 @@ public class ChatService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         Map<Long, ChatDto> chatsByOtherUser = new LinkedHashMap<>();
-        chatRepository.findByUserIdAndArchivedFalse(currentUser.getId())
+        chatRepository.findByUserId(currentUser.getId())
                 .stream()
                 .map(chat -> convert(chat, currentUser.getId()))
                 .forEach(chat -> chatsByOtherUser.putIfAbsent(chat.getOtherUserId(), chat));
@@ -169,17 +169,12 @@ public class ChatService {
         dto.setLastSeen(otherUser.getLastActiveAt());
         dto.setUnreadCount(unreadCount);
         dto.setOnline(otherUser.isOnline());
-        dto.setPinned(chat.isPinned());
-        dto.setArchived(chat.isArchived());
         dto.setMuted(chat.isMuted());
         dto.setMuteUntil(chat.getMuteUntil());
-        dto.setVanishMode(chat.getVanishMode());
 
         ChatSetting setting = chatSettingRepository.findByUserIdAndChatId(currentUserId, chat.getId()).orElse(null);
         if (setting != null) {
             dto.setNickname(setting.getNickname());
-            dto.setTheme(setting.getTheme());
-            dto.setWallpaper(setting.getWallpaper());
         }
 
         return dto;

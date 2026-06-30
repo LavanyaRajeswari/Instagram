@@ -36,16 +36,9 @@ public class Chat implements Serializable {
 
     private LocalDateTime lastMessageAt;
 
-    private boolean pinned = false;
-
-    private boolean archived = false;
-
     private boolean muted = false;
 
     private LocalDateTime muteUntil;
-
-    @Column(length = 20)
-    private String vanishMode;
 
     @CreationTimestamp
     private LocalDateTime createdAt;

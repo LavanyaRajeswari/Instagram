@@ -17,10 +17,7 @@ public interface ChatRepository extends JpaRepository<Chat, Long> {
         return findExistingChats(userId1, userId2).stream().findFirst();
     }
 
-    @Query("select c from Chat c where (c.userOne.id = :userId or c.userTwo.id = :userId) and c.archived = false order by c.lastMessageAt desc")
-    List<Chat> findByUserIdAndArchivedFalse(@Param("userId") Long userId);
-
-    @Query("select c from Chat c where (c.userOne.id = :userId or c.userTwo.id = :userId) and c.archived = true order by c.lastMessageAt desc")
-    List<Chat> findByUserIdAndArchivedTrue(@Param("userId") Long userId);
+    @Query("select c from Chat c where c.userOne.id = :userId or c.userTwo.id = :userId order by c.lastMessageAt desc")
+    List<Chat> findByUserId(@Param("userId") Long userId);
 
 }
