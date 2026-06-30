@@ -11,7 +11,6 @@ function CreateStoryModal({ onClose, onStoryCreated }) {
   const [preview, setPreview] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Songs state
   const [allSongs, setAllSongs] = useState([]);
   const [filteredSongs, setFilteredSongs] = useState([]);
   const [songsLoading, setSongsLoading] = useState(true);
@@ -29,7 +28,6 @@ function CreateStoryModal({ onClose, onStoryCreated }) {
     .match(/@([A-Za-z0-9_]*)$/);
   const mentionQuery = mentionMatch ? mentionMatch[1] : "";
 
-  // Pre-load all songs when modal mounts
   useEffect(() => {
     setSongsLoading(true);
     getStoryMusic()
@@ -44,7 +42,6 @@ function CreateStoryModal({ onClose, onStoryCreated }) {
       .finally(() => setSongsLoading(false));
   }, []);
 
-  // Audio element setup
   useEffect(() => {
     const audio = new Audio();
     audioRef.current = audio;
@@ -154,7 +151,6 @@ function CreateStoryModal({ onClose, onStoryCreated }) {
   return (
     <div className="fixed inset-0 z-[900] flex items-center justify-center bg-black/70 px-4">
       <div className="w-full max-w-[460px] overflow-hidden rounded-xl bg-card">
-        {/* Header */}
         <div className="relative flex h-12 items-center justify-center border-b">
           <h2 className="text-sm font-semibold">Create story</h2>
           <button type="button" onClick={onClose} className="absolute right-4">
@@ -163,7 +159,6 @@ function CreateStoryModal({ onClose, onStoryCreated }) {
         </div>
 
         <div className="max-h-[85vh] overflow-y-auto p-4">
-          {/* Media preview / picker */}
           {preview ? (
             isVideo ? (
               <video
@@ -191,7 +186,6 @@ function CreateStoryModal({ onClose, onStoryCreated }) {
             </label>
           )}
 
-          {/* Music picker — always visible, pre-loaded */}
           <div className="mt-4">
             <div className="mb-2 flex items-center justify-between">
               <div className="flex items-center gap-2 text-sm font-semibold">
@@ -209,7 +203,6 @@ function CreateStoryModal({ onClose, onStoryCreated }) {
               )}
             </div>
 
-            {/* Selected song pill */}
             {selectedMusic && (
               <div className="mb-2 flex items-center gap-2 rounded-lg bg-[#0095f6]/10 px-3 py-2 text-sm">
                 <Music className="h-4 w-4 shrink-0 text-[#0095f6]" />
@@ -222,7 +215,6 @@ function CreateStoryModal({ onClose, onStoryCreated }) {
               </div>
             )}
 
-            {/* Search input */}
             <div className="relative mb-2">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-secondary" />
               <input
@@ -238,7 +230,6 @@ function CreateStoryModal({ onClose, onStoryCreated }) {
               )}
             </div>
 
-            {/* Songs list */}
             <div className="max-h-52 overflow-y-auto rounded-lg border border-primary">
               {songsLoading ? (
                 <div className="flex flex-col items-center justify-center gap-2 py-8 text-xs text-secondary">
@@ -261,7 +252,6 @@ function CreateStoryModal({ onClose, onStoryCreated }) {
                         isSelected ? "bg-[#0095f6]/10" : ""
                       }`}
                     >
-                      {/* Play/pause button */}
                       <button
                         type="button"
                         onClick={(e) => {
@@ -277,7 +267,6 @@ function CreateStoryModal({ onClose, onStoryCreated }) {
                         )}
                       </button>
 
-                      {/* Title + artist */}
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center gap-1.5 truncate text-sm font-semibold">
                           {song.title}
@@ -288,7 +277,6 @@ function CreateStoryModal({ onClose, onStoryCreated }) {
                         <span className="block truncate text-xs text-secondary">{song.artist}</span>
                       </span>
 
-                      {/* Selected indicator */}
                       {isSelected && <Check className="h-4 w-4 shrink-0 text-[#0095f6]" />}
                     </div>
                   );
@@ -300,7 +288,6 @@ function CreateStoryModal({ onClose, onStoryCreated }) {
             )}
           </div>
 
-          {/* Caption */}
           {preview && (
             <div className="relative mt-3">
               <input
@@ -319,7 +306,6 @@ function CreateStoryModal({ onClose, onStoryCreated }) {
             </div>
           )}
 
-          {/* Share button */}
           <button
             type="button"
             disabled={loading || !media}

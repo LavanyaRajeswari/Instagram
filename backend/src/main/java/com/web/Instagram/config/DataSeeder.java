@@ -106,50 +106,59 @@ public class DataSeeder implements CommandLineRunner {
         "Brave soul", "Peace and love", "Endless summer", "Golden hour"
     };
 
-    private static final String[] SONG_TITLES = {
-        "Naatu Naatu", "Srivalli", "Oo Antava", "Ramuloo Ramulaa", "Butta Bomma",
-        "Samajavaragamana", "Inkem Inkem Kavale", "Vachinde", "Ve Maari", "Maguva Maguva",
-        "Rangamma Mangamma", "Seetimaarr", "Adiga Adiga", "Pilla Raa", "Ko Ante Koti",
-        "Bomma Blockbuster", "Kissik", "Pushpa Pushpa", "Sooseki", "Idhe Kadha Nee Katha",
-        "Aa Ante Amalapuram", "Nuvvostanante Nenoddantana", "Cheli Paadindi Paata", "Cheppave Chirugali", "O Priya Priya",
-        "Poola Poola Devudaa", "Jalsa Jalsa", "Oka Laila Kosam", "Manase Manase", "Bangaru Kodipetta",
-        "Kalyana Vaibhogame", "Ee Bindu Ee Bindu", "Uppena", "Payana Sandadi", "Sye Raa",
-        "Dil Dil Dil", "Govinda Govinda", "Chinni Chinni Aasa", "Nuvvu Nenu", "Keeravani Keeravani",
-        "Dhingara", "Pellaina Kothalo", "Rudram", "Priyathama Priyathama", "Evaro Ee Manishi",
-        "Orey Bujjigaa", "Entha Manchivadavura", "Avanthika", "Ninne Ninne", "Vasthunna Vachestunna",
-        "Merise Merise", "Naa Kosam Nuvvu", "Anthakante Thakkuva", "Race Gurram", "Dookudu",
-        "Dear Comrade", "Padi Padi Leche Manasu", "Majili", "Nuvve Nuvve", "Godhari Gattu Meeda",
-        "Yedalo Jagruthi", "Athade Okaradu", "Pokiri", "Chatrapathi", "Nela Ticket",
-        "Aravinda Sametha", "Bharat Ane Nenu", "Sarileru Neekevvaru", "Maharshi", "World Famous Lover",
-        "Tuck Jagadish", "Ante Sundaraniki", "Sarkaru Vaari Paata", "Akhanda", "Bheeshma",
-        "Vakeel Saab", "Ee Nagaraniki Emaindi", "Premalu", "Guntur Kaaram", "Dasara",
-        "Sankarabharanam", "Simhadri Theme", "Magadheera Theme", "Baahubali Theme", "Varsham",
-        "Fidaa Theme", "Taxiwaala", "Gang Leader", "Jersey Theme", "Mahanati",
-        "Shyam Singha Roy", "Arjun Reddy", "Akhanda Akhanda", "HIT Theme", "Krack Theme",
-        "Suryakantam", "Kushi", "Nannaku Prematho", "Attarintiki Daredi", "Seethamma Vakitlo"
-    };
+    private record MusicSeed(
+            String title,
+            String artist,
+            String audioUrl,
+            String genre,
+            boolean trending
+    ) {}
 
-    private static final String[] ARTISTS = {
-        "SP Balasubrahmanyam", "Sid Sriram", "Devi Sri Prasad", "SS Thaman", "MM Keeravani",
-        "Rahul Sipligunj", "Shreya Ghoshal", "Anurag Kulkarni", "Harika Narayan", "Ramya Behara",
-        "Sunitha", "Yazin Nizar", "Karthik", "Benny Dayal", "Armaan Malik",
-        "Simha", "Sri Krishna", "Geetha Madhuri", "Anup Rubens", "Manisharma",
-        "Shankar Mahadevan", "Udit Narayan", "KS Chitra", "SP Charan", "Vijaya Prakash",
-        "Rita", "Divya Valli", "Mohana Bhogaraju", "Hemachandra", "Swetha Mohan",
-        "Chinmayi", "Revanth", "Kaala Bhairava", "Koyal Mullick", "Neeti Mohan",
-        "Sujatha", "Mahalakshmi Iyer", "Kunal Ganjawala", "Shaan", "Vijay Yesudas",
-        "Javed Ali", "Hariharan", "Naresh Iyer", "Kousalya", "Malathi",
-        "Gopika Poornima", "Vasundhara Das", "Vani Jayaram", "Sravana Bhargavi", "Madhu Priya",
-        "Vandemataram Srinivas", "Koti", "Raj Koti", "Chakri", "Mani Sharma",
-        "Ramana Gogula", "Suresh Peters", "Isaac Thomas Kottukapally", "Hesham Abdul Wahab", "Pooja Vaidyanath",
-        "Mangli", "Suryakumar", "Padmalatha", "L Sridhar", "Priya Himesh",
-        "Shivangi", "Harika", "Srinivasa Murthy", "Shweta Pandit", "Sadhana Sargam",
-        "Clinton Cerejo", "Nithyasree Mahadevan", "Deepika", "Ranjith Govind", "Kala Ranjini",
-        "Narayana Swami", "Leon James", "Justin Prabhakaran", "Vishal Chandrashekhar", "Haricharan",
-        "Karunya", "Sathyaprakash", "SP Sailaja", "P Susheela", "Ghantasala",
-        "Balamurali Krishna", "Sreenivas", "Venkateswara Rao", "Bhavana", "Ramajogaiah Sastry",
-        "Sreerama Chandra", "Smitha", "Tanveer Ghani", "Dheena", "Priyanka NK",
-        "GV Prakash Kumar", "Harris Jayaraj", "Yuvan Shankar Raja", "Mano", "Sathyam"
+    // Telugu songs only. Upload each 30-second mp3 preview to Cloudinary using these file names.
+    // Example final URL: https://res.cloudinary.com/YOUR_CLOUD_NAME/video/upload/telugu_music/butta-bomma.mp3
+    private static final String TELUGU_MUSIC_BASE_URL = "https://res.cloudinary.com/YOUR_CLOUD_NAME/video/upload/telugu_music/";
+
+    private static final MusicSeed[] STORY_MUSIC_SEEDS = {
+            new MusicSeed("Butta Bomma", "Armaan Malik, S. Thaman", TELUGU_MUSIC_BASE_URL + "butta-bomma.mp3", "Telugu Pop", true),
+            new MusicSeed("Samajavaragamana", "Sid Sriram, S. Thaman", TELUGU_MUSIC_BASE_URL + "samajavaragamana.mp3", "Telugu Melody", true),
+            new MusicSeed("Ramuloo Ramulaa", "Anurag Kulkarni, Mangli, S. Thaman", TELUGU_MUSIC_BASE_URL + "ramuloo-ramulaa.mp3", "Telugu Folk Pop", true),
+            new MusicSeed("Naatu Naatu", "Rahul Sipligunj, Kaala Bhairava, M. M. Keeravani", TELUGU_MUSIC_BASE_URL + "naatu-naatu.mp3", "Telugu Dance", true),
+            new MusicSeed("Srivalli", "Sid Sriram, Devi Sri Prasad", TELUGU_MUSIC_BASE_URL + "srivalli.mp3", "Telugu Melody", true),
+            new MusicSeed("Oo Antava Oo Oo Antava", "Indravathi Chauhan, Devi Sri Prasad", TELUGU_MUSIC_BASE_URL + "oo-antava.mp3", "Telugu Dance", true),
+            new MusicSeed("Pushpa Pushpa", "Mika Singh, Nakash Aziz, Devi Sri Prasad", TELUGU_MUSIC_BASE_URL + "pushpa-pushpa.mp3", "Telugu Mass", true),
+            new MusicSeed("Sooseki", "Shreya Ghoshal, Devi Sri Prasad", TELUGU_MUSIC_BASE_URL + "sooseki.mp3", "Telugu Melody", true),
+            new MusicSeed("Chikiri Chikiri", "Karthik", TELUGU_MUSIC_BASE_URL + "chikiri-chikiri.mp3", "Telugu Melody", true),
+            new MusicSeed("Priya Priyathama", "Chinmayi, Vijay Prakash", TELUGU_MUSIC_BASE_URL + "priya-priyathama.mp3", "Telugu Melody", true),
+            new MusicSeed("Gusa Gusa Lade", "Karthik, Pranavi", TELUGU_MUSIC_BASE_URL + "gusa-gusa-lade.mp3", "Telugu Melody", true),
+            new MusicSeed("Mouname Matta Kalipina", "Karthik, Harini", TELUGU_MUSIC_BASE_URL + "mouname-matta-kalipina.mp3", "Telugu Melody", true),
+            new MusicSeed("Jalsa Jalsa", "Baba Sehgal, Rita", TELUGU_MUSIC_BASE_URL + "jalsa-jalsa.mp3", "Telugu Dance", true),
+            new MusicSeed("Oka Laila Kosam", "S. P. Balasubrahmanyam", TELUGU_MUSIC_BASE_URL + "oka-laila-kosam.mp3", "Telugu Classic", true),
+            new MusicSeed("Godari Gattu Meeda", "S. P. Balasubrahmanyam, Chitra", TELUGU_MUSIC_BASE_URL + "godari-gattu-meeda.mp3", "Telugu Classic", true),
+            new MusicSeed("Nuvvu Nenu", "Karthik, Usha", TELUGU_MUSIC_BASE_URL + "nuvvu-nenu.mp3", "Telugu Melody", true),
+            new MusicSeed("Inkem Inkem Inkem Kaavaale", "Sid Sriram", TELUGU_MUSIC_BASE_URL + "inkem-inkem-inkem-kaavaale.mp3", "Telugu Melody", true),
+            new MusicSeed("Vachindamma", "Sid Sriram", TELUGU_MUSIC_BASE_URL + "vachindamma.mp3", "Telugu Melody", true),
+            new MusicSeed("Pilla Raa", "Anurag Kulkarni", TELUGU_MUSIC_BASE_URL + "pilla-raa.mp3", "Telugu Melody", true),
+            new MusicSeed("Adiga Adiga", "Sid Sriram", TELUGU_MUSIC_BASE_URL + "adiga-adiga.mp3", "Telugu Melody", true),
+            new MusicSeed("Maguva Maguva", "Sid Sriram, S. Thaman", TELUGU_MUSIC_BASE_URL + "maguva-maguva.mp3", "Telugu Melody", true),
+            new MusicSeed("Rangamma Mangamma", "M. M. Manasi, Devi Sri Prasad", TELUGU_MUSIC_BASE_URL + "rangamma-mangamma.mp3", "Telugu Folk", true),
+            new MusicSeed("Seeti Maar", "Jaspreet Jasz, Rita, Devi Sri Prasad", TELUGU_MUSIC_BASE_URL + "seeti-maar.mp3", "Telugu Dance", true),
+            new MusicSeed("Vasthunna Vachestunna", "Shreya Ghoshal, Amit Trivedi", TELUGU_MUSIC_BASE_URL + "vasthunna-vachestunna.mp3", "Telugu Melody", true),
+            new MusicSeed("Nee Kannu Neeli Samudram", "Javed Ali, Devi Sri Prasad", TELUGU_MUSIC_BASE_URL + "nee-kannu-neeli-samudram.mp3", "Telugu Melody", true),
+            new MusicSeed("Kurchi Madathapetti", "Sahithi Chaganti, Sri Krishna, S. Thaman", TELUGU_MUSIC_BASE_URL + "kurchi-madathapetti.mp3", "Telugu Mass", true),
+            new MusicSeed("Dum Masala", "Sanjith Hegde, S. Thaman", TELUGU_MUSIC_BASE_URL + "dum-masala.mp3", "Telugu Mass", true),
+            new MusicSeed("Ticket Eh Konakunda", "Ram Miriyala", TELUGU_MUSIC_BASE_URL + "ticket-eh-konakunda.mp3", "Telugu Fun", true),
+            new MusicSeed("Chamkeela Angeelesi", "Ram Miriyala, Dhee", TELUGU_MUSIC_BASE_URL + "chamkeela-angeelesi.mp3", "Telugu Folk", true),
+            new MusicSeed("Ori Vaari", "Santhosh Narayanan", TELUGU_MUSIC_BASE_URL + "ori-vaari.mp3", "Telugu Melody", true),
+            new MusicSeed("Hoyna Hoyna", "Anirudh Ravichander, Inno Genga", TELUGU_MUSIC_BASE_URL + "hoyna-hoyna.mp3", "Telugu Pop", true),
+            new MusicSeed("Nijame Ne Chebutunna", "Sid Sriram", TELUGU_MUSIC_BASE_URL + "nijame-ne-chebutunna.mp3", "Telugu Melody", true),
+            new MusicSeed("Evarevaro", "Vishal Mishra", TELUGU_MUSIC_BASE_URL + "evarevaro.mp3", "Telugu Melody", true),
+            new MusicSeed("Suttamla Soosi", "Anurag Kulkarni", TELUGU_MUSIC_BASE_URL + "suttamla-soosi.mp3", "Telugu Melody", true),
+            new MusicSeed("Bujji Theme", "Santhosh Narayanan", TELUGU_MUSIC_BASE_URL + "bujji-theme.mp3", "Telugu Theme", true),
+            new MusicSeed("Bhairava Anthem", "Diljit Dosanjh, Santhosh Narayanan", TELUGU_MUSIC_BASE_URL + "bhairava-anthem.mp3", "Telugu Mass", true),
+            new MusicSeed("Fear Song", "Anirudh Ravichander", TELUGU_MUSIC_BASE_URL + "fear-song.mp3", "Telugu Mass", true),
+            new MusicSeed("Chuttamalle", "Shilpa Rao, Anirudh Ravichander", TELUGU_MUSIC_BASE_URL + "chuttamalle.mp3", "Telugu Melody", true),
+            new MusicSeed("Ayudha Pooja", "Kaala Bhairava", TELUGU_MUSIC_BASE_URL + "ayudha-pooja.mp3", "Telugu Mass", true),
+            new MusicSeed("Naa Ready Telugu Version", "Anirudh Ravichander", TELUGU_MUSIC_BASE_URL + "naa-ready-telugu.mp3", "Telugu Dance", true),
     };
 
     private static final String[] HASHTAGS = {
@@ -1155,18 +1164,21 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private void createStoryMusic() {
+        if (storyMusicRepository.count() > 0) {
+            return;
+        }
+
         List<StoryMusic> list = new ArrayList<>();
         Random rnd = new Random(11223);
-        String[] genres = {"Pop", "Rock", "Electronic", "Hip-Hop", "R&B", "Jazz", "Classical", "Indie", "Country", "Folk"};
 
-        for (int i = 0; i < 100; i++) {
+        for (MusicSeed seed : STORY_MUSIC_SEEDS) {
             StoryMusic sm = StoryMusic.builder()
-                    .title(SONG_TITLES[i % SONG_TITLES.length])
-                    .artist(ARTISTS[i % ARTISTS.length])
-                    .audioUrl(AUDIO_URLS[i % AUDIO_URLS.length])
-                    .durationMs(30000L + (rnd.nextInt(60) * 1000L))
-                    .genre(genres[i % genres.length])
-                    .isTrending(i < 30)
+                    .title(seed.title())
+                    .artist(seed.artist())
+                    .audioUrl(seed.audioUrl())
+                    .durationMs(30000L)
+                    .genre(seed.genre())
+                    .isTrending(seed.trending())
                     .usageCount((long) (rnd.nextInt(1000) + 1))
                     .build();
             list.add(sm);

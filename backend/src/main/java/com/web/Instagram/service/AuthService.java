@@ -32,6 +32,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final TokenBlacklistService tokenBlacklistService;
 
     public LoginResponse register(RegisterRequest request) {
         if ((request.getEmail() == null || request.getEmail().isBlank())
@@ -103,9 +104,11 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
         }
 
-        User user = userRepository.findByUsername(request.getLogin())
-                .or(() -> userRepository.findByEmail(request.getLogin()))
-                .or(() -> userRepository.findByMobileNumber(request.getLogin()))
+        User user = userRepository.findByUsernameOrEmailOrMobileNumber(
+                        request.getLogin(),
+                        request.getLogin(),
+                        request.getLogin()
+                )
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials"));
 
         if ("DEACTIVATED".equals(user.getAccountStatus())) {
@@ -136,13 +139,25 @@ public class AuthService {
     @Transactional
     public Map<String, String> refreshToken(String refreshTokenValue) {
         RefreshToken stored = refreshTokenRepository.findByToken(refreshTokenValue)
-                .orElseThrow(() -> new RuntimeException("Invalid refresh token"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid refresh token"));
 
-        String username = stored.getUsername();
+        if (stored.getExpiresAt() == null || stored.getExpiresAt().isBefore(LocalDateTime.now())) {
+            refreshTokenRepository.deleteByToken(refreshTokenValue);
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh token expired");
+        }
+
+        User user = userRepository.findByUsername(stored.getUsername())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid refresh token"));
+
+        if ("DEACTIVATED".equals(user.getAccountStatus())) {
+            refreshTokenRepository.deleteByToken(refreshTokenValue);
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Account is deactivated");
+        }
+
         refreshTokenRepository.deleteByToken(refreshTokenValue);
 
-        String newAccessToken = jwtService.generateToken(username);
-        String newRefreshToken = saveRefreshToken(username);
+        String newAccessToken = jwtService.generateToken(user.getUsername());
+        String newRefreshToken = saveRefreshToken(user.getUsername());
 
         Map<String, String> result = new HashMap<>();
         result.put("token", newAccessToken);
@@ -151,9 +166,12 @@ public class AuthService {
     }
 
     @Transactional
-    public void logout(String username, String refreshToken) {
+    public void logout(String username, String refreshToken, String accessToken) {
         if (refreshToken != null) {
             refreshTokenRepository.deleteByToken(refreshToken);
+        }
+        if (accessToken != null && jwtService.isTokenValid(accessToken)) {
+            tokenBlacklistService.blacklist(accessToken);
         }
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -164,14 +182,20 @@ public class AuthService {
 
     private String saveRefreshToken(String username) {
         String token = UUID.randomUUID().toString();
+        LocalDateTime now = LocalDateTime.now();
         RefreshToken refreshTokenEntity = RefreshToken.builder()
                 .token(token)
                 .username(username)
-                .createdAt(LocalDateTime.now())
-                .expiresAt(LocalDateTime.now().plusDays(30))
+                .createdAt(now)
+                .expiresAt(now.plusDays(30))
                 .build();
         refreshTokenRepository.save(refreshTokenEntity);
         return token;
+    }
+
+    @Transactional
+    public void removeExpiredRefreshTokens() {
+        refreshTokenRepository.deleteByExpiresAtBefore(LocalDateTime.now());
     }
 
     @Transactional
@@ -182,6 +206,7 @@ public class AuthService {
         user.setOnline(false);
         user.setLastActiveAt(LocalDateTime.now());
         userRepository.save(user);
+        refreshTokenRepository.deleteByUsername(username);
     }
 
     @Transactional

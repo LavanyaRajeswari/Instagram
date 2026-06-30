@@ -19,6 +19,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<User> findAllByUsernameIn(List<String> usernames);
     Optional<User> findByEmail(String email);
     Optional<User> findByMobileNumber(String mobileNumber);
+    Optional<User> findByUsernameOrEmailOrMobileNumber(String username, String email, String mobileNumber);
+
     @Query("""
     select u from User u
         where lower(u.username) like lower(concat('%', :query, '%'))

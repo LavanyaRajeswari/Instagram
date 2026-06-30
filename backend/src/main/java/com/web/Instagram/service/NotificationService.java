@@ -63,7 +63,6 @@ public class NotificationService {
         List<Notification> notifications =
                 notificationRepository.findByRecipientIdOrderByCreatedAtDesc(userId);
 
-        // Batch-load all pending follow requests for this user to avoid N+1 queries
         Map<Long, Long> pendingFollowRequestBySenderId = new HashMap<>();
         boolean hasFollowRequests = notifications.stream()
                 .anyMatch(n -> "FOLLOW_REQUEST".equalsIgnoreCase(n.getType()));

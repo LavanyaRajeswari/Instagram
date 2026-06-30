@@ -40,9 +40,16 @@ public class AuthRestController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout(Principal principal, @RequestBody(required = false) Map<String, String> body) {
+    public ResponseEntity<Void> logout(
+            Principal principal,
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @RequestBody(required = false) Map<String, String> body
+    ) {
         String refreshToken = body != null ? body.get("refreshToken") : null;
-        authService.logout(principal.getName(), refreshToken);
+        String accessToken = authorizationHeader != null && authorizationHeader.startsWith("Bearer ")
+                ? authorizationHeader.substring(7)
+                : null;
+        authService.logout(principal.getName(), refreshToken, accessToken);
         return ResponseEntity.ok().build();
     }
 
