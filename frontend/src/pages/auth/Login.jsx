@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { FaInstagram } from "react-icons/fa";
 import { FaMeta } from "react-icons/fa6";
 import { loginUser } from "../../api/userApi";
 import { clearCurrentUserCache } from "../../hooks/useCurrentUser";
@@ -59,9 +58,13 @@ function Login() {
     <div className="min-h-screen flex bg-secondary">
       <div className="hidden lg:flex flex-1 bg-card border-r border-primary relative overflow-hidden">
         <div className="w-full max-w-[900px] mx-auto px-8 lg:px-16 pt-28 lg:pt-32 pb-12">
-          <div className="absolute top-8 left-8 flex items-center gap-3">
-            <FaInstagram size={80} className="text-[#E4405F]" />
-          </div>
+          <div className="absolute top-8 left-8">
+              <img
+                src="/Insta-icon.png"
+                alt="Instagram"
+                className="w-20 h-20 object-contain"
+              />
+            </div>
 
           <div className="text-center">
             <h1 className="text-[20px] md:text-[26px] lg:text-[34px] xl:text-[40px] leading-[30px] md:leading-[34px] lg:leading-[46px] xl:leading-[50px] font-light text-primary">
@@ -75,7 +78,7 @@ function Login() {
             </h1>
           </div>
 
-          <div className="mt-16 lg:mt-24 flex justify-center">
+          <div className="mt-8 lg:mt-6 flex justify-center">
             <img
               src="/login-hero.png"
               alt="Hero"
@@ -88,7 +91,11 @@ function Login() {
       <div className="w-full lg:w-[720px] flex items-center justify-center px-6 sm:px-8 lg:px-16">
         <div className="w-full max-w-[500px] mx-auto">
           <div className="flex justify-center mb-8 lg:hidden">
-            <FaInstagram size={72} className="text-[#E4405F]" />
+            <img
+              src="/Insta-icon.png"
+              alt="Instagram"
+              className="w-18 h-18 object-contain"
+            />
           </div>
 
           <h2 className="text-[26px] font-semibold text-primary mb-6">

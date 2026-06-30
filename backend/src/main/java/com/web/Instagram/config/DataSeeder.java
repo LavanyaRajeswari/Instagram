@@ -1,14 +1,92 @@
 package com.web.Instagram.config;
 
-import com.web.Instagram.entity.*;
-import com.web.Instagram.repository.*;
-import lombok.RequiredArgsConstructor;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Random;
+import java.util.Set;
+
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
-import java.util.*;
+import com.web.Instagram.entity.BlockedUser;
+import com.web.Instagram.entity.Call;
+import com.web.Instagram.entity.CallParticipant;
+import com.web.Instagram.entity.Chat;
+import com.web.Instagram.entity.Comment;
+import com.web.Instagram.entity.CommentLike;
+import com.web.Instagram.entity.Follow;
+import com.web.Instagram.entity.FollowRequest;
+import com.web.Instagram.entity.GroupChat;
+import com.web.Instagram.entity.GroupChatAdmin;
+import com.web.Instagram.entity.GroupChatMessage;
+import com.web.Instagram.entity.Hashtag;
+import com.web.Instagram.entity.Highlight;
+import com.web.Instagram.entity.Like;
+import com.web.Instagram.entity.Media;
+import com.web.Instagram.entity.MediaType;
+import com.web.Instagram.entity.Message;
+import com.web.Instagram.entity.Mute;
+import com.web.Instagram.entity.Note;
+import com.web.Instagram.entity.Notification;
+import com.web.Instagram.entity.NotificationSetting;
+import com.web.Instagram.entity.Post;
+import com.web.Instagram.entity.Report;
+import com.web.Instagram.entity.RestrictedUser;
+import com.web.Instagram.entity.SavedPost;
+import com.web.Instagram.entity.SavedStory;
+import com.web.Instagram.entity.SearchHistory;
+import com.web.Instagram.entity.Share;
+import com.web.Instagram.entity.Story;
+import com.web.Instagram.entity.StoryArchive;
+import com.web.Instagram.entity.StoryHideFrom;
+import com.web.Instagram.entity.StoryLike;
+import com.web.Instagram.entity.StoryMusic;
+import com.web.Instagram.entity.StoryReply;
+import com.web.Instagram.entity.StoryView;
+import com.web.Instagram.entity.Tag;
+import com.web.Instagram.entity.User;
+import com.web.Instagram.repository.BlockedUserRepository;
+import com.web.Instagram.repository.CallParticipantRepository;
+import com.web.Instagram.repository.CallRepository;
+import com.web.Instagram.repository.ChatRepository;
+import com.web.Instagram.repository.ChatSettingRepository;
+import com.web.Instagram.repository.CommentLikeRepository;
+import com.web.Instagram.repository.CommentRepository;
+import com.web.Instagram.repository.FollowRepository;
+import com.web.Instagram.repository.FollowRequestRepository;
+import com.web.Instagram.repository.GroupChatAdminRepository;
+import com.web.Instagram.repository.GroupChatMessageRepository;
+import com.web.Instagram.repository.GroupChatRepository;
+import com.web.Instagram.repository.HashtagRepository;
+import com.web.Instagram.repository.HighlightRepository;
+import com.web.Instagram.repository.LikeRepository;
+import com.web.Instagram.repository.MediaRepository;
+import com.web.Instagram.repository.MessageRepository;
+import com.web.Instagram.repository.MuteRepository;
+import com.web.Instagram.repository.NoteRepository;
+import com.web.Instagram.repository.NotificationRepository;
+import com.web.Instagram.repository.NotificationSettingRepository;
+import com.web.Instagram.repository.PostRepository;
+import com.web.Instagram.repository.ReportRepository;
+import com.web.Instagram.repository.RestrictedUserRepository;
+import com.web.Instagram.repository.SavedPostRepository;
+import com.web.Instagram.repository.SavedStoryRepository;
+import com.web.Instagram.repository.SearchHistoryRepository;
+import com.web.Instagram.repository.ShareRepository;
+import com.web.Instagram.repository.StoryArchiveRepository;
+import com.web.Instagram.repository.StoryHideFromRepository;
+import com.web.Instagram.repository.StoryLikeRepository;
+import com.web.Instagram.repository.StoryMusicRepository;
+import com.web.Instagram.repository.StoryReplyRepository;
+import com.web.Instagram.repository.StoryRepository;
+import com.web.Instagram.repository.StoryViewRepository;
+import com.web.Instagram.repository.TagRepository;
+import com.web.Instagram.repository.UserRepository;
+
+import lombok.RequiredArgsConstructor;
 
 @Component
 @RequiredArgsConstructor
@@ -106,62 +184,316 @@ public class DataSeeder implements CommandLineRunner {
         "Brave soul", "Peace and love", "Endless summer", "Golden hour"
     };
 
-    private record MusicSeed(
-            String title,
-            String artist,
-            String audioUrl,
-            String genre,
-            boolean trending
-    ) {}
+    private static final String[] SONG_TITLES = {
+    "Samajavaragamana",
+    "Butta Bomma",
+    "Inkem Inkem Inkem Kaavaale",
+    "Pillaa Raa",
+    "Neeli Neeli Aakasam",
+    "Saranga Dariya",
+    "Srivalli",
+    "Saami Saami",
+    "Naatu Naatu",
+    "Vachindamma",
+    "Maate Vinadhuga",
+    "Adiga Adiga",
+    "Yenti Yenti",
+    "Choosi Chudangane",
+    "Aaskasam Eenatido",
+    "Thassadiya",
+    "Chikiri Chikiri",
+    "Yedhalo Oka Mounam",
+    "Kannuladha",
+    "Why This Kolaveri Di",
+    "Manasilaayo",
+    "Beast Mode",
+    "Dippam Dappam",
+    "Hello Rammante",
+    "Ola Olaala Ala",
+    "Nenu Nuvvantu",
+    "Rooba Rooba",
+    "Sirivennela",
+    "Pranavalaya",
+    "Nijanga Nenena",
+    "Nenani Neevani (LoFi Mix)",
+    "Chilipiga",
+    "Devatha",
+    "Gusa Gusa Lade",
+    "Yenno Yenno",
+    "Stereo Hearts",
+    "Shape of You",
+    "love nwantiti (ah ah ah)",
+    "At My Worst",
+    "We Don't Talk Anymore",
+    "Vaathi Coming",
+    "Arabic Kuthu",
+    "Thenmozhi",
+    "Megham Karukatha",
+    "Kanja Poovu Kannala",
+    "Chellamma",
+    "So Baby",
+    "Adiye",
+    "Vaathi Raid",
+    "Pona Pogattum",
+    "Ennodu Nee Irundhaal",
+    "Vellai Pookkal",
+    "Marakkuma Nenjam",
+    "Paisa Note",
+    "Jolly O Gymkhana",
+    "Verithanam",
+    "Vaada Thambi",
+    "En Iniya Thanimaye",
+    "Unakaga",
+    "Kesariya",
+    "Pasoori",
+    "Lut Gaye",
+    "Raataan Lambiyan",
+    "Ghungroo",
+    "Bekhayali",
+    "Tujhe Kitna Chahne Lage",
+    "Morni Banke",
+    "Dilbaro",
+    "Binte Dil",
+    "Ghoomar",
+    "Phir Aur Kya Chahiye",
+    "Kho Gaye Hum Kahan",
+    "Manike Mage Hithe",
+    "O Bedardeya",
+    "Apna Bana Le",
+    "Tera Ban Jaunga",
+    "Main Dhoondne Ko Zamaane Mein",
+    "Kabhi Jo Baadal Barse",
+    "Gilehriyaan",
+    "Blinding Lights",
+    "Dandelions",
+    "Let Me Down Slowly",
+    "Sunflower",
+    "Believer",
+    "Lovely",
+    "Someone You Loved",
+    "Memories",
+    "Night Changes",
+    "Closer",
+    "See You Again",
+    "Heat Waves",
+    "Perfect",
+    "Photograph",
+    "Unstoppable",
+    "Cheap Thrills",
+    "Attention",
+    "Ocean Eyes",
+    "bad guy",
+    "Havana",
+    "Flowers"
+};
 
-    // Telugu songs only. Upload each 30-second mp3 preview to Cloudinary using these file names.
-    // Example final URL: https://res.cloudinary.com/YOUR_CLOUD_NAME/video/upload/telugu_music/butta-bomma.mp3
-    private static final String TELUGU_MUSIC_BASE_URL = "https://res.cloudinary.com/dbqalriqr/video/upload/telugu_music/";
+private static final String[] ARTISTS = {
+    "Sid Sriram",
+    "Armaan Malik",
+    "Sid Sriram",
+    "Anurag Kulkarni",
+    "Sid Sriram, Sunitha",
+    "Mangli",
+    "Sid Sriram",
+    "Mounika Yadav",
+    "Rahul Sipligunj, Kaala Bhairava",
+    "Sid Sriram",
+    "Sid Sriram",
+    "Sid Sriram",
+    "Chinmayi Sripada",
+    "Anurag Kulkarni",
+    "S. Janaki",
+    "Silambarasan TR, T. Rajendar, Suchitra",
+    "Yazin Nizar, Narendra, Rita",
+    "Karthik",
+    "Dhanush, Shruti Haasan",
+    "Dhanush",
+    "Malaysia Vasudevan, Yugendran, Anirudh Ravichander",
+    "Anirudh Ravichander",
+    "Anirudh Ravichander, Anthony Daasan",
+    "Sagar",
+    "Ranina Reddy",
+    "Naresh Iyer, Shreya Ghoshal",
+    "Benny Dayal, K. G. Ranjith",
+    "Anurag Kulkarni",
+    "Sid Sriram",
+    "Karthik",
+    "A. R. Rahman",
+    "Karthik",
+    "Karthik",
+    "Karthik, Pranavi",
+    "Karthik",
+    "Gym Class Heroes feat. Adam Levine",
+    "Ed Sheeran",
+    "CKay",
+    "Pink Sweat$",
+    "Charlie Puth feat. Selena Gomez",
+    "Anirudh Ravichander & Gana Balachandar",
+    "Anirudh Ravichander & Jonita Gandhi",
+    "Santhosh Narayanan & Anirudh Ravichander",
+    "Dhanush & Anirudh Ravichander",
+    "Yuvan Shankar Raja & Sid Sriram",
+    "Anirudh Ravichander & Jonita Gandhi",
+    "Anirudh Ravichander & Ananthakrrishnan",
+    "Dhibu Ninan Thomas & Kapil Kapilan",
+    "Anirudh Ravichander & Arivu",
+    "Anirudh Ravichander & CB Vinith",
+    "A.R. Rahman, Sid Sriram & Sunitha Sarathy",
+    "A.R. Rahman & Hariharan",
+    "A.R. Rahman",
+    "Hiphop Tamizha",
+    "Vijay & Anirudh Ravichander",
+    "A.R. Rahman & Vijay",
+    "G.V. Prakash Kumar, Anirudh Ravichander & D. Imman",
+    "Sid Sriram & D. Imman",
+    "A.R. Rahman, Sreekanth Hariharan & Madhura Dhara Talluri",
+    "Pritam, Arijit Singh & Amitabh Bhattacharya",
+    "Shae Gill & Ali Sethi",
+    "Jubin Nautiyal",
+    "Tanishk Bagchi, Jubin Nautiyal & Asees Kaur",
+    "Arijit Singh, Shilpa Rao & Vishal-Shekhar",
+    "Sachet Tandon",
+    "Arijit Singh",
+    "Guru Randhawa & Neha Kakkar",
+    "Harshdeep Kaur, Shankar Mahadevan & Vibha Saraf",
+    "Arijit Singh & A M Turaz",
+    "Shreya Ghoshal, Swaroop Khan & A M Turaz",
+    "Sachin-Jigar, Arijit Singh & Amitabh Bhattacharya",
+    "Jasleen Royal & Prateek Kuhad",
+    "Shehan Kaushalya",
+    "Pritam, Arijit Singh & Amitabh Bhattacharya",
+    "Sachin-Jigar & Arijit Singh",
+    "Akhil Sachdeva & Tulsi Kumar",
+    "Arijit Singh",
+    "Arijit Singh",
+    "Jonita Gandhi",
+    "The Weeknd",
+    "Ruth B.",
+    "Alec Benjamin",
+    "Post Malone & Swae Lee",
+    "Imagine Dragons",
+    "Billie Eilish & Khalid",
+    "Lewis Capaldi",
+    "Maroon 5",
+    "One Direction",
+    "The Chainsmokers & Halsey",
+    "Wiz Khalifa feat. Charlie Puth",
+    "Glass Animals",
+    "Ed Sheeran",
+    "Ed Sheeran",
+    "Sia",
+    "Sia",
+    "Charlie Puth",
+    "Billie Eilish",
+    "Billie Eilish",
+    "Camila Cabello",
+    "Miley Cyrus"
+};
 
-    private static final MusicSeed[] STORY_MUSIC_SEEDS = {
-            new MusicSeed("Butta Bomma", "Armaan Malik, S. Thaman", TELUGU_MUSIC_BASE_URL + "butta-bomma.mp3", "Telugu Pop", true),
-            new MusicSeed("Samajavaragamana", "Sid Sriram, S. Thaman", TELUGU_MUSIC_BASE_URL + "samajavaragamana.mp3", "Telugu Melody", true),
-            new MusicSeed("Ramuloo Ramulaa", "Anurag Kulkarni, Mangli, S. Thaman", TELUGU_MUSIC_BASE_URL + "ramuloo-ramulaa.mp3", "Telugu Folk Pop", true),
-            new MusicSeed("Naatu Naatu", "Rahul Sipligunj, Kaala Bhairava, M. M. Keeravani", TELUGU_MUSIC_BASE_URL + "naatu-naatu.mp3", "Telugu Dance", true),
-            new MusicSeed("Srivalli", "Sid Sriram, Devi Sri Prasad", TELUGU_MUSIC_BASE_URL + "srivalli.mp3", "Telugu Melody", true),
-            new MusicSeed("Oo Antava Oo Oo Antava", "Indravathi Chauhan, Devi Sri Prasad", TELUGU_MUSIC_BASE_URL + "oo-antava.mp3", "Telugu Dance", true),
-            new MusicSeed("Pushpa Pushpa", "Mika Singh, Nakash Aziz, Devi Sri Prasad", TELUGU_MUSIC_BASE_URL + "pushpa-pushpa.mp3", "Telugu Mass", true),
-            new MusicSeed("Sooseki", "Shreya Ghoshal, Devi Sri Prasad", TELUGU_MUSIC_BASE_URL + "sooseki.mp3", "Telugu Melody", true),
-            new MusicSeed("Chikiri Chikiri", "Karthik", TELUGU_MUSIC_BASE_URL + "chikiri-chikiri.mp3", "Telugu Melody", true),
-            new MusicSeed("Priya Priyathama", "Chinmayi, Vijay Prakash", TELUGU_MUSIC_BASE_URL + "priya-priyathama.mp3", "Telugu Melody", true),
-            new MusicSeed("Gusa Gusa Lade", "Karthik, Pranavi", TELUGU_MUSIC_BASE_URL + "gusa-gusa-lade.mp3", "Telugu Melody", true),
-            new MusicSeed("Mouname Matta Kalipina", "Karthik, Harini", TELUGU_MUSIC_BASE_URL + "mouname-matta-kalipina.mp3", "Telugu Melody", true),
-            new MusicSeed("Jalsa Jalsa", "Baba Sehgal, Rita", TELUGU_MUSIC_BASE_URL + "jalsa-jalsa.mp3", "Telugu Dance", true),
-            new MusicSeed("Oka Laila Kosam", "S. P. Balasubrahmanyam", TELUGU_MUSIC_BASE_URL + "oka-laila-kosam.mp3", "Telugu Classic", true),
-            new MusicSeed("Godari Gattu Meeda", "S. P. Balasubrahmanyam, Chitra", TELUGU_MUSIC_BASE_URL + "godari-gattu-meeda.mp3", "Telugu Classic", true),
-            new MusicSeed("Nuvvu Nenu", "Karthik, Usha", TELUGU_MUSIC_BASE_URL + "nuvvu-nenu.mp3", "Telugu Melody", true),
-            new MusicSeed("Inkem Inkem Inkem Kaavaale", "Sid Sriram", TELUGU_MUSIC_BASE_URL + "inkem-inkem-inkem-kaavaale.mp3", "Telugu Melody", true),
-            new MusicSeed("Vachindamma", "Sid Sriram", TELUGU_MUSIC_BASE_URL + "vachindamma.mp3", "Telugu Melody", true),
-            new MusicSeed("Pilla Raa", "Anurag Kulkarni", TELUGU_MUSIC_BASE_URL + "pilla-raa.mp3", "Telugu Melody", true),
-            new MusicSeed("Adiga Adiga", "Sid Sriram", TELUGU_MUSIC_BASE_URL + "adiga-adiga.mp3", "Telugu Melody", true),
-            new MusicSeed("Maguva Maguva", "Sid Sriram, S. Thaman", TELUGU_MUSIC_BASE_URL + "maguva-maguva.mp3", "Telugu Melody", true),
-            new MusicSeed("Rangamma Mangamma", "M. M. Manasi, Devi Sri Prasad", TELUGU_MUSIC_BASE_URL + "rangamma-mangamma.mp3", "Telugu Folk", true),
-            new MusicSeed("Seeti Maar", "Jaspreet Jasz, Rita, Devi Sri Prasad", TELUGU_MUSIC_BASE_URL + "seeti-maar.mp3", "Telugu Dance", true),
-            new MusicSeed("Vasthunna Vachestunna", "Shreya Ghoshal, Amit Trivedi", TELUGU_MUSIC_BASE_URL + "vasthunna-vachestunna.mp3", "Telugu Melody", true),
-            new MusicSeed("Nee Kannu Neeli Samudram", "Javed Ali, Devi Sri Prasad", TELUGU_MUSIC_BASE_URL + "nee-kannu-neeli-samudram.mp3", "Telugu Melody", true),
-            new MusicSeed("Kurchi Madathapetti", "Sahithi Chaganti, Sri Krishna, S. Thaman", TELUGU_MUSIC_BASE_URL + "kurchi-madathapetti.mp3", "Telugu Mass", true),
-            new MusicSeed("Dum Masala", "Sanjith Hegde, S. Thaman", TELUGU_MUSIC_BASE_URL + "dum-masala.mp3", "Telugu Mass", true),
-            new MusicSeed("Ticket Eh Konakunda", "Ram Miriyala", TELUGU_MUSIC_BASE_URL + "ticket-eh-konakunda.mp3", "Telugu Fun", true),
-            new MusicSeed("Chamkeela Angeelesi", "Ram Miriyala, Dhee", TELUGU_MUSIC_BASE_URL + "chamkeela-angeelesi.mp3", "Telugu Folk", true),
-            new MusicSeed("Ori Vaari", "Santhosh Narayanan", TELUGU_MUSIC_BASE_URL + "ori-vaari.mp3", "Telugu Melody", true),
-            new MusicSeed("Hoyna Hoyna", "Anirudh Ravichander, Inno Genga", TELUGU_MUSIC_BASE_URL + "hoyna-hoyna.mp3", "Telugu Pop", true),
-            new MusicSeed("Nijame Ne Chebutunna", "Sid Sriram", TELUGU_MUSIC_BASE_URL + "nijame-ne-chebutunna.mp3", "Telugu Melody", true),
-            new MusicSeed("Evarevaro", "Vishal Mishra", TELUGU_MUSIC_BASE_URL + "evarevaro.mp3", "Telugu Melody", true),
-            new MusicSeed("Suttamla Soosi", "Anurag Kulkarni", TELUGU_MUSIC_BASE_URL + "suttamla-soosi.mp3", "Telugu Melody", true),
-            new MusicSeed("Bujji Theme", "Santhosh Narayanan", TELUGU_MUSIC_BASE_URL + "bujji-theme.mp3", "Telugu Theme", true),
-            new MusicSeed("Bhairava Anthem", "Diljit Dosanjh, Santhosh Narayanan", TELUGU_MUSIC_BASE_URL + "bhairava-anthem.mp3", "Telugu Mass", true),
-            new MusicSeed("Fear Song", "Anirudh Ravichander", TELUGU_MUSIC_BASE_URL + "fear-song.mp3", "Telugu Mass", true),
-            new MusicSeed("Chuttamalle", "Shilpa Rao, Anirudh Ravichander", TELUGU_MUSIC_BASE_URL + "chuttamalle.mp3", "Telugu Melody", true),
-            new MusicSeed("Ayudha Pooja", "Kaala Bhairava", TELUGU_MUSIC_BASE_URL + "ayudha-pooja.mp3", "Telugu Mass", true),
-            new MusicSeed("Naa Ready Telugu Version", "Anirudh Ravichander", TELUGU_MUSIC_BASE_URL + "naa-ready-telugu.mp3", "Telugu Dance", true),
-    };
+private static final String[] AUDIO_URLS = {
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/94/15/98/941598ae-7248-357a-1e07-be7d50ea7b08/mzaf_11251795343892643096.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview112/v4/28/e0/d3/28e0d30a-2afe-66e4-ac03-69b6d779fecd/mzaf_7857615290499608693.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/6d/5a/f1/6d5af141-475c-7404-495c-0ef55283457c/mzaf_3028662401385709025.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/bc/15/37/bc153788-a945-4f0f-6b92-4846474b1b89/mzaf_15097234370210149897.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/6d/54/ad/6d54ade1-7625-8dee-a147-e89afffddbb8/mzaf_17003487550385654497.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/33/1f/37/331f3776-9186-622c-513b-375f8a285048/mzaf_10012025651381903672.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/9b/4a/e3/9b4ae3a2-43ee-dd7b-0474-3b7e914513cf/mzaf_10743675123561433132.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/e9/e7/ce/e9e7cec0-4073-3c70-8b26-cc03fcc1129d/mzaf_4901988606946752203.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/8e/dd/a4/8edda474-3fe1-3fe6-43d3-765db520a29b/mzaf_11740310005222997767.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/3b/a0/a1/3ba0a1ce-bf63-bbaf-48f6-48593c231168/mzaf_16000697806590920631.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/07/27/4c/07274cc8-f662-8747-e425-1108ba2a2390/mzaf_12339835384962827073.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview116/v4/02/f7/90/02f7902c-1575-e977-1511-8319bb50e08c/mzaf_10918442391040891316.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/5e/ef/ff/5eefff68-e026-2b8e-5999-b6d01a9e3232/mzaf_15343903785544506669.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/4f/07/57/4f07570f-dab3-7c25-c9cf-cfded4358fb0/mzaf_14349320663995628602.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/bb/56/a9/bb56a9ee-8cfe-4486-ab01-a47681475399/mzaf_6274004425047703251.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/39/84/f5/3984f5f1-27e1-8836-6acd-3f849fe8a18f/mzaf_10810776326652076526.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/b6/1d/29/b61d293a-ea47-8dd0-ce15-28f4cc98db54/mzaf_1819846632360520184.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/ee/b0/2d/eeb02d79-f43f-9ad9-e738-3909940ce40e/mzaf_6723223793649289010.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/da/91/48/da91488f-420a-e441-58ae-abe6f5c968f5/mzaf_17537276067918480498.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/9c/b6/47/9cb647c8-7a88-e45a-3d96-26d60432fd9e/mzaf_18327520659217913330.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/f1/e9/c2/f1e9c23d-8087-28af-cf16-1785fb42cd14/mzaf_16351401772645005124.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview112/v4/0c/48/18/0c481815-665b-9423-c7ff-f8eaf807ac9d/mzaf_8072620134514905555.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/40/49/4d/40494d88-2445-bc2b-55e9-a0379dc6ccab/mzaf_6978204614442627331.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/63/a9/87/63a98767-bc89-7532-8ed4-845d175234c9/mzaf_12917640697906480425.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/5b/2c/08/5b2c0892-53fa-2d00-f64d-da0f5804fa73/mzaf_11729370401875930774.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/18/79/b1/1879b127-5bfa-6a32-f6d1-9c14f42cd306/mzaf_473814996909398735.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/6a/a5/6f/6aa56ff5-151e-36c8-d3b1-5287663433ec/mzaf_11752203345682364472.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview126/v4/ec/4c/8b/ec4c8b4b-2b5e-eb6e-3c15-ebe7bfa01bb7/mzaf_17851861569986269875.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview116/v4/dc/6e/c5/dc6ec59a-8db3-b9c9-55e7-d4917e73ee7d/mzaf_8087402160345992021.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/68/ee/a2/68eea2f3-d9b1-3f80-d0cb-2b12f48028be/mzaf_9735344628297346370.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/6e/92/05/6e9205dd-3e90-5afe-778b-8a1197851519/mzaf_11401471494980881592.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/14/c0/1c/14c01cb8-fcc9-38b2-7d19-e7ae5e308f22/mzaf_15781203346288740258.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/b2/8c/b7/b28cb7f7-313f-8745-5a26-c9842686e10a/mzaf_14844792202296213058.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/6e/1c/46/6e1c46cf-fa86-4d3d-5a86-5c3f843c3909/mzaf_10125928785046734835.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/03/4f/8f/034f8ff6-5d32-7ac5-8c9b-6d5ed991b438/mzaf_17900073067782324391.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/8c/71/37/8c7137c7-c4d6-45e6-367a-312a7c69783c/mzaf_13157621948290062056.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/44/c7/4f/44c74f0d-72dc-6143-d4d0-ba14d661ca0d/mzaf_9566898362556366703.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/75/83/6f/75836f63-4520-986c-6a38-a376243a761f/mzaf_1387184041520321033.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/f4/47/70/f447709d-bbc4-cf7b-c6cc-81ce4baae597/mzaf_13362692329187378715.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/a9/05/42/a905420d-535d-e9f7-7885-b8e9c9831b70/mzaf_930790171806791983.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/d7/72/96/d77296ea-677d-45f9-4267-996bbc6801c8/mzaf_2392699048273414940.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview126/v4/0b/83/a7/0b83a7a8-4911-221c-4fa1-ecd4ab7e7750/mzaf_4636221010938715732.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview112/v4/1f/4c/02/1f4c02c2-7fa7-6215-c377-fd1aedc3a3b8/mzaf_10918057479948622334.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview112/v4/96/d7/76/96d77625-68c4-20f8-0912-9b993a2fe08b/mzaf_11617875593805152000.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/2a/d4/99/2ad49961-e2ce-a0b0-5504-6753fdac9ea5/mzaf_6609734267078936093.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/8b/3d/58/8b3d582f-6d84-8cc2-c413-f29d16f73261/mzaf_15652552109006263319.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/50/b9/a7/50b9a735-f93b-04f1-287c-3e21a03d4c84/mzaf_356610455127769117.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/cb/35/86/cb35867a-3e8a-67ac-214f-95ab6c11bec5/mzaf_4582978819706510426.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/6a/c1/a9/6ac1a982-c0b6-a541-9ddb-b0b18e3527cb/mzaf_1681938382476126996.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/f8/1f/56/f81f56a4-649f-ef2b-bedd-0d81538d4553/mzaf_5316584740652432285.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/3e/9b/ea/3e9bea48-007f-c973-281e-aadb58df5d0b/mzaf_537943556202548569.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview112/v4/23/2b/a8/232ba816-dac9-f6f5-004f-3d8148878578/mzaf_2300007408605448225.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/00/d2/94/00d29496-d8ec-1b5e-c0af-dec93c5e24ec/mzaf_6336318738527627568.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/e2/17/7b/e2177bd1-a67a-2e48-b8b5-869374aded51/mzaf_2792937487588898591.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview112/v4/84/f3/89/84f38940-92e3-2faf-b86c-1f35794b07f4/mzaf_5020105287289807461.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/f2/8d/0f/f28d0fa0-44e4-4c95-79e2-e3929569b8df/mzaf_3704945305239446483.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview126/v4/6a/90/3a/6a903a1d-7fd2-5786-838e-4c343c19ddd4/mzaf_1559177658966053202.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/85/f1/01/85f101a5-9f93-5de8-b9c2-322f1ccbfae9/mzaf_6772660130280144812.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/e0/82/1a/e0821a1e-95d5-f80c-870f-e2265dcb9024/mzaf_7556648374116231473.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/38/4c/5c/384c5c8f-3ff8-e457-b2f7-3158ce108649/mzaf_12389299033886433185.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview126/v4/62/33/1e/62331ea8-d1df-027d-fe75-ac16a519323d/mzaf_14381883946572745360.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/00/68/e6/0068e67b-cdb8-2d91-8b4b-95a44a014964/mzaf_9566492396252024088.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/99/0c/38/990c381b-0530-8c0d-87a9-18b050b97f0a/mzaf_10418866714500530894.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/d1/90/95/d190958b-cb33-34b6-83d2-4d88b6ff1348/mzaf_8015651280578447253.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/4e/f1/8a/4ef18aa3-53a5-7ced-f887-b537d4adf0eb/mzaf_16713780536711201262.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/16/6b/75/166b752b-c288-d978-54f2-ae6bb8368346/mzaf_8053064283423859432.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/1c/c4/60/1cc460a5-4a92-2478-e266-f8200bf891dd/mzaf_7790148735287095620.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/93/3e/9a/933e9aef-1299-234e-07a1-f512c8afadf7/mzaf_15937172001265781043.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/ec/74/4a/ec744a08-3be7-9935-1cd5-01070b021c18/mzaf_16411309030678014559.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/d9/c9/40/d9c94030-237c-1acf-4bff-a8ea8f9abaa8/mzaf_3319838461581527542.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/d5/10/6f/d5106fa0-dbc1-8be7-f20f-1f892dd86c38/mzaf_5974873759252686356.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview116/v4/22/e9/56/22e95688-b15a-cd1d-8469-9451231ec849/mzaf_11658240031865818317.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/30/a6/84/30a6840a-7711-8eab-3a9c-5e7db74e9ce2/mzaf_16867816593086258501.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview126/v4/42/e8/ab/42e8abd5-2074-ec16-c890-d3d49ca7df10/mzaf_6635146496859793884.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview112/v4/ec/37/8b/ec378bf9-be0f-bd7a-9c90-48e8e780da22/mzaf_9733775466955067724.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/61/a9/59/61a95964-c914-f0fe-b99b-4348851c13ee/mzaf_750697725323217609.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/25/94/6f/25946fc8-e42f-9d13-6846-1d4465b101d0/mzaf_2502694225483492730.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/84/d9/1f/84d91f20-d505-96b1-1b4a-dbf3a78999b4/mzaf_2980018932843693225.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/46/49/4e/46494e8c-b97e-5a6b-5c5b-78eb8fb6c312/mzaf_17261683028465116344.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/17/b4/8f/17b48f9a-0b93-6bb8-fe1d-3a16623c2cfb/mzaf_9560252727299052414.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/bc/5a/88/bc5a881d-dc44-fc7f-92fd-376680957969/mzaf_10218454983981161930.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/f1/11/e6/f111e600-4810-dc0c-b9c8-487ddc9bc58a/mzaf_2235588256287220504.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/98/f0/d6/98f0d67e-f8bf-762d-cac7-1c6b3b6b35dd/mzaf_4543283896248560946.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/c0/3f/36/c03f367a-b66b-fd0a-a54c-30f8250c4410/mzaf_12768434238801682952.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/1e/d8/8d/1ed88d91-fb06-b3f2-5391-afd732cc2ff9/mzaf_18444937225262929488.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/e5/c8/17/e5c817e2-7830-091f-8686-d6276d5beaeb/mzaf_5586826958480073790.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/48/db/6b/48db6b78-cdb7-5b3f-1b4d-dfec435a513d/mzaf_11078616836226327327.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/8c/b8/8a/8cb88ab0-1ff4-e1a4-20dd-99cd38769996/mzaf_4064811256027788885.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/bd/f9/b9/bdf9b9b2-eaa4-4461-6079-aaacc6df7316/mzaf_17327312786932455493.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/f3/c8/1f/f3c81f2c-5669-a5b6-1c98-a1e87419d97c/mzaf_10782207625414161396.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/a3/4c/b9/a34cb911-40fc-5f0c-e862-14bd171a77aa/mzaf_384792072030970151.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/c7/ba/bc/c7babc66-f598-aaa6-bcf6-307281795817/mzaf_16337361235117168274.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/11/4f/6a/114f6ad0-165c-1e3c-8fbd-df4707d7ae26/mzaf_12480083080052535279.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/bb/dd/6a/bbdd6a92-b322-1c35-8dc7-8eb7d84f72b8/mzaf_14355345747730153074.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/89/73/fb/8973fb2c-5417-e56b-30f1-bf5035bb46a2/mzaf_5922398524297774212.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/0b/76/e1/0b76e164-35b8-7fbb-a773-9832f3155532/mzaf_12020704327610118862.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/d6/59/2b/d6592b0b-1e7e-4743-b2e4-f2af038fd783/mzaf_11193578239150321308.plus.aac.ep.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/c3/87/1f/c3871f7e-3260-d615-1c66-5fdca2c3a48f/mzaf_10721331211699880949.plus.aac.p.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/7d/42/fe/7d42fe40-78b9-c546-861e-bda5788bba4e/mzaf_17258777927542422456.plus.aac.ep.m4a",
+    "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/c5/46/32/c546324e-d129-4630-45cd-78092836ce4f/mzaf_14963616412621662357.plus.aac.p.m4a"
+};
 
-    private static final String[] HASHTAGS = {
+        private static final String[] HASHTAGS = {
         "Nature", "Love", "Music", "Dance", "Travel",
         "Food", "Fashion", "Art", "Photography", "Sunset",
         "Beach", "Mountains", "Vibes", "Party", "Fun",
@@ -175,64 +507,21 @@ public class DataSeeder implements CommandLineRunner {
     };
 
     private static final String[] SAMPLE_VIDEOS = {
-        "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
-        "https://www.w3schools.com/html/mov_bbb.mp4",
-        "https://media.w3.org/2010/05/sintel/trailer.mp4",
-        "https://media.w3.org/2010/05/bunny/trailer.mp4"
-    };
-
-    private static final String[] AUDIO_URLS = {
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/94/15/98/941598ae-7248-357a-1e07-be7d50ea7b08/mzaf_11251795343892643096.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/6d/5a/f1/6d5af141-475c-7404-495c-0ef55283457c/mzaf_3028662401385709025.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/07/27/4c/07274cc8-f662-8747-e425-1108ba2a2390/mzaf_12339835384962827073.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/00/87/1c/00871cd6-9a64-717a-2072-d19c49f94682/mzaf_4402448724622500589.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/59/5d/86/595d8694-c034-2040-9a11-2f117ed32ea4/mzaf_8961189800316643417.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/9b/4a/e3/9b4ae3a2-43ee-dd7b-0474-3b7e914513cf/mzaf_10743675123561433132.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/3b/a0/a1/3ba0a1ce-bf63-bbaf-48f6-48593c231168/mzaf_16000697806590920631.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview122/v4/10/02/18/100218f9-5c66-2959-50ea-ee069ee71bb6/mzaf_432494172595421656.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/42/c9/bf/42c9bf9d-04fa-679c-25fa-d0c4ee5461e6/mzaf_6443712189616939545.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/12/85/34/12853461-4a89-0825-f8b9-f34a4244237d/mzaf_7933769262972519634.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/a0/e9/7b/a0e97bd1-b1b1-4caf-3203-37743554ccd5/mzaf_3032613957793276819.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/f8/26/85/f826850b-7fe6-b6ba-8c92-66091f2fe2ef/mzaf_5705447640644940069.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/ab/f5/2e/abf52efa-0ccb-8cb4-229b-0c6958417b3d/mzaf_5799555854699892574.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/df/3c/2c/df3c2ca9-25b2-0838-0e51-aa58fa84b589/mzaf_2493042438260943468.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/5e/ef/ff/5eefff68-e026-2b8e-5999-b6d01a9e3232/mzaf_15343903785544506669.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/c7/83/7d/c7837dc7-6421-0f56-5707-92669a42f815/mzaf_5981761050699089050.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/ca/7b/7e/ca7b7ed8-2ce6-1932-e625-ff515adb6305/mzaf_8067942892684836003.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/0b/d8/3e/0bd83e62-35b9-a041-4a1a-d619309cabde/mzaf_16815267570554901921.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/e2/b6/c2/e2b6c2b7-a330-90c7-18b3-51fc67375ae4/mzaf_9023508455880264851.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/64/ac/d9/64acd930-caef-3851-12b9-869fb0f73c45/mzaf_3377576364396287437.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview112/v4/db/50/f2/db50f2fa-24e5-59f4-c599-0e4d8ffc8ee0/mzaf_10706753160893349324.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/da/50/9d/da509d53-1c86-a099-1c3c-7e038ef72506/mzaf_2795513759439521124.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/cf/6d/c7/cf6dc7c7-05ea-489d-7a37-be8d542e644a/mzaf_12704959751527129871.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/ea/6f/a0/ea6fa01f-e524-258f-dce1-f48bccd0547f/mzaf_12998017365404218728.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/db/0d/0a/db0d0aed-8c5d-26e8-a810-3b0d1c1af2b3/mzaf_331171247078832597.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/e8/58/41/e85841f5-5bf4-95b6-3f87-5c4c8937cf40/mzaf_6917317644570388506.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview114/v4/8e/12/e1/8e12e13c-ece6-5168-50ad-02f5e633a4c3/mzaf_4034266628449567425.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/3a/8c/55/3a8c550b-e703-bba3-f476-44d195e4a742/mzaf_17453075177753173991.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/de/fe/d0/defed0e2-2890-3f0a-431c-5a080b085e2d/mzaf_829609020199958765.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/15/1f/f6/151ff6b3-f33b-1e68-3022-d3e848a6b5e3/mzaf_10643656903755523055.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview126/v4/03/95/c3/0395c3a4-368a-3aa5-06f8-f9e0ebd553a4/mzaf_1960951393962288235.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/c7/cb/87/c7cb8777-fb03-0f85-4a6a-b9e806d9778b/mzaf_4237462713258033068.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/c3/f0/fd/c3f0fdae-b517-f0cf-cbdf-8036c7ce117e/mzaf_13442410845971477726.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/9e/89/a8/9e89a883-4858-a311-786e-f1ee96137cdd/mzaf_10663441610848496018.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/c5/a5/8c/c5a58c0e-92cd-a6b0-b81d-40650d69358a/mzaf_8381237295757067097.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/ac/1e/4a/ac1e4a70-2e7b-60c3-4971-3cc09d38815b/mzaf_7284747758742989760.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/64/be/71/64be714f-e61c-22b4-426e-10ca4d41ea9e/mzaf_8204469692647636183.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/f9/1d/17/f91d1792-00a1-eec3-64d3-ee5edc150c74/mzaf_1132967870784229866.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/71/47/f7/7147f763-034f-e120-67fd-e9dc7b7e5f13/mzaf_5781812974030265972.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/53/70/0c/53700c23-87a7-e050-11ca-4b1bd52d2d2f/mzaf_9309538996740184890.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/fd/7e/59/fd7e59df-13d3-5716-fe89-d61b699bc262/mzaf_3999376079533103487.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/8e/dd/a4/8edda474-3fe1-3fe6-43d3-765db520a29b/mzaf_11740310005222997767.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/6a/94/8a/6a948abe-1f62-4824-6d07-071854e5f4b1/mzaf_7845856316638946970.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/fd/5e/b8/fd5eb83b-8836-1d3e-a7d4-20618c9de84f/mzaf_4160412870870308123.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview112/v4/ed/8c/38/ed8c385e-d3fe-2fc1-b973-5e8962c44018/mzaf_16044758333188193120.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/82/4f/75/824f7596-5fd1-f267-ce8e-d1958511f5c5/mzaf_11042398661330285568.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/9b/72/e4/9b72e45e-d9c5-e054-1dcb-da193d086007/mzaf_5854048791426938853.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/9f/95/57/9f9557ba-0c01-6f4d-bb2c-e6f87136c6f2/mzaf_14812554229219757093.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview126/v4/86/3e/2e/863e2ee1-651d-3dc2-c7b6-05d7f6195b6e/mzaf_15794885840043942760.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/6a/a5/6f/6aa56ff5-151e-36c8-d3b1-5287663433ec/mzaf_11752203345682364472.plus.aac.p.m4a",
-        "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/9e/49/f4/9e49f403-f96d-73d7-b15f-0f11a2e082a4/mzaf_10388231531758867237.plus.aac.p.m4a"
+        "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+        "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+        "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
+        "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
+        "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4",
+        "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+        "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+        "https://storage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
+        "https://storage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4",
+        "https://storage.googleapis.com/gtv-videos-bucket/sample/VolkswagenGTIReview.mp4",
+        "https://storage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4",
+        "https://storage.googleapis.com/gtv-videos-bucket/sample/WhatCarCanYouGetForAGrand.mp4",
+        "https://storage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
+        "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/720/Big_Buck_Bunny_720_10s_1MB.mp4",
+        "https://www.w3schools.com/html/mov_bbb.mp4"
     };
 
     private static final String[] SEARCH_QUERIES = {
@@ -253,7 +542,6 @@ public class DataSeeder implements CommandLineRunner {
         if (storyMusicRepository.count() == 0) {
             createStoryMusic();
         }
-        repairSeededReelVideos();
 
         if (userRepository.count() > 0) {
             return;
@@ -358,7 +646,7 @@ public class DataSeeder implements CommandLineRunner {
             u.setWebsite(i < 20 ? "https://" + USERNAMES[i] + ".com" : null);
             u.setBirthDate(java.time.LocalDate.of(1985 + (i % 30), 1 + (i % 12), 1 + (i % 28)));
             u.setPronouns(i % 3 == 0 ? "he/him" : i % 3 == 1 ? "she/her" : "they/them");
-            u.setIsPrivate(i >= 10 && i < 30);
+            u.setIsPrivate(false);
             u.setIsVerified(i < 15);
             u.setHideLikeCount(i >= 30 && i < 50);
             u.setCommentsDisabled(i >= 50 && i < 60);
@@ -382,16 +670,19 @@ public class DataSeeder implements CommandLineRunner {
         List<Post> list = new ArrayList<>();
         Random rnd = new Random(42);
 
-        for (int i = 0; i < 200; i++) {
-            User user = users.get(i % users.size());
-            Post p = new Post();
-            p.setUser(user);
-            p.setCaption(QUOTES[i % QUOTES.length] + " #" + HASHTAGS[i % HASHTAGS.length]);
-            p.setVisibility("PUBLIC");
-            p.setHideLikeCount(i >= 60 && i < 100);
-            p.setCommentsDisabled(i >= 100 && i < 120);
-            p.setMusicId((long) (rnd.nextInt(100) + 1));
-            list.add(p);
+        for (int i = 0; i < users.size(); i++) {
+            User user = users.get(i);
+            for (int j = 0; j < 4; j++) {
+                int postIndex = i * 4 + j;
+                Post p = new Post();
+                p.setUser(user);
+                p.setCaption(QUOTES[postIndex % QUOTES.length] + " #" + HASHTAGS[postIndex % HASHTAGS.length]);
+                p.setVisibility("PUBLIC");
+                p.setHideLikeCount(postIndex >= 60 && postIndex < 100);
+                p.setCommentsDisabled(postIndex >= 100 && postIndex < 120);
+                p.setMusicId((long) (rnd.nextInt(100) + 1));
+                list.add(p);
+            }
         }
 
         return postRepository.saveAll(list);
@@ -402,7 +693,8 @@ public class DataSeeder implements CommandLineRunner {
 
         for (int i = 0; i < posts.size(); i++) {
             Post post = posts.get(i);
-            boolean isVideo = i % 4 == 0;
+            int userPostIndex = i % 4;
+            boolean isVideo = userPostIndex >= 2;
 
             Media m = new Media();
             m.setPost(post);
@@ -417,7 +709,7 @@ public class DataSeeder implements CommandLineRunner {
             m.setSortOrder(0);
             list.add(m);
 
-            if (i % 4 == 1) {
+            if (!isVideo && userPostIndex == 1) {
                 Media m2 = new Media();
                 m2.setPost(post);
                 m2.setMediaUrl("https://picsum.photos/seed/post" + i + "_2/640/640");
@@ -429,34 +721,6 @@ public class DataSeeder implements CommandLineRunner {
         }
 
         return mediaRepository.saveAll(list);
-    }
-
-    private void repairSeededReelVideos() {
-        List<Media> repaired = mediaRepository.findAll().stream()
-                .filter(media -> media.getMediaType() == MediaType.VIDEO)
-                .filter(media -> media.getPublicId() != null && media.getPublicId().startsWith("public_post_"))
-                .filter(media -> isUnavailableSeedVideo(media.getMediaUrl()))
-                .peek(media -> media.setMediaUrl(seedVideoUrlFor(media.getPublicId())))
-                .toList();
-        if (!repaired.isEmpty()) {
-            mediaRepository.saveAll(repaired);
-        }
-    }
-
-    private boolean isUnavailableSeedVideo(String mediaUrl) {
-        return mediaUrl != null
-                && (mediaUrl.contains("storage.googleapis.com/gtv-videos-bucket")
-                || mediaUrl.contains("test-videos.co.uk"));
-    }
-
-    private String seedVideoUrlFor(String publicId) {
-        try {
-            String postNumber = publicId.substring("public_post_".length()).split("_")[0];
-            int index = Math.max(Integer.parseInt(postNumber), 0);
-            return SAMPLE_VIDEOS[index % SAMPLE_VIDEOS.length];
-        } catch (RuntimeException ignored) {
-            return SAMPLE_VIDEOS[0];
-        }
     }
 
     private void createLikes(List<User> users, List<Post> posts) {
@@ -714,7 +978,9 @@ public class DataSeeder implements CommandLineRunner {
             List<User> members = new ArrayList<>();
             for (int j = 0; j < 6; j++) {
                 User member = users.get((i * 7 + j) % users.size());
-                if (!members.contains(member)) members.add(member);
+                if (!members.contains(member)) {
+                    members.add(member);
+                }
             }
             gc.setMembers(members);
             gc.setLastMessage("Welcome to the group!");
@@ -988,7 +1254,7 @@ public class DataSeeder implements CommandLineRunner {
     private void createHashtags(List<Post> posts) {
         List<Hashtag> list = new ArrayList<>();
 
-        for (int i = 0; i < 200; i++) {
+        for (int i = 0; i < posts.size(); i++) {
             Hashtag h = new Hashtag();
             h.setTag(HASHTAGS[i % HASHTAGS.length]);
             h.setPostId(posts.get(i % posts.size()).getId());
@@ -1164,21 +1430,18 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private void createStoryMusic() {
-        if (storyMusicRepository.count() > 0) {
-            return;
-        }
-
         List<StoryMusic> list = new ArrayList<>();
         Random rnd = new Random(11223);
+        String[] genres = {"Pop", "Rock", "Electronic", "Hip-Hop", "R&B", "Jazz", "Classical", "Indie", "Country", "Folk"};
 
-        for (MusicSeed seed : STORY_MUSIC_SEEDS) {
+        for (int i = 0; i < 100; i++) {
             StoryMusic sm = StoryMusic.builder()
-                    .title(seed.title())
-                    .artist(seed.artist())
-                    .audioUrl(seed.audioUrl())
-                    .durationMs(30000L)
-                    .genre(seed.genre())
-                    .isTrending(seed.trending())
+                    .title(SONG_TITLES[i % SONG_TITLES.length])
+                    .artist(ARTISTS[i % ARTISTS.length])
+                    .audioUrl(AUDIO_URLS[i % AUDIO_URLS.length])
+                    .durationMs(30000L + (rnd.nextInt(60) * 1000L))
+                    .genre(genres[i % genres.length])
+                    .isTrending(i < 30)
                     .usageCount((long) (rnd.nextInt(1000) + 1))
                     .build();
             list.add(sm);
