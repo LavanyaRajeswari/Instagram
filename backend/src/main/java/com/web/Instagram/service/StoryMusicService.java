@@ -58,11 +58,6 @@ public class StoryMusicService {
         return storyMusicRepository.save(music);
     }
 
-    public List<StoryMusic> getTrending(int limit) {
-        ensureDefaultMusic();
-        return storyMusicRepository.findByIsTrendingTrueOrderByUsageCountDesc(PageRequest.of(0, limit));
-    }
-
     private void ensureDefaultMusic() {
         if (storyMusicRepository.count() == 0) {
             seedDefaultMusic();
@@ -119,7 +114,6 @@ public class StoryMusicService {
                     .audioUrl(audioUrl)
                     .durationMs(durationMs)
                     .genre("Telugu")
-                    .isTrending(true)
                     .usageCount(usageCount)
                     .build();
         }

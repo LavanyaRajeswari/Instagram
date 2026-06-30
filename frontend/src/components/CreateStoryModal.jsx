@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from "react";
-import { Music, X, Search, Play, Pause, TrendingUp, Check, Loader } from "lucide-react";
+import { Music, X, Search, Play, Pause, Check, Loader } from "lucide-react";
 import { createStory, getStoryMusic, searchStoryMusic, setStoryMusic } from "../api/storiesApi";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import MentionSuggestions from "./MentionSuggestions";
@@ -270,9 +270,6 @@ function CreateStoryModal({ onClose, onStoryCreated }) {
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center gap-1.5 truncate text-sm font-semibold">
                           {song.title}
-                          {song.isTrending && (
-                            <TrendingUp className="h-3 w-3 shrink-0 text-[#0095f6]" />
-                          )}
                         </span>
                         <span className="block truncate text-xs text-secondary">{song.artist}</span>
                       </span>

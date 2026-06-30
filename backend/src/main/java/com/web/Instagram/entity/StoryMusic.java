@@ -31,9 +31,6 @@ public class StoryMusic {
     private String genre;
 
     @Builder.Default
-    private Boolean isTrending = false;
-
-    @Builder.Default
     private Long usageCount = 0L;
 
     @CreationTimestamp

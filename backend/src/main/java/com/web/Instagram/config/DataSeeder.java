@@ -1441,7 +1441,6 @@ private static final String[] AUDIO_URLS = {
                     .audioUrl(AUDIO_URLS[i % AUDIO_URLS.length])
                     .durationMs(30000L + (rnd.nextInt(60) * 1000L))
                     .genre(genres[i % genres.length])
-                    .isTrending(i < 30)
                     .usageCount((long) (rnd.nextInt(1000) + 1))
                     .build();
             list.add(sm);

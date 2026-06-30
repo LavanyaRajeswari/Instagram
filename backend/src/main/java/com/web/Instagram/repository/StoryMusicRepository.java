@@ -16,6 +16,5 @@ public interface StoryMusicRepository extends JpaRepository<StoryMusic, Long> {
     )
     Page<StoryMusic> searchByTitleOrArtist(@org.springframework.data.repository.query.Param("q") String query, Pageable pageable);
     List<StoryMusic> findTop10ByOrderByUsageCountDesc();
-    List<StoryMusic> findByIsTrendingTrueOrderByUsageCountDesc(Pageable pageable);
     List<StoryMusic> findAllByOrderByUsageCountDesc();
 }
