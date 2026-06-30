@@ -116,7 +116,7 @@ public class DataSeeder implements CommandLineRunner {
 
     // Telugu songs only. Upload each 30-second mp3 preview to Cloudinary using these file names.
     // Example final URL: https://res.cloudinary.com/YOUR_CLOUD_NAME/video/upload/telugu_music/butta-bomma.mp3
-    private static final String TELUGU_MUSIC_BASE_URL = "https://res.cloudinary.com/YOUR_CLOUD_NAME/video/upload/telugu_music/";
+    private static final String TELUGU_MUSIC_BASE_URL = "https://res.cloudinary.com/dbqalriqr/video/upload/telugu_music/";
 
     private static final MusicSeed[] STORY_MUSIC_SEEDS = {
             new MusicSeed("Butta Bomma", "Armaan Malik, S. Thaman", TELUGU_MUSIC_BASE_URL + "butta-bomma.mp3", "Telugu Pop", true),
