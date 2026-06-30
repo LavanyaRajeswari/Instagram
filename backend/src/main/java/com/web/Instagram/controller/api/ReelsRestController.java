@@ -31,10 +31,15 @@ public class ReelsRestController {
 
     @GetMapping("/search")
     public Page<PostResponse> searchReels(
+            Principal principal,
             @RequestParam String query,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        return postService.searchPosts(query, org.springframework.data.domain.PageRequest.of(page, size));
+        Long userId = null;
+        if (principal != null) {
+            try { userId = userService.getCurrentUser(principal.getName()).getId(); } catch (RuntimeException ignored) {}
+        }
+        return postService.searchPosts(query, org.springframework.data.domain.PageRequest.of(page, size), userId);
     }
 
 }

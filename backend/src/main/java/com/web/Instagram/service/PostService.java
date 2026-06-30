@@ -1,9 +1,14 @@
 package com.web.Instagram.service;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
+
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -22,6 +27,7 @@ import com.web.Instagram.entity.Post;
 import com.web.Instagram.entity.User;
 import com.web.Instagram.repository.CommentLikeRepository;
 import com.web.Instagram.repository.CommentRepository;
+import com.web.Instagram.repository.FollowRepository;
 import com.web.Instagram.repository.LikeRepository;
 import com.web.Instagram.repository.PostRepository;
 import com.web.Instagram.repository.SavedPostRepository;
@@ -38,6 +44,7 @@ public class PostService {
     private final UserRepository userRepository;
     private final CloudinaryService cloudinaryService;
     private final CommentRepository commentRepository;
+    private final FollowRepository followRepository;
     private final CommentLikeRepository commentLikeRepository;
     private final LikeRepository likeRepository;
     private final SavedPostRepository savedPostRepository;
@@ -46,24 +53,24 @@ public class PostService {
     private final TagService tagService;
 
     @Transactional(readOnly = true)
-    @Cacheable(cacheNames = "feed", key = "#userId + ':' + #pageable.pageNumber + ':' + #pageable.pageSize + ':' + #pageable.sort.toString()")
+    @Cacheable(cacheNames = "feed", key = "#userId + ':' + #pageable.pageNumber + ':' + #pageable.pageSize")
     public Page<PostResponse> getFeed(Long userId, Pageable pageable) {
-        return mapToResponse(postRepository.findFeedPosts(userId, pageable));
+        return mapToResponse(postRepository.findFeedPosts(userId, pageable), userId);
     }
 
     @Transactional(readOnly = true)
-    public Page<PostResponse> getUserPosts(Long userId, Pageable pageable) {
-        return mapToResponse(postRepository.findByUserId(userId, pageable));
+    public Page<PostResponse> getUserPosts(Long userId, Pageable pageable, Long currentUserId) {
+        return mapToResponse(postRepository.findByUserId(userId, pageable), currentUserId);
     }
 
     @Transactional(readOnly = true)
-    public Page<PostResponse> getExplorePosts(Pageable pageable) {
-        return mapToResponse(postRepository.findExplorePostsByEngagement(pageable));
+    public Page<PostResponse> getExplorePosts(Pageable pageable, Long currentUserId) {
+        return mapToResponse(postRepository.findExplorePostsByEngagement(pageable), currentUserId);
     }
 
     @Transactional(readOnly = true)
-    public Page<PostResponse> searchPosts(String query, Pageable pageable) {
-        return mapToResponse(postRepository.searchPosts(query, pageable));
+    public Page<PostResponse> searchPosts(String query, Pageable pageable, Long currentUserId) {
+        return mapToResponse(postRepository.searchPosts(query, pageable), currentUserId);
     }
 
     @Transactional(readOnly = true)
@@ -71,20 +78,26 @@ public class PostService {
     public Page<PostResponse> getReels(Long userId, int page, int size) {
         int safePage = Math.max(page, 0);
         int safeSize = Math.min(Math.max(size, 1), 30);
-
         Pageable pageable = PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "createdAt"));
         if (userId != null) {
-            return mapToResponse(postRepository.findDistinctByMediaTypeWithFollowed(MediaType.VIDEO, userId, pageable));
+            return mapToResponse(postRepository.findDistinctByMediaTypeWithFollowed(MediaType.VIDEO, userId, pageable), userId);
         }
-        return mapToResponse(postRepository.findDistinctByMediaType(MediaType.VIDEO, pageable));
+        return mapToResponse(postRepository.findDistinctByMediaType(MediaType.VIDEO, pageable), null);
     }
 
     @Transactional(readOnly = true)
-    @Cacheable(cacheNames = "postById", key = "#id")
     public PostResponse getPost(Long id) {
         Post post = postRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Post not found"));
-        return toResponse(post);
+        return toResponse(post, currentUserId());
+    }
+
+    public Long currentUserId() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) return null;
+        Object principal = auth.getPrincipal();
+        if (principal instanceof com.web.Instagram.entity.User u) return u.getId();
+        return null;
     }
 
     @Transactional
@@ -137,7 +150,7 @@ public class PostService {
         Post saved = postRepository.save(post);
         hashtagService.saveHashtags(caption, saved.getId());
         tagService.saveMentionTags(caption, saved.getId());
-        return toResponse(saved);
+        return toResponse(saved, userId);
     }
 
     @Transactional
@@ -184,7 +197,7 @@ public class PostService {
         Post saved = postRepository.save(repost);
         hashtagService.saveHashtags(saved.getCaption(), saved.getId());
         tagService.saveMentionTags(saved.getCaption(), saved.getId());
-        return toResponse(saved);
+        return toResponse(saved, userId);
     }
 
 
@@ -233,7 +246,7 @@ public class PostService {
         Post saved = postRepository.save(post);
         hashtagService.saveHashtags(caption, saved.getId());
         tagService.saveMentionTags(caption, saved.getId());
-        return toResponse(saved);
+        return toResponse(saved, userId);
     }
 
     @Transactional
@@ -263,9 +276,9 @@ public class PostService {
                 .orElseThrow(() -> new RuntimeException("Post not found"));
     }
 
-    private Page<PostResponse> mapToResponse(Page<Post> page) {
+    private Page<PostResponse> mapToResponse(Page<Post> page, Long currentUserId) {
         List<Post> posts = page.getContent();
-        if (posts.isEmpty()) return page.map(this::toResponse);
+        if (posts.isEmpty()) return page.map(p -> toResponse(p, currentUserId));
         List<Long> ids = posts.stream().map(Post::getId).toList();
 
         Map<Long, Long> likeCounts = toMap(likeRepository.countByPostIdIn(ids));
@@ -274,7 +287,16 @@ public class PostService {
         Map<Long, Long> shareCounts = toMap(shareRepository.countByPostIdIn(ids));
         Map<Long, Long> repostCounts = toMap(postRepository.countByOriginalPostIdIn(ids));
 
-        return page.map(post -> buildResponse(post, likeCounts, commentCounts, saveCounts, shareCounts, repostCounts));
+        Set<Long> likedIds = currentUserId != null
+                ? new HashSet<>(likeRepository.findPostIdsLikedByUser(currentUserId, ids)) : Set.of();
+        Set<Long> savedIds = currentUserId != null
+                ? new HashSet<>(savedPostRepository.findPostIdsSavedByUser(currentUserId, ids)) : Set.of();
+        List<Long> ownerIds = posts.stream().map(p -> p.getUser().getId()).distinct().toList();
+        Set<Long> followedOwnerIds = currentUserId != null
+                ? new HashSet<>(followRepository.findFollowingUserIds(currentUserId, ownerIds)) : Set.of();
+
+        return page.map(post -> buildResponse(post, likeCounts, commentCounts, saveCounts, shareCounts,
+                repostCounts, likedIds, savedIds, followedOwnerIds));
     }
 
     private static Map<Long, Long> toMap(List<Object[]> rows) {
@@ -284,20 +306,30 @@ public class PostService {
         ));
     }
 
-    public PostResponse toResponse(Post post) {
+    public PostResponse toResponse(Post post, Long currentUserId) {
         long likeCount = likeRepository.countByPostId(post.getId());
         long commentCount = commentRepository.countByPostId(post.getId());
         long saveCount = savedPostRepository.countByPostId(post.getId());
         long shareCount = shareRepository.countByPostId(post.getId());
         Long repostSourceId = post.getOriginalPost() != null ? post.getOriginalPost().getId() : post.getId();
         long repostCount = postRepository.countByOriginalPostId(repostSourceId);
-        return buildResponse(post, Map.of(post.getId(), likeCount), Map.of(post.getId(), commentCount),
-                Map.of(post.getId(), saveCount), Map.of(post.getId(), shareCount), Map.of(repostSourceId, repostCount));
+        boolean liked = currentUserId != null && likeRepository.existsByUserIdAndPostId(currentUserId, post.getId());
+        boolean saved = currentUserId != null && savedPostRepository.existsByUserIdAndPostId(currentUserId, post.getId());
+        boolean followingOwner = currentUserId != null
+                && followRepository.existsByFollowerIdAndFollowingId(currentUserId, post.getUser().getId());
+        return buildResponse(post,
+                Map.of(post.getId(), likeCount), Map.of(post.getId(), commentCount),
+                Map.of(post.getId(), saveCount), Map.of(post.getId(), shareCount),
+                Map.of(repostSourceId, repostCount),
+                liked ? Set.of(post.getId()) : Set.of(),
+                saved ? Set.of(post.getId()) : Set.of(),
+                followingOwner ? Set.of(post.getUser().getId()) : Set.of());
     }
 
     private PostResponse buildResponse(Post post, Map<Long, Long> likeCounts, Map<Long, Long> commentCounts,
                                         Map<Long, Long> saveCounts, Map<Long, Long> shareCounts,
-                                        Map<Long, Long> repostCounts) {
+                                        Map<Long, Long> repostCounts,
+                                        Set<Long> likedIds, Set<Long> savedIds, Set<Long> followedOwnerIds) {
         Long postId = post.getId();
         User user = post.getUser();
         Post originalPost = post.getOriginalPost();
@@ -318,6 +350,9 @@ public class PostService {
                 .hideLikeCount(Boolean.TRUE.equals(post.getHideLikeCount()))
                 .commentsDisabled(Boolean.TRUE.equals(post.getCommentsDisabled()) ||
                         Boolean.TRUE.equals(user.getCommentsDisabled()))
+                .likedByCurrentUser(likedIds.contains(postId))
+                .savedByCurrentUser(savedIds.contains(postId))
+                .followingOwner(followedOwnerIds.contains(user.getId()))
                 .user(PostResponse.PostUser.builder()
                         .id(user.getId())
                         .username(user.getUsername())

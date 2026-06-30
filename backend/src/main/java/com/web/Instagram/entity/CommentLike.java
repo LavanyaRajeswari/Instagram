@@ -16,6 +16,10 @@ import java.time.LocalDateTime;
         name = "comment_likes",
         uniqueConstraints = {
                 @UniqueConstraint(columnNames = {"user_id", "comment_id"})
+        },
+        indexes = {
+                @Index(name = "idx_comment_likes_comment_id", columnList = "comment_id"),
+                @Index(name = "idx_comment_likes_user_id", columnList = "user_id")
         }
 )
 public class CommentLike implements Serializable {

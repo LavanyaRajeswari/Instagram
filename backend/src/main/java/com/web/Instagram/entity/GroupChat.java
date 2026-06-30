@@ -9,7 +9,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "group_chats")
+@Table(name = "group_chats", indexes = {
+    @Index(name = "idx_group_chats_created_by", columnList = "created_by"),
+    @Index(name = "idx_group_chats_last_message_at", columnList = "lastMessageAt")
+})
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class GroupChat {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -37,6 +40,9 @@ public class GroupChat {
 
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
+    @Transient
+    private long unreadCount;
 
     @ManyToMany
     @JoinTable(name = "group_chat_members",

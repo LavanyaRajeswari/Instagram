@@ -21,4 +21,7 @@ public interface SavedPostRepository extends JpaRepository<SavedPost, Long> {
 
     @Query("select s.post.id, count(s) from SavedPost s where s.post.id in :ids group by s.post.id")
     List<Object[]> countByPostIdIn(@Param("ids") List<Long> ids);
+
+    @Query("select s.post.id from SavedPost s where s.user.id = :userId and s.post.id in :ids")
+    List<Long> findPostIdsSavedByUser(@Param("userId") Long userId, @Param("ids") List<Long> ids);
 }

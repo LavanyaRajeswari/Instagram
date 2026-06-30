@@ -5,14 +5,27 @@ import SockJS from "sockjs-client";
 
 const WS_URL = import.meta.env.VITE_WS_URL || "/ws";
 
-
 const subCallbacks = {};
 let sharedClient = null;
-let pendingSubscriptions = [];
 let pendingMessages = [];
 let isConnecting = false;
-let wsErrorCount = 0;
+let pendingCallSignals = [];
 
+export function bufferCallSignal(signal) {
+  pendingCallSignals.push(signal);
+}
+
+export function drainCallSignals(callId) {
+  const matched = pendingCallSignals.filter((s) => String(s.callId) === String(callId));
+  pendingCallSignals = pendingCallSignals.filter((s) => String(s.callId) !== String(callId));
+  return matched;
+}
+
+function dispatchToCallbacks(cbMap, msg) {
+  Object.entries(cbMap).forEach(([key, cb]) => {
+    if (key !== "sub" && typeof cb === "function") cb(msg);
+  });
+}
 
 function getClient() {
   if (!sharedClient) {
@@ -23,11 +36,10 @@ function getClient() {
       },
       onConnect: () => {
         isConnecting = false;
-        wsErrorCount = 0;
-        const pending = pendingSubscriptions;
-        pendingSubscriptions = [];
-        pending.forEach(({ destination, callback }) => {
-          doSubscribe(destination, callback);
+        Object.entries(subCallbacks).forEach(([destination, cbMap]) => {
+          if (!cbMap.sub) {
+            cbMap.sub = doSubscribe(destination, (msg) => dispatchToCallbacks(cbMap, msg));
+          }
         });
         const messages = pendingMessages;
         pendingMessages = [];
@@ -41,24 +53,17 @@ function getClient() {
       onDisconnect: () => {
         isConnecting = false;
       },
-      onStompError: () => {
+      onStompError: (frame) => {
         isConnecting = false;
-        if (sharedClient) {
-          try { sharedClient.deactivate(); } catch {}
-          sharedClient = null;
-        }
+        console.warn("[WS] STOMP error:", frame?.headers?.message || frame);
       },
-      onWebSocketError: () => {
-        wsErrorCount++;
-        if (wsErrorCount >= 5) {
-          isConnecting = false;
-          if (sharedClient) {
-            try { sharedClient.deactivate(); } catch {}
-            sharedClient = null;
-          }
-        }
+      onWebSocketClose: () => {
+        isConnecting = false;
+        Object.values(subCallbacks).forEach((cbMap) => {
+          delete cbMap.sub;
+        });
       },
-      reconnectDelay: 30000,
+      reconnectDelay: 5000,
       heartbeatIncoming: 10000,
       heartbeatOutgoing: 10000,
     });
@@ -93,7 +98,6 @@ export function disconnect() {
     sharedClient.deactivate();
     sharedClient = null;
   }
-  pendingSubscriptions = [];
 }
 
 export function subscribe(destination, callback) {
@@ -106,23 +110,17 @@ export function subscribe(destination, callback) {
 
   if (sharedClient && sharedClient.connected) {
     if (!subCallbacks[destination].sub) {
-      subCallbacks[destination].sub = doSubscribe(destination, (msg) => {
-        Object.values(subCallbacks[destination]).forEach((cb) => {
-          if (typeof cb === "function") cb(msg);
-        });
-      });
+      const cbMap = subCallbacks[destination];
+      subCallbacks[destination].sub = doSubscribe(destination, (msg) => dispatchToCallbacks(cbMap, msg));
     }
   } else {
-    pendingSubscriptions.push({ destination, callback });
     if (!isConnecting) connect();
   }
 
   return () => {
     if (subCallbacks[destination]) {
       delete subCallbacks[destination][unsubKey];
-      const remaining = Object.keys(subCallbacks[destination]).filter(
-        (k) => k !== "sub"
-      );
+      const remaining = Object.keys(subCallbacks[destination]).filter((k) => k !== "sub");
       if (remaining.length === 0 && subCallbacks[destination].sub) {
         try { subCallbacks[destination].sub(); } catch {}
         delete subCallbacks[destination];
@@ -147,15 +145,10 @@ export function useWebSocket() {
   const connectedRef = useRef(false);
 
   useEffect(() => {
-    const onConnect = () => { connectedRef.current = true; };
-    const onDisconnect = () => { connectedRef.current = false; };
-
     connect();
-
     const checkConnected = setInterval(() => {
       connectedRef.current = sharedClient?.connected ?? false;
     }, 1000);
-
     return () => {
       clearInterval(checkConnected);
     };
@@ -190,6 +183,10 @@ export function sendTyping(chatId, userId, typing) {
 
 export function sendChatMessage(chatId, content, messageType = "TEXT") {
   send("/chat.send", { chatId, content, messageType });
+}
+
+export function subscribeToGroup(groupId, callback) {
+  return subscribe(`/topic/group/${groupId}`, callback);
 }
 
 export function subscribeToCall(userId, callback) {

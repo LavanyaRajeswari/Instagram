@@ -6,6 +6,7 @@ import com.web.Instagram.service.GroupChatService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,6 +18,7 @@ import java.util.Map;
 public class GroupChatRestController {
 
     private final GroupChatService groupChatService;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @PostMapping
     public ResponseEntity<GroupChat> createGroup(@RequestBody Map<String, Object> body) {
@@ -67,7 +69,15 @@ public class GroupChatRestController {
         String mediaUrl = (String) body.get("mediaUrl");
         String mediaType = (String) body.get("mediaType");
         Long replyToId = body.get("replyToId") != null ? ((Number) body.get("replyToId")).longValue() : null;
-        return ResponseEntity.ok(groupChatService.sendMessage(groupId, content, messageType, mediaUrl, mediaType, replyToId));
+        GroupMessageDto msg = groupChatService.sendMessage(groupId, content, messageType, mediaUrl, mediaType, replyToId);
+        messagingTemplate.convertAndSend("/topic/group/" + groupId, msg);
+        return ResponseEntity.ok(msg);
+    }
+
+    @PostMapping("/{groupId}/seen")
+    public ResponseEntity<Void> markSeen(@PathVariable Long groupId) {
+        groupChatService.markGroupRead(groupId);
+        return ResponseEntity.ok().build();
     }
 
     @GetMapping("/{groupId}/messages")

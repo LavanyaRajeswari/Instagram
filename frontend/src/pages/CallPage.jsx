@@ -6,12 +6,21 @@ import { getAvatarUrl } from "../utils/avatar";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import {
   connect,
+  drainCallSignals,
   sendCallAnswer,
   sendCallEnd,
   sendCallOffer,
   sendIceCandidate,
   subscribeToCall,
 } from "../hooks/useWebSocket";
+
+const ICE_SERVERS = [
+  { urls: "stun:stun.l.google.com:19302" },
+  { urls: "stun:stun1.l.google.com:19302" },
+  { urls: "stun:stun2.l.google.com:19302" },
+  { urls: "stun:stun3.l.google.com:19302" },
+  { urls: "stun:stun4.l.google.com:19302" },
+];
 
 function CallPage() {
   const navigate = useNavigate();
@@ -21,7 +30,6 @@ function CallPage() {
   const hasVideo = searchParams.get("has_video") === "true";
   const urlCallId = searchParams.get("callId");
   const callState = location.state || {};
-  const returnTo = callState.returnTo || "/messages";
   const groupId = callState.groupId || searchParams.get("groupId") || "";
   const isGroupCall = Boolean(groupId);
   const callType = hasVideo ? "VIDEO" : "VOICE";
@@ -30,6 +38,25 @@ function CallPage() {
   const [callStatus, setCallStatus] = useState(initialStatus);
   const [peerUserId, setPeerUserId] = useState(callState.otherUserId || searchParams.get("userId") || "");
   const [callerId, setCallerId] = useState(callState.callerId || callState.otherUserId || "");
+
+  const prevCallIdRef = useRef(null);
+  useEffect(() => {
+    if (!callId || callId === "started") return;
+    if (prevCallIdRef.current && prevCallIdRef.current !== callId) {
+      endedRef.current = false;
+      pollCancelledRef.current = true;
+      pollGenRef.current += 1;
+      Object.values(peerConnectionsRef.current).forEach((pc) => pc.close());
+      peerConnectionsRef.current = {};
+      pendingIceRef.current = {};
+      pendingRemoteOffersRef.current = [];
+      pendingOfferTargetsRef.current = new Set();
+      offerTargetsRef.current = new Set();
+      setRemoteStreams({});
+    }
+    prevCallIdRef.current = callId;
+  }, [callId]);
+
   const [members, setMembers] = useState(() => normalizeUsers(callState.groupMembers || callState.participants || []));
   const [participants, setParticipants] = useState(() => normalizeUsers(callState.participants || []));
   const [remoteStreams, setRemoteStreams] = useState({});
@@ -52,12 +79,36 @@ function CallPage() {
   const endedRef = useRef(false);
   const startAttemptedRef = useRef(false);
   const durationTimerRef = useRef(null);
+  const callIdRef = useRef(callId);
+  const callStatusRef = useRef(callStatus);
+  const userIdRef = useRef(currentUserId);
+  const peerUserIdRef = useRef(peerUserId);
+  const pollCancelledRef = useRef(false);
+  const pollGenRef = useRef(0);
+  const hasVideoRef = useRef(hasVideo);
+  const offerCreatorRef = useRef(new Set());
+  useEffect(() => { callIdRef.current = callId; }, [callId]);
+  useEffect(() => { callStatusRef.current = callStatus; }, [callStatus]);
+  useEffect(() => { userIdRef.current = currentUserId; }, [currentUserId]);
+  useEffect(() => { peerUserIdRef.current = peerUserId; }, [peerUserId]);
+  useEffect(() => { hasVideoRef.current = hasVideo; }, [hasVideo]);
 
-  const groupName = callState.groupName || "Group call";
+  const savedCallState = (() => {
+    if (!urlCallId || callState.callId) return null;
+    try {
+      const s = sessionStorage.getItem("activeGroupCall");
+      if (!s) return null;
+      const p = JSON.parse(s);
+      return p.callId === urlCallId ? p : null;
+    } catch { return null; }
+  })();
+
+  const groupName = callState.groupName || savedCallState?.groupName || "Group call";
   const directName = callState.username || "Instagram user";
   const title = isGroupCall ? groupName : directName;
   const callerName = callState.username || callState.callerUsername || "Instagram user";
-  const displayPicture = callState.groupProfilePicture || callState.profilePicture;
+  const displayPicture = callState.groupProfilePicture || savedCallState?.groupProfilePicture || callState.profilePicture;
+  const returnTo = callState.returnTo || savedCallState?.returnTo || "/messages";
   const connected = callStatus === "connected";
 
   const upsertMembers = useCallback((users) => {
@@ -83,6 +134,7 @@ function CallPage() {
     delete pendingIceRef.current[key];
     pendingOfferTargetsRef.current.delete(key);
     offerTargetsRef.current.delete(key);
+    offerCreatorRef.current.delete(key);
     setRemoteStreams((prev) => {
       const next = { ...prev };
       delete next[key];
@@ -92,6 +144,7 @@ function CallPage() {
 
   const cleanupCall = useCallback(() => {
     Object.keys(peerConnectionsRef.current).forEach((id) => stopPeer(id));
+    offerCreatorRef.current.clear();
     if (streamRef.current) {
       stopMediaTracks(streamRef.current);
       streamRef.current = null;
@@ -102,15 +155,34 @@ function CallPage() {
       window.clearInterval(durationTimerRef.current);
       durationTimerRef.current = null;
     }
+    try { sessionStorage.removeItem("activeGroupCall"); } catch {}
   }, [stopPeer]);
+
+  const handleRemoteOfferRef = useRef(null);
+  const handleRemoteAnswerRef = useRef(null);
+  const handleRemoteIceCandidateRef = useRef(null);
+  const createOfferForRef = useRef(null);
+  const cleanupCallRef = useRef(null);
+  const stopPeerRef = useRef(null);
+  const removeParticipantRef = useRef(null);
+  const replaceParticipantsRef = useRef(null);
+  const upsertMembersRef = useRef(null);
+  const navigateRef = useRef(navigate);
+  const returnToRef = useRef(returnTo);
+  const isGroupCallRef = useRef(isGroupCall);
 
   const getPeerConnection = useCallback((targetUserId) => {
     const key = String(targetUserId || "");
     if (!key) return null;
     if (peerConnectionsRef.current[key]) return peerConnectionsRef.current[key];
 
+    const cId = callIdRef.current;
+    const uId = userIdRef.current;
+
     const pc = new RTCPeerConnection({
-      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+      iceServers: ICE_SERVERS,
+      bundlePolicy: "max-bundle",
+      rtcpMuxPolicy: "require",
     });
 
     pc.ontrack = (event) => {
@@ -118,38 +190,63 @@ function CallPage() {
       setRemoteStreams((prev) => ({ ...prev, [key]: stream }));
     };
 
+    pc.oniceconnectionstatechange = () => {
+      if (pc.iceConnectionState === "failed") {
+        try { pc.restartIce(); } catch {}
+      }
+    };
+
     pc.onconnectionstatechange = () => {
-      if (["failed", "disconnected"].includes(pc.connectionState)) {
-        setError("Trying to reconnect media for this call.");
+      if (pc.connectionState === "connected") {
+        setError("");
+      } else if (pc.connectionState === "failed") {
+        const wasOfferer = offerCreatorRef.current.has(key);
+        offerTargetsRef.current.delete(key);
+        offerCreatorRef.current.delete(key);
+        peerConnectionsRef.current[key]?.close();
+        delete peerConnectionsRef.current[key];
+        delete pendingIceRef.current[key];
+        setRemoteStreams((prev) => {
+          const next = { ...prev };
+          delete next[key];
+          return next;
+        });
+        if (!endedRef.current && wasOfferer) {
+          window.setTimeout(() => { createOfferForRef.current?.(key); }, 2000);
+        }
       }
     };
 
     pc.onicecandidate = (event) => {
-      if (!event.candidate || !callId || !currentUserId) return;
+      if (!event.candidate || !cId || !uId) return;
       sendIceCandidate({
         type: "ICE_CANDIDATE",
-        callId,
-        fromId: Number(currentUserId),
+        callId: cId,
+        fromId: Number(uId),
         targetId: Number(key),
         candidate: event.candidate,
       });
     };
 
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => pc.addTrack(track, streamRef.current));
-    } else {
-      pc.addTransceiver("audio", { direction: "recvonly" });
-      if (hasVideo) pc.addTransceiver("video", { direction: "recvonly" });
+    const stream = streamRef.current;
+    const liveTracks = stream ? stream.getTracks().filter((t) => t.readyState === "live") : [];
+    if (liveTracks.length > 0) {
+      liveTracks.forEach((track) => pc.addTrack(track, stream));
     }
 
     peerConnectionsRef.current[key] = pc;
     return pc;
-  }, [callId, currentUserId, hasVideo]);
+  }, []);
 
   const createOfferFor = useCallback(async (targetUserId) => {
     const key = String(targetUserId || "");
-    if (!key || !callId || !currentUserId || key === String(currentUserId)) return;
-    if (!streamRef.current) {
+    const cId = callIdRef.current;
+    const uId = userIdRef.current;
+    if (!key || !cId || !uId || key === String(uId)) return;
+
+    const s = streamRef.current;
+    const hasActive = s && s.getTracks().some((t) => t.readyState === "live");
+    if (!hasActive) {
       pendingOfferTargetsRef.current.add(key);
       return;
     }
@@ -158,12 +255,21 @@ function CallPage() {
 
     try {
       const pc = getPeerConnection(key);
-      const offer = await pc.createOffer();
+      if (pc.signalingState !== "stable") {
+        offerTargetsRef.current.delete(key);
+        window.setTimeout(() => { createOfferForRef.current?.(key); }, 500);
+        return;
+      }
+      const offer = await pc.createOffer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: hasVideoRef.current,
+      });
       await pc.setLocalDescription(offer);
+      offerCreatorRef.current.add(key);
       sendCallOffer({
         type: "CALL_OFFER",
-        callId,
-        fromId: Number(currentUserId),
+        callId: cId,
+        fromId: Number(uId),
         calleeId: Number(key),
         offer,
       });
@@ -171,30 +277,51 @@ function CallPage() {
       offerTargetsRef.current.delete(key);
       setError("Unable to connect media for this call.");
     }
-  }, [callId, currentUserId, getPeerConnection]);
+  }, [getPeerConnection]);
+
+  const flushQueuedIceCandidates = useCallback(async (pc, senderId) => {
+    const key = String(senderId);
+    const queued = pendingIceRef.current[key] || [];
+    pendingIceRef.current[key] = [];
+    for (const candidate of queued) {
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch {
+      }
+    }
+  }, []);
 
   const handleRemoteOffer = useCallback(async (event) => {
     const senderId = event?.fromId || event?.callerId;
-    if (!senderId || !event?.offer || !callId || !currentUserId) return;
-    if (!streamRef.current) {
+    const cId = callIdRef.current;
+    const uId = userIdRef.current;
+    const s = streamRef.current;
+    const hasActive = s && s.getTracks().some((t) => t.readyState === "live");
+    if (!senderId || !event?.offer || !cId || !uId) return;
+    if (!hasActive) {
       pendingRemoteOffersRef.current.push(event);
       return;
     }
 
     try {
       const pc = getPeerConnection(senderId);
-      await pc.setRemoteDescription(new RTCSessionDescription(event.offer));
-      const queued = pendingIceRef.current[String(senderId)] || [];
-      pendingIceRef.current[String(senderId)] = [];
-      for (const candidate of queued) {
-        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      if (pc.signalingState !== "stable") {
+        const retry = () => {
+          if (!endedRef.current && handleRemoteOfferRef.current) {
+            handleRemoteOfferRef.current(event);
+          }
+        };
+        pc.addEventListener("signalingstatechange", retry, { once: true });
+        return;
       }
+      await pc.setRemoteDescription(new RTCSessionDescription(event.offer));
+      await flushQueuedIceCandidates(pc, senderId);
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       sendCallAnswer({
         type: "CALL_ANSWER",
-        callId,
-        fromId: Number(currentUserId),
+        callId: cId,
+        fromId: Number(uId),
         callerId: Number(senderId),
         answer,
       });
@@ -202,7 +329,7 @@ function CallPage() {
     } catch {
       setError("Unable to connect media for this call.");
     }
-  }, [callId, currentUserId, getPeerConnection]);
+  }, [flushQueuedIceCandidates, getPeerConnection]);
 
   const handleRemoteAnswer = useCallback(async (event) => {
     const senderId = event?.fromId || event?.participantId || event?.callerId;
@@ -210,30 +337,63 @@ function CallPage() {
 
     try {
       const pc = getPeerConnection(senderId);
-      if (pc?.signalingState !== "stable") {
+      if (pc?.signalingState === "have-local-offer") {
         await pc.setRemoteDescription(new RTCSessionDescription(event.answer));
+        await flushQueuedIceCandidates(pc, senderId);
+        setCallStatus("connected");
+      } else if (pc?.signalingState === "stable") {
+        setCallStatus("connected");
       }
-      setCallStatus("connected");
     } catch {
       setError("Unable to connect media for this call.");
     }
-  }, [getPeerConnection]);
+  }, [flushQueuedIceCandidates, getPeerConnection]);
 
   const handleRemoteIceCandidate = useCallback(async (event) => {
     const senderId = event?.fromId || event?.callerId;
     if (!senderId || !event?.candidate) return;
+    const key = String(senderId);
 
     try {
-      const pc = getPeerConnection(senderId);
-      if (pc?.remoteDescription) {
+      const pc = peerConnectionsRef.current[key];
+      if (!pc) {
+        pendingIceRef.current[key] = [...(pendingIceRef.current[key] || []), event.candidate];
+        return;
+      }
+      if (pc.remoteDescription) {
         await pc.addIceCandidate(new RTCIceCandidate(event.candidate));
       } else {
-        const key = String(senderId);
         pendingIceRef.current[key] = [...(pendingIceRef.current[key] || []), event.candidate];
       }
     } catch {
     }
-  }, [getPeerConnection]);
+  }, []);
+
+  useEffect(() => { navigateRef.current = navigate; }, [navigate]);
+  useEffect(() => { returnToRef.current = returnTo; }, [returnTo]);
+  useEffect(() => { isGroupCallRef.current = isGroupCall; }, [isGroupCall]);
+
+  useEffect(() => {
+    if (!callId || callId === "started" || !isGroupCall) return;
+    try {
+      sessionStorage.setItem("activeGroupCall", JSON.stringify({
+        callId,
+        groupId,
+        groupName,
+        groupProfilePicture: callState.groupProfilePicture || savedCallState?.groupProfilePicture || "",
+        returnTo,
+      }));
+    } catch {}
+  }, [callId, isGroupCall]);
+  useEffect(() => { handleRemoteOfferRef.current = handleRemoteOffer; }, [handleRemoteOffer]);
+  useEffect(() => { handleRemoteAnswerRef.current = handleRemoteAnswer; }, [handleRemoteAnswer]);
+  useEffect(() => { handleRemoteIceCandidateRef.current = handleRemoteIceCandidate; }, [handleRemoteIceCandidate]);
+  useEffect(() => { createOfferForRef.current = createOfferFor; }, [createOfferFor]);
+  useEffect(() => { cleanupCallRef.current = cleanupCall; }, [cleanupCall]);
+  useEffect(() => { stopPeerRef.current = stopPeer; }, [stopPeer]);
+  useEffect(() => { removeParticipantRef.current = removeParticipant; }, [removeParticipant]);
+  useEffect(() => { replaceParticipantsRef.current = replaceParticipants; }, [replaceParticipants]);
+  useEffect(() => { upsertMembersRef.current = upsertMembers; }, [upsertMembers]);
 
   useEffect(() => {
     let cancelled = false;
@@ -243,7 +403,6 @@ function CallPage() {
         setMediaError("Camera or microphone permission was denied.");
         return;
       }
-
       try {
         const constraints = hasVideo ? { video: true, audio: true } : { audio: true };
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -262,7 +421,11 @@ function CallPage() {
     requestLocalMedia();
     return () => {
       cancelled = true;
-      if (streamRef.current) stopMediaTracks(streamRef.current);
+      if (streamRef.current) {
+        stopMediaTracks(streamRef.current);
+        streamRef.current = null;
+        setLocalStream(null);
+      }
     };
   }, [hasVideo]);
 
@@ -284,113 +447,170 @@ function CallPage() {
     Object.values(peerConnectionsRef.current).forEach((pc) => {
       const existing = new Set(pc.getSenders().map((sender) => sender.track?.id).filter(Boolean));
       localStream.getTracks().forEach((track) => {
-        if (!existing.has(track.id)) pc.addTrack(track, localStream);
+        if (!existing.has(track.id)) {
+          pc.addTrack(track, localStream);
+        }
       });
     });
   }, [localStream]);
 
   useEffect(() => {
     if (!localStream || pendingRemoteOffersRef.current.length === 0) return;
-    const offers = pendingRemoteOffersRef.current;
-    pendingRemoteOffersRef.current = [];
-    offers.forEach((event) => handleRemoteOffer(event));
+    const offers = pendingRemoteOffersRef.current.splice(0);
+    offers.forEach((ev) => handleRemoteOffer(ev));
   }, [handleRemoteOffer, localStream]);
 
   useEffect(() => {
-    if (!currentUserId || !callId || callId === "started") return;
+    if (!currentUserId) return;
+    const currentCId = callIdRef.current;
+
     connect();
+
+    if (currentCId && currentCId !== "started") {
+      const drained = drainCallSignals(currentCId);
+      for (const sig of drained) {
+        if (sig.type === "CALL_OFFER") {
+          const dStream = streamRef.current;
+          const dActive = dStream && dStream.getTracks().some((t) => t.readyState === "live");
+          if (dActive && handleRemoteOfferRef.current) handleRemoteOfferRef.current(sig);
+          else pendingRemoteOffersRef.current.push(sig);
+        }
+      }
+    }
+
     const unsub = subscribeToCall(currentUserId, (event) => {
-      if (!event || String(event.callId) !== String(callId) || endedRef.current) return;
-      if (event.groupMembers) upsertMembers(event.groupMembers);
-      if (event.participants) replaceParticipants(event.participants);
+      if (!event) return;
+
+      const cId = callIdRef.current;
+      const uId = userIdRef.current;
+      const pId = peerUserIdRef.current;
+      const iGc = isGroupCallRef.current;
+      const nFn = navigateRef.current;
+      const rTo = returnToRef.current;
+
+      if (endedRef.current || (cId && String(event.callId) !== String(cId))) return;
+
+      if (event.groupMembers && upsertMembersRef.current) upsertMembersRef.current(event.groupMembers);
+      if (event.participants && replaceParticipantsRef.current) replaceParticipantsRef.current(event.participants);
 
       if (event.type === "CALL_ACCEPTED" || event.type === "CALL_ANSWERED") {
         setCallStatus("connected");
         const participantId = event.participantId;
-        if (isGroupCall && participantId && String(participantId) !== String(currentUserId)) {
-          window.setTimeout(() => createOfferFor(participantId), 300);
-        } else if (!isGroupCall && peerUserId) {
-          window.setTimeout(() => createOfferFor(peerUserId), 300);
+        if (iGc && participantId && String(participantId) !== String(uId)) {
+          window.setTimeout(() => { createOfferForRef.current?.(participantId); }, 1500);
+        } else if (!iGc && pId) {
+          window.setTimeout(() => { createOfferForRef.current?.(pId); }, 1500);
         }
       } else if (event.type === "CALL_REJECTED" || event.type === "CALL_DECLINED") {
-        if (isGroupCall && event.participantId) {
-          removeParticipant(event.participantId);
-          stopPeer(event.participantId);
+        if (iGc && event.participantId) {
+          removeParticipantRef.current?.(event.participantId);
+          stopPeerRef.current?.(event.participantId);
           return;
         }
         endedRef.current = true;
         setCallStatus("declined");
-        cleanupCall();
-        window.setTimeout(() => navigate(returnTo, { replace: true }), 2000);
+        cleanupCallRef.current?.();
+        window.setTimeout(() => nFn(rTo, { replace: true }), 2000);
       } else if (event.type === "CALL_ENDED" || event.type === "CALL_CANCELLED") {
         endedRef.current = true;
         setCallStatus("ended");
-        cleanupCall();
-        window.setTimeout(() => navigate(returnTo, { replace: true }), 1500);
+        cleanupCallRef.current?.();
+        window.setTimeout(() => nFn(rTo, { replace: true }), 1500);
       } else if (event.type === "CALL_LEFT" && event.participantId) {
-        removeParticipant(event.participantId);
-        stopPeer(event.participantId);
+        offerTargetsRef.current.delete(String(event.participantId));
+        removeParticipantRef.current?.(event.participantId);
+        stopPeerRef.current?.(event.participantId);
       } else if (event.type === "CALL_OFFER") {
-        if (streamRef.current) handleRemoteOffer(event);
+        const evStream = streamRef.current;
+        const evActive = evStream && evStream.getTracks().some((t) => t.readyState === "live");
+        if (evActive && handleRemoteOfferRef.current) handleRemoteOfferRef.current(event);
         else pendingRemoteOffersRef.current.push(event);
       } else if (event.type === "CALL_ANSWER") {
-        handleRemoteAnswer(event);
+        handleRemoteAnswerRef.current?.(event);
       } else if (event.type === "ICE_CANDIDATE") {
-        handleRemoteIceCandidate(event);
+        handleRemoteIceCandidateRef.current?.(event);
       }
     });
-    return () => unsub?.();
-  }, [
-    callId,
-    cleanupCall,
-    createOfferFor,
-    currentUserId,
-    handleRemoteAnswer,
-    handleRemoteIceCandidate,
-    handleRemoteOffer,
-    isGroupCall,
-    navigate,
-    peerUserId,
-    removeParticipant,
-    replaceParticipants,
-    returnTo,
-    stopPeer,
-    upsertMembers,
-  ]);
+    return () => { unsub?.(); };
+  }, [currentUserId]);
+
+  useEffect(() => {
+    if (!callId || callId === "started") return;
+    const bufferedSignals = drainCallSignals(callId);
+    for (const sig of bufferedSignals) {
+      if (sig.type === "CALL_OFFER") {
+        const bStream = streamRef.current;
+        const bActive = bStream && bStream.getTracks().some((t) => t.readyState === "live");
+        if (bActive && handleRemoteOfferRef.current) handleRemoteOfferRef.current(sig);
+        else pendingRemoteOffersRef.current.push(sig);
+      }
+    }
+  }, [callId]);
 
   useEffect(() => {
     if (!callId || callId === "started" || endedRef.current) return;
 
+    pollCancelledRef.current = false;
+    const thisCallId = callId;
+    const thisGen = pollGenRef.current;
     const terminalStatuses = new Set(["REJECTED", "DECLINED", "CANCELLED", "ENDED"]);
+
     const pollCallStatus = async () => {
       try {
         const history = await getCallHistory();
+        if (pollCancelledRef.current || pollGenRef.current !== thisGen || callIdRef.current !== thisCallId) return;
         const calls = Array.isArray(history) ? history : Array.isArray(history?.content) ? history.content : [];
-        const call = calls.find((item) => String(item?.id || item?.callId) === String(callId));
-        if (call?.groupMembers) upsertMembers(call.groupMembers);
-        if (call?.participants) replaceParticipants(call.participants);
+        const call = calls.find((item) => String(item?.id || item?.callId) === String(thisCallId));
+        const curStatus = callStatusRef.current;
+        const curPeerId = peerUserIdRef.current;
+        const uId = userIdRef.current;
+
+        if (!call && curStatus === "ringing") {
+          endedRef.current = true;
+          cleanupCallRef.current?.();
+          setCallStatus("ended");
+          window.setTimeout(() => navigateRef.current?.(returnToRef.current, { replace: true }), 1500);
+          return;
+        }
+
+        if (call?.groupMembers && upsertMembersRef.current) upsertMembersRef.current(call.groupMembers);
+        if (call?.participants && replaceParticipantsRef.current) replaceParticipantsRef.current(call.participants);
         const status = String(call?.status || "").toUpperCase();
-        if (status === "ANSWERED" && callStatus !== "connected") {
+
+        if (status === "ANSWERED" && curStatus !== "connected") {
           setCallStatus("connected");
-          if (!isGroupCall && peerUserId) {
-            window.setTimeout(() => createOfferFor(peerUserId), 300);
+          if (isGroupCallRef.current) {
+            const pts = Array.isArray(call.participants) ? call.participants : [];
+            pts.forEach((p, i) => {
+              const pid = String(p.id);
+              if (pid !== String(uId)) {
+                window.setTimeout(() => createOfferForRef.current?.(pid), 1500 + i * 300);
+              }
+            });
+          } else if (curPeerId) {
+            window.setTimeout(() => createOfferForRef.current?.(curPeerId), 300);
           }
           return;
         }
+
         if (!terminalStatuses.has(status) || endedRef.current) return;
+        if (pollCancelledRef.current || pollGenRef.current !== thisGen) return;
 
         endedRef.current = true;
-        cleanupCall();
+        cleanupCallRef.current?.();
         setCallStatus(status === "REJECTED" || status === "DECLINED" ? "declined" : "ended");
-        window.setTimeout(() => navigate(returnTo, { replace: true }), status === "REJECTED" || status === "DECLINED" ? 2000 : 1500);
+        window.setTimeout(() => navigateRef.current?.(returnToRef.current, { replace: true }), status === "REJECTED" || status === "DECLINED" ? 2000 : 1500);
       } catch {
       }
     };
 
     const intervalId = window.setInterval(pollCallStatus, 2500);
     pollCallStatus();
-    return () => window.clearInterval(intervalId);
-  }, [callId, callStatus, cleanupCall, createOfferFor, isGroupCall, navigate, peerUserId, replaceParticipants, returnTo, upsertMembers]);
+    return () => {
+      pollCancelledRef.current = true;
+      window.clearInterval(intervalId);
+    };
+  }, [callId]);
 
   useEffect(() => {
     if (callStatus !== "connected") return;
@@ -401,12 +621,22 @@ function CallPage() {
   }, [callStatus]);
 
   useEffect(() => {
-    return () => cleanupCall();
-  }, [cleanupCall]);
+    return () => cleanupCallRef.current?.();
+  }, []);
 
   const handleStartCall = async () => {
     setError("");
     if (callId) return;
+    endedRef.current = false;
+    pollCancelledRef.current = true;
+    pollGenRef.current += 1;
+    Object.values(peerConnectionsRef.current).forEach((pc) => pc.close());
+    peerConnectionsRef.current = {};
+    pendingIceRef.current = {};
+    pendingRemoteOffersRef.current = [];
+    pendingOfferTargetsRef.current = new Set();
+    offerTargetsRef.current = new Set();
+    setRemoteStreams({});
     setIsStarting(true);
 
     try {
@@ -414,7 +644,6 @@ function CallPage() {
         setError("Unable to find the user to call.");
         return;
       }
-
       const data = groupId ? await startGroupCall(groupId, callType) : await startCall(peerUserId, callType);
       const newCallId = data?.callId || data?.id || data?.data?.callId || data?.data?.id || "";
       const nextPeerUserId = data?.calleeId || data?.callee?.id || peerUserId;
@@ -441,24 +670,24 @@ function CallPage() {
     setError("");
     if (endedRef.current) return;
     endedRef.current = true;
-    cleanupCall();
+    cleanupCallRef.current?.();
 
     if (!callId || callId === "started") {
-      navigate(returnTo, { replace: true });
+      navigateRef.current(returnToRef.current, { replace: true });
       return;
     }
 
     setIsEnding(true);
 
     try {
-      const isGroupCaller = isGroupCall && String(callerId || currentUserId) === String(currentUserId);
-      if (isGroupCall && !isGroupCaller) {
+      const isGroupCaller = isGroupCallRef.current && String(callerId || currentUserId) === String(currentUserId);
+      if (isGroupCallRef.current && !isGroupCaller) {
         await leaveCall(callId);
-        navigate(returnTo, { replace: true });
+        navigateRef.current(returnToRef.current, { replace: true });
         return;
       }
 
-      const targets = isGroupCall
+      const targets = isGroupCallRef.current
         ? visibleParticipants.filter((user) => String(user.id) !== String(currentUserId)).map((user) => user.id)
         : peerUserId ? [peerUserId] : [];
       targets.forEach((targetId) => {
@@ -473,7 +702,7 @@ function CallPage() {
     } catch {
     }
 
-    navigate(returnTo, { replace: true });
+    navigateRef.current(returnToRef.current, { replace: true });
   };
 
   const toggleMute = () => {
@@ -494,9 +723,7 @@ function CallPage() {
 
   const visibleParticipants = useMemo(() => {
     const base = participants;
-    const withCurrent = currentUser?.id
-      ? mergeUsers(base, [currentUser])
-      : base;
+    const withCurrent = currentUser?.id ? mergeUsers(base, [currentUser]) : base;
     return withCurrent.length ? withCurrent : [{ id: "remote", username: directName, profilePicture: displayPicture }];
   }, [currentUser, directName, displayPicture, participants]);
 

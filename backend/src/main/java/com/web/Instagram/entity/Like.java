@@ -13,9 +13,10 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "likes", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"user_id", "post_id"})
-}
+@Table(name = "likes",
+    uniqueConstraints = { @UniqueConstraint(columnNames = {"user_id", "post_id"}) },
+    indexes = { @Index(name = "idx_likes_post_id", columnList = "post_id"),
+                @Index(name = "idx_likes_user_id", columnList = "user_id") }
 )
 public class Like implements Serializable {
     private static final long serialVersionUID = 1L;

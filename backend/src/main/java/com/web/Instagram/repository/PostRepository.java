@@ -12,6 +12,7 @@ import org.springframework.stereotype.Repository;
 
 import com.web.Instagram.entity.MediaType;
 import com.web.Instagram.entity.Post;
+import org.springframework.data.jpa.repository.Query;
 
 @Repository
 public interface PostRepository extends JpaRepository<Post, Long> {
@@ -50,16 +51,18 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     Page<Post> searchPosts(@Param("query") String query, Pageable pageable);
 
     @EntityGraph(attributePaths = {"media", "user"})
-    @Query("""
-        select p from Post p
-        where coalesce(p.user.isPrivate, false) = false
-        order by
-            ((select count(l) from Like l where l.post = p) * 5 +
-             (select count(c) from Comment c where c.post = p) * 3 +
-             (select count(s) from Share s where s.post = p) * 4 +
-             (select count(sp) from SavedPost sp where sp.post = p) * 6) desc,
-            p.createdAt desc
-    """)
+    @Query(value = """
+        SELECT DISTINCT p.* FROM posts p
+        JOIN users u ON u.id = p.user_id
+        LEFT JOIN (SELECT post_id, COUNT(*) AS lc FROM likes GROUP BY post_id) l ON l.post_id = p.id
+        LEFT JOIN (SELECT post_id, COUNT(*) AS cc FROM comments GROUP BY post_id) c ON c.post_id = p.id
+        LEFT JOIN (SELECT post_id, COUNT(*) AS sc FROM shares GROUP BY post_id) s ON s.post_id = p.id
+        LEFT JOIN (SELECT post_id, COUNT(*) AS pc FROM saved_posts GROUP BY post_id) sp ON sp.post_id = p.id
+        WHERE COALESCE(u.is_private, false) = false
+        ORDER BY (COALESCE(l.lc,0)*5 + COALESCE(c.cc,0)*3 + COALESCE(s.sc,0)*4 + COALESCE(sp.pc,0)*6) DESC, p.created_at DESC
+        """,
+        countQuery = "SELECT COUNT(DISTINCT p.id) FROM posts p JOIN users u ON u.id = p.user_id WHERE COALESCE(u.is_private, false) = false",
+        nativeQuery = true)
     Page<Post> findExplorePostsByEngagement(Pageable pageable);
 
     long countByUserId(Long userId);

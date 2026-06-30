@@ -1,14 +1,14 @@
 package com.web.Instagram.service;
 
-import com.web.Instagram.dto.notification.NotificationResponse;
-import com.web.Instagram.entity.Notification;
-import com.web.Instagram.repository.NotificationRepository;
-import lombok.RequiredArgsConstructor;
+import java.util.List;
+
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
+import com.web.Instagram.dto.notification.NotificationResponse;
+import com.web.Instagram.repository.NotificationRepository;
+
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor

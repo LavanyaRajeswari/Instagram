@@ -86,8 +86,11 @@ public class SecurityConfig {
 
                         .requestMatchers(
                                 HttpMethod.GET,
+                                "/api/media/**",
+                                "/api/posts/**",
                                 "/api/stories/**",
                                 "/api/reels/**",
+                                "/api/hashtags/**",
                                 "/api/story-music/**",
                                 "/api/users/*",
                                 "/api/users/*/followers",

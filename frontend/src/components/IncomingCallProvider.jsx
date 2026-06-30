@@ -5,7 +5,7 @@ import { answerCall, getCallHistory, rejectCall } from "../api/callsApi";
 import { getAuthToken } from "../api/config";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { getAvatarUrl } from "../utils/avatar";
-import { connect, subscribeToCall } from "../hooks/useWebSocket";
+import { bufferCallSignal, connect, subscribeToCall } from "../hooks/useWebSocket";
 
 const INCOMING_STATUSES = new Set(["CALLING", "RINGING", "PENDING", "STARTED", "INITIATED"]);
 
@@ -28,19 +28,22 @@ function IncomingCallProvider() {
     location.pathname !== "/register" &&
     location.pathname !== "/call";
 
-  useEffect(() => {
-    if (!shouldPoll) {
-      setIncomingCall(null);
-      if (pollIntervalRef.current) {
-        window.clearInterval(pollIntervalRef.current);
-        pollIntervalRef.current = null;
-      }
-      return;
-    }
+  const pathnameRef = useRef(location.pathname);
+  useEffect(() => { pathnameRef.current = location.pathname; }, [location.pathname]);
 
+  useEffect(() => {
+    if (!Boolean(getAuthToken()) || !currentUser?.id) return;
     connect();
     const unsubCall = subscribeToCall(currentUser.id, (event) => {
       if (!event) return;
+
+      if (event.type === "CALL_OFFER") {
+        bufferCallSignal(event);
+        return;
+      }
+
+      if (pathnameRef.current === "/call") return;
+
       if (event.type === "CALL_STARTED" && event.callId) {
         const normalizedCallId = String(event.callId);
         if (!dismissedCallIdsRef.current.has(normalizedCallId)) {
@@ -57,6 +60,23 @@ function IncomingCallProvider() {
       }
     });
 
+    return () => {
+      if (unsubCall) unsubCall();
+      dismissAll();
+    };
+  }, [currentUser?.id]);
+
+  useEffect(() => {
+    if (!shouldPoll) {
+      setIncomingCall(null);
+      dismissAll();
+      if (pollIntervalRef.current) {
+        window.clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+      return;
+    }
+
     const startPolling = (delayMs) => {
       if (pollIntervalRef.current) window.clearInterval(pollIntervalRef.current);
       pollIntervalRef.current = window.setInterval(pollIncomingCalls, delayMs);
@@ -67,7 +87,7 @@ function IncomingCallProvider() {
         const history = await getCallHistory();
         if (failCountRef.current > 0) {
           failCountRef.current = 0;
-          startPolling(4000);
+          startPolling(15000);
         }
         const call = findLatestIncomingCall(history, currentUser.id);
         const callId = getCallId(call);
@@ -88,10 +108,9 @@ function IncomingCallProvider() {
     };
 
     pollIncomingCalls();
-    startPolling(4000);
+    startPolling(15000);
 
     return () => {
-      if (unsubCall) unsubCall();
       if (pollIntervalRef.current) {
         window.clearInterval(pollIntervalRef.current);
         pollIntervalRef.current = null;
@@ -102,6 +121,12 @@ function IncomingCallProvider() {
   const dismissCall = (callId) => {
     const id = String(callId);
     dismissedCallIdsRef.current.add(id);
+    activePopupIdRef.current = "";
+    setIncomingCall(null);
+  };
+
+  const dismissAll = () => {
+    dismissedCallIdsRef.current.clear();
     activePopupIdRef.current = "";
     setIncomingCall(null);
   };
@@ -218,12 +243,12 @@ const isIncomingCall = (call, currentUserId) => {
   if (!INCOMING_STATUSES.has(status)) return false;
   if (!isRecentCall(call)) return false;
 
-  const calleeId = call?.calleeId || call?.callee?.id;
   const callerId = call?.callerId || call?.caller?.id;
 
   if (String(callerId) === String(currentUserId)) return false;
   if (call?.groupCall || call?.groupId) return true;
 
+  const calleeId = call?.calleeId || call?.callee?.id;
   return String(calleeId) === String(currentUserId);
 };
 
@@ -249,6 +274,7 @@ const normalizeIncomingCall = (call) => {
   return {
     id: getCallId(call),
     hasVideo,
+    status: call?.status || "CALLING",
     callerId: call?.callerId || caller.id,
     callerName: call?.callerUsername || caller.username || caller.fullName || "Instagram user",
     callerProfilePicture: isGroupCall

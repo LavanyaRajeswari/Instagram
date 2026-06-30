@@ -45,17 +45,20 @@ public class PostRestController {
         if (!userService.canViewUserPosts(requesterUsername, userId)) {
             return ResponseEntity.ok(new PageImpl<>(Collections.emptyList(), pageable, 0));
         }
-        return ResponseEntity.ok(postService.getUserPosts(userId, pageable));
+        Long currentUserId = resolveUserId(principal);
+        return ResponseEntity.ok(postService.getUserPosts(userId, pageable, currentUserId));
     }
 
     @GetMapping("/explore")
     public ResponseEntity<Page<PostResponse>> getExplorePosts(Principal principal, @PageableDefault(size = 20) Pageable pageable) {
-        return ResponseEntity.ok(filterVisible(postService.getExplorePosts(pageable), principal, pageable));
+        Long currentUserId = resolveUserId(principal);
+        return ResponseEntity.ok(filterVisible(postService.getExplorePosts(pageable, currentUserId), principal, pageable));
     }
 
     @GetMapping("/search")
     public ResponseEntity<Page<PostResponse>> searchPosts(Principal principal, @RequestParam String query, @PageableDefault(size = 20) Pageable pageable) {
-        return ResponseEntity.ok(filterVisible(postService.searchPosts(query.trim(), pageable), principal, pageable));
+        Long currentUserId = resolveUserId(principal);
+        return ResponseEntity.ok(filterVisible(postService.searchPosts(query.trim(), pageable, currentUserId), principal, pageable));
     }
 
     @GetMapping("/{id}")
@@ -141,6 +144,15 @@ public class PostRestController {
                 .filter(post -> userService.canViewUserPosts(requesterUsername, post.getUser().getId()))
                 .toList();
         return new PageImpl<>(visiblePosts, pageable, visiblePosts.size());
+    }
+
+    private Long resolveUserId(Principal principal) {
+        if (principal == null) return null;
+        try {
+            return userService.getCurrentUser(principal.getName()).getId();
+        } catch (RuntimeException e) {
+            return null;
+        }
     }
 
 }

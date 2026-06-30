@@ -38,7 +38,8 @@ public class HashtagRestController {
             @RequestParam(defaultValue = "20") int size) {
         String requesterUsername = principal != null ? principal.getName() : null;
         Page<Post> posts = hashtagService.getVisiblePostsByTag(tag, requesterUsername, page, size);
-        return ResponseEntity.ok(posts.map(postService::toResponse));
+        Long userId = postService.currentUserId();
+        return ResponseEntity.ok(posts.map(p -> postService.toResponse(p, userId)));
     }
 
     @GetMapping("/{tag}/count")

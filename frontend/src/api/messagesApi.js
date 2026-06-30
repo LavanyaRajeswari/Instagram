@@ -130,3 +130,7 @@ export const deleteGroupMessage = async (groupId, messageId) => {
 export const leaveGroup = async (groupId) => {
   await api.post(`/groups/${groupId}/leave`);
 };
+
+export const markGroupMessagesSeen = async (groupId) => {
+  await api.post(`/groups/${groupId}/seen`);
+};

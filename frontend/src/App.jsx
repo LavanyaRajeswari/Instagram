@@ -54,7 +54,7 @@ function AppLayout() {
         />
       )}
       {!hideMiniMessenger && <MiniMessenger />}
-      {!hideSidebar && <IncomingCallProvider />}
+      <IncomingCallProvider />
 
       <div className={!hideSidebar ? "md:ml-[72px] xl:ml-[244px]" : ""}>
         <Routes>

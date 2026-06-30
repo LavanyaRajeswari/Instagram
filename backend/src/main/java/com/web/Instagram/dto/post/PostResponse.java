@@ -33,6 +33,9 @@ public class PostResponse implements Serializable {
     private String musicTitle;
     private String musicArtist;
     private String musicAudioUrl;
+    private boolean likedByCurrentUser;
+    private boolean savedByCurrentUser;
+    private boolean followingOwner;
     private PostUser user;
     private PostUser originalPostUser;
     private List<PostMedia> media;

@@ -13,6 +13,7 @@ import {
   getGroups,
   getMessages,
   leaveGroup,
+  markGroupMessagesSeen,
   markMessagesSeen,
   muteChatUntil,
   removeChatNickname,
@@ -28,7 +29,7 @@ import { createReport } from "../api/reportsApi";
 import { blockUser } from "../api/settingsApi";
 import { getCurrentUser, getUser } from "../api/userApi";
 import { getAvatarUrl } from "../utils/avatar";
-import { connect, subscribeToChat, subscribeToTyping, sendTyping } from "../hooks/useWebSocket";
+import { connect, subscribeToChat, subscribeToGroup, subscribeToTyping, sendTyping } from "../hooks/useWebSocket";
 import NotesBar from "../components/NotesBar";
 import EmojiPicker from "emoji-picker-react";
 
@@ -60,7 +61,9 @@ function Messages() {
   const [typingUsers, setTypingUsers] = useState({});
   const selectedChatSubs = useRef([]);
   const chatListSubs = useRef({});
+  const groupListSubs = useRef({});
   const selectedChatRef = useRef(null);
+  const selectedGroupRef = useRef(null);
   const initializedThreadRef = useRef(false);
   const typingTimeoutRef = useRef(null);
   const lastTypingSentRef = useRef(0);
@@ -89,6 +92,8 @@ function Messages() {
     return () => {
       Object.values(chatListSubs.current).forEach((unsub) => unsub?.());
       chatListSubs.current = {};
+      Object.values(groupListSubs.current).forEach((unsub) => unsub?.());
+      groupListSubs.current = {};
       selectedChatSubs.current.forEach((unsub) => unsub());
       selectedChatSubs.current = [];
       stopRecordingTimer();
@@ -116,6 +121,10 @@ function Messages() {
   useEffect(() => {
     selectedChatRef.current = selectedChat;
   }, [selectedChat]);
+
+  useEffect(() => {
+    selectedGroupRef.current = selectedGroup;
+  }, [selectedGroup]);
 
   useEffect(() => {
     const handleClick = (event) => {
@@ -261,6 +270,45 @@ function Messages() {
     });
   }, [chats]);
 
+  useEffect(() => {
+    const subs = groupListSubs.current;
+    const currentIds = new Set(groups.map((g) => g.id));
+
+    Object.keys(subs).forEach((id) => {
+      if (!currentIds.has(Number(id))) {
+        subs[id]?.();
+        delete subs[id];
+      }
+    });
+
+    groups.forEach((group) => {
+      if (subs[group.id]) return;
+      subs[group.id] = subscribeToGroup(group.id, (newMessage) => {
+        setGroups((prev) =>
+          prev.map((g) =>
+            g.id === group.id
+              ? {
+                  ...g,
+                  lastMessage: newMessage.content || g.lastMessage,
+                  lastMessageAt: newMessage.createdAt,
+                  unreadCount:
+                    selectedGroupRef.current?.id === group.id || String(newMessage.senderId) === String(currentUser?.id)
+                      ? 0
+                      : (g.unreadCount || 0) + 1,
+                }
+              : g
+          )
+        );
+        if (selectedGroupRef.current?.id === group.id) {
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === newMessage.id)) return prev;
+            return [...prev, newMessage].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+          });
+        }
+      });
+    });
+  }, [groups]);
+
   const loadInitialData = async () => {
     setError("");
     setLoadingChats(true);
@@ -323,6 +371,8 @@ function Messages() {
     try {
       const data = await getGroupMessages(group.id);
       setMessages([...data].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)));
+      await markGroupMessagesSeen(group.id).catch(() => {});
+      setGroups((prev) => prev.map((g) => g.id === group.id ? { ...g, unreadCount: 0 } : g));
     } catch {
       setError("Could not load messages for this group.");
     } finally {
@@ -923,7 +973,14 @@ function Messages() {
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate font-semibold">{group.name}</p>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="truncate font-semibold">{group.name}</p>
+                        {group.unreadCount > 0 && (
+                          <span className="rounded-full bg-blue-500 px-2 py-0.5 text-xs font-bold text-white">
+                            {group.unreadCount}
+                          </span>
+                        )}
+                      </div>
                       <p className="truncate text-sm text-secondary">{group.lastMessage || `${group.members?.length || 0} members`}</p>
                     </div>
                   </button>

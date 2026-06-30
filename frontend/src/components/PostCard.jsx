@@ -1,12 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { deletePost, repostPost, updatePost } from "../api/postsApi";
-import { likePost, unlikePost, getLikeCount, isPostLiked } from "../api/likesApi";
-import { savePost, unsavePost, isPostSaved } from "../api/savedPostsApi";
-import { getShareCount } from "../api/shareApi";
+import { likePost, unlikePost } from "../api/likesApi";
+import { savePost, unsavePost } from "../api/savedPostsApi";
 import { disableComments, enableComments, hideLikeCount, showLikeCount } from "../api/postInteractionApi";
 import ShareModal from "./ShareModal";
-import { followUser, unfollowUser, isFollowingUser } from "../api/followApi";
+import { followUser, unfollowUser } from "../api/followApi";
 import {
   getComments,
   addComment,
@@ -94,9 +93,9 @@ function PostCard({ post, onPostUpdated, onPostDeleted, onMediaClick }) {
 
   const [editing, setEditing] = useState(false);
   const [caption, setCaption] = useState(post.caption || "");
-  const [liked, setLiked] = useState(false);
+  const [liked, setLiked] = useState(post.likedByCurrentUser ?? false);
   const [likes, setLikes] = useState(post.likeCount || 0);
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved] = useState(post.savedByCurrentUser ?? false);
   const shareCountRef = useRef(0);
   const setShareCount = (count) => { shareCountRef.current = count; };
   const [shareModalOpen, setShareModalOpen] = useState(false);
@@ -130,7 +129,7 @@ function PostCard({ post, onPostUpdated, onPostDeleted, onMediaClick }) {
   const [commentsDisabled, setCommentsDisabled] = useState(hasCommentsDisabled(post));
   const [likesHidden, setLikesHidden] = useState(isEnabledFlag(post.hideLikeCount));
 
-  const [following, setFollowing] = useState(false);
+  const [following, setFollowing] = useState(post.followingOwner ?? false);
   const [followLoading, setFollowLoading] = useState(false);
 
   const emojiRef = useRef(null);
@@ -171,22 +170,19 @@ function PostCard({ post, onPostUpdated, onPostDeleted, onMediaClick }) {
   };
 
   useEffect(() => {
-    let active = true;
     setCaption(post.caption || "");
     setModalCaption(post.caption || "");
     setModalEditing(false);
     setCaptionExpanded(false);
     setLikes(post.likeCount || 0);
+    setLiked(post.likedByCurrentUser ?? false);
+    setSaved(post.savedByCurrentUser ?? false);
+    setFollowing(post.followingOwner ?? false);
     setMediaIndex(0);
     setIsMuted(true);
-    loadLikeData().then(() => { if (!active) return; });
-    loadSavedStatus().then(() => { if (!active) return; });
-    loadShareCount().then(() => { if (!active) return; });
-    loadFollowStatus().then(() => { if (!active) return; });
     setCommentsDisabled(hasCommentsDisabled(post));
     setLikesHidden(isEnabledFlag(post.hideLikeCount));
     setRepostCount(post.repostCount || 0);
-    return () => { active = false; };
   }, [post.id, CURRENT_USER_ID]);
 
   useEffect(() => {
@@ -218,37 +214,6 @@ function PostCard({ post, onPostUpdated, onPostDeleted, onMediaClick }) {
   useEffect(() => {
     return () => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current); };
   }, []);
-
-  const loadLikeData = async () => {
-    if (!post.id || !CURRENT_USER_ID) return;
-
-    try {
-      const [count, status] = await Promise.all([
-        getLikeCount(post.id),
-        isPostLiked(post.id),
-      ]);
-      setLikes(count);
-      setLiked(status);
-    } catch {  }
-  };
-
-  const loadSavedStatus = async () => {
-    if (!post.id || !CURRENT_USER_ID) return;
-
-    try {
-      const status = await isPostSaved(post.id);
-      setSaved(status);
-    } catch {  }
-  };
-
-  const loadShareCount = async () => {
-    if (!post.id) return;
-
-    try {
-      const count = await getShareCount(post.id);
-      setShareCount(count);
-    } catch {  }
-  };
 
   const loadComments = async () => {
     if (!post.id) return;
@@ -289,13 +254,14 @@ function PostCard({ post, onPostUpdated, onPostDeleted, onMediaClick }) {
 
   const handleSaveToggle = async () => {
     if (!CURRENT_USER_ID) return;
-
+    const nextSaved = !saved;
+    setSaved(nextSaved);
     try {
       if (saved) await unsavePost(post.id);
       else await savePost(post.id);
-
-      await loadSavedStatus();
-    } catch {  }
+    } catch {
+      setSaved(!nextSaved);
+    }
   };
 
   const handleComment = async () => {
@@ -586,16 +552,6 @@ function PostCard({ post, onPostUpdated, onPostDeleted, onMediaClick }) {
       />
     </button>
   );
-
-  const loadFollowStatus = async () => {
-    if (!CURRENT_USER_ID || !postOwnerId) return;
-    if (String(CURRENT_USER_ID) === String(postOwnerId)) return;
-
-    try {
-      const status = await isFollowingUser(postOwnerId);
-      setFollowing(status);
-    } catch {  }
-  };
 
   const handleToggleComments = async () => {
     const next = !commentsDisabled;

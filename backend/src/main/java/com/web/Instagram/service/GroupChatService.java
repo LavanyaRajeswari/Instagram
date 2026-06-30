@@ -3,9 +3,11 @@ package com.web.Instagram.service;
 import com.web.Instagram.dto.chat.GroupMessageDto;
 import com.web.Instagram.entity.GroupChat;
 import com.web.Instagram.entity.GroupChatAdmin;
+import com.web.Instagram.entity.GroupChatLastRead;
 import com.web.Instagram.entity.GroupChatMessage;
 import com.web.Instagram.entity.User;
 import com.web.Instagram.repository.GroupChatAdminRepository;
+import com.web.Instagram.repository.GroupChatLastReadRepository;
 import com.web.Instagram.repository.GroupChatMessageRepository;
 import com.web.Instagram.repository.GroupChatRepository;
 import com.web.Instagram.repository.UserRepository;
@@ -26,6 +28,7 @@ public class GroupChatService {
     private final GroupChatRepository groupChatRepository;
     private final GroupChatMessageRepository groupChatMessageRepository;
     private final GroupChatAdminRepository groupChatAdminRepository;
+    private final GroupChatLastReadRepository groupChatLastReadRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
 
@@ -68,7 +71,27 @@ public class GroupChatService {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         User currentUser = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        return groupChatRepository.findByMembersIdOrderByLastMessageAtDesc(currentUser.getId());
+        List<GroupChat> groups = groupChatRepository.findByMembersIdOrderByLastMessageAtDesc(currentUser.getId());
+        if (groups.isEmpty()) return groups;
+        List<Long> groupIds = groups.stream().map(GroupChat::getId).toList();
+        Map<Long, Long> unreadCounts = new HashMap<>();
+        groupChatMessageRepository.countUnreadPerGroupForUser(groupIds, currentUser.getId())
+                .forEach(row -> unreadCounts.put(((Number) row[0]).longValue(), ((Number) row[1]).longValue()));
+        groups.forEach(g -> g.setUnreadCount(unreadCounts.getOrDefault(g.getId(), 0L)));
+        return groups;
+    }
+
+    @Transactional
+    public void markGroupRead(Long groupChatId) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        GroupChat groupChat = groupChatRepository.findById(groupChatId)
+                .orElseThrow(() -> new RuntimeException("Group chat not found"));
+        GroupChatLastRead record = groupChatLastReadRepository
+                .findByGroupChatIdAndUserId(groupChatId, currentUser.getId())
+                .orElse(GroupChatLastRead.builder().groupChat(groupChat).user(currentUser).build());
+        groupChatLastReadRepository.save(record);
     }
 
     public GroupChat getGroup(Long groupChatId) {

@@ -137,10 +137,15 @@ public class CallRestController {
         event.put("type", type);
         event.put("callId", call.getId());
         event.put("callType", call.getCallType());
+        event.put("status", call.getStatus());
         var evCaller = call.getCaller();
         event.put("callerId", evCaller != null ? evCaller.getId() : null);
         event.put("callerUsername", evCaller != null ? evCaller.getUsername() : null);
         event.put("callerProfilePicture", evCaller != null ? evCaller.getProfilePicture() : null);
+        var evCallee = call.getCallee();
+        event.put("calleeId", evCallee != null ? evCallee.getId() : null);
+        event.put("calleeUsername", evCallee != null ? evCallee.getUsername() : null);
+        event.put("calleeProfilePicture", evCallee != null ? evCallee.getProfilePicture() : null);
         event.put("groupCall", Boolean.TRUE.equals(call.getGroupCall()));
         if (call.getGroupChat() != null) {
             event.put("groupId", call.getGroupChat().getId());
