@@ -19,5 +19,6 @@ public class MessageDto {
     private Long forwardedFromId;
     private boolean deleted;
     private boolean seen;
+    private String reactions;
     private LocalDateTime createdAt;
 }

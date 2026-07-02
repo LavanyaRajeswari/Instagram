@@ -19,6 +19,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
@@ -91,6 +92,7 @@ public class GroupChatService {
         GroupChatLastRead record = groupChatLastReadRepository
                 .findByGroupChatIdAndUserId(groupChatId, currentUser.getId())
                 .orElse(GroupChatLastRead.builder().groupChat(groupChat).user(currentUser).build());
+        record.setLastReadAt(LocalDateTime.now());
         groupChatLastReadRepository.save(record);
     }
 
@@ -110,9 +112,7 @@ public class GroupChatService {
         GroupChat groupChat = groupChatRepository.findById(groupChatId)
                 .orElseThrow(() -> new RuntimeException("Group chat not found"));
 
-        if (!groupChat.getCreatedBy().getId().equals(currentUser.getId())) {
-            throw new RuntimeException("Only group creator can add members");
-        }
+        validateMember(groupChat, currentUser);
 
         User newMember = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -234,6 +234,19 @@ public class GroupChatService {
         return toDto(groupChatMessageRepository.save(message));
     }
 
+    @Transactional
+    public GroupMessageDto reactToMessage(Long groupChatId, Long messageId, String emoji) {
+        User currentUser = getCurrentUser();
+        GroupChatMessage message = groupChatMessageRepository.findById(messageId)
+                .orElseThrow(() -> new RuntimeException("Message not found"));
+        if (!message.getGroupChat().getId().equals(groupChatId)) {
+            throw new RuntimeException("Message does not belong to this group");
+        }
+        validateMember(message.getGroupChat(), currentUser);
+        message.setReactions(setReaction(message.getReactions(), emoji, currentUser.getId()));
+        return toDto(groupChatMessageRepository.save(message));
+    }
+
     public boolean isAdmin(Long groupChatId, Long userId) {
         return groupChatAdminRepository.existsByGroupChatIdAndUserId(groupChatId, userId);
     }
@@ -286,7 +299,42 @@ public class GroupChatService {
                 .replyToId(message.getReplyTo() != null ? message.getReplyTo().getId() : null)
                 .seen(message.getSeen())
                 .deleted(message.getDeleted())
+                .reactions(message.getReactions())
                 .createdAt(message.getCreatedAt())
                 .build();
+    }
+
+    private String setReaction(String existing, String emoji, Long userId) {
+        if (emoji == null || emoji.isBlank()) return existing;
+        Map<String, java.util.LinkedHashSet<Long>> reactions = new java.util.LinkedHashMap<>();
+        if (existing != null && !existing.isBlank()) {
+            for (String entry : existing.split(";")) {
+                String[] parts = entry.split("=", 2);
+                if (parts.length != 2) continue;
+                java.util.LinkedHashSet<Long> users = new java.util.LinkedHashSet<>();
+                if (parts[1].startsWith("u:")) {
+                    for (String id : parts[1].substring(2).split(",")) {
+                        try {
+                            users.add(Long.parseLong(id));
+                        } catch (NumberFormatException ignored) {
+                        }
+                    }
+                } else {
+                    try {
+                        int count = Integer.parseInt(parts[1]);
+                        for (long i = 0; i < count; i++) users.add(-Math.abs((long) parts[0].hashCode()) - i);
+                    } catch (NumberFormatException ignored) {
+                    }
+                }
+                if (!users.isEmpty()) reactions.put(parts[0], users);
+            }
+        }
+        reactions.values().forEach(users -> users.remove(userId));
+        reactions.entrySet().removeIf(entry -> entry.getValue().isEmpty());
+        reactions.computeIfAbsent(emoji, key -> new java.util.LinkedHashSet<>()).add(userId);
+        return reactions.entrySet().stream()
+                .map(entry -> entry.getKey() + "=u:" + entry.getValue().stream().map(String::valueOf).reduce((left, right) -> left + "," + right).orElse(""))
+                .reduce((left, right) -> left + ";" + right)
+                .orElse("");
     }
 }

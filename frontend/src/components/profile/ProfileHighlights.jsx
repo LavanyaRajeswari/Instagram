@@ -319,6 +319,11 @@ function ProfileHighlights({ user, isOwnProfile }) {
                 <StoryViewer
                     user={user}
                     stories={viewerStories}
+                    viewerMode="highlight"
+                    onDeleteHighlight={async () => {
+                        await handleDelete(selectedHighlight.id);
+                        setSelectedHighlight(null);
+                    }}
                     onClose={() => setSelectedHighlight(null)}
                 />
             ) : (

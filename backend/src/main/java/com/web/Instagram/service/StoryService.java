@@ -146,6 +146,16 @@ public class StoryService {
     }
 
     @Transactional
+    public void deleteStoriesAndHighlightsForUser(Long userId) {
+        highlightRepository.findByUserIdOrderByCreatedAtDesc(userId)
+                .forEach(highlightRepository::delete);
+        storyRepository.findByUserId(userId).forEach(story -> {
+            deleteStoryReferences(story);
+            storyRepository.delete(story);
+        });
+    }
+
+    @Transactional
     public void trackView(Long storyId, Long userId) {
         Story story = getStoryOrThrow(storyId);
         if (story.getUser() != null && story.getUser().getId().equals(userId)) {

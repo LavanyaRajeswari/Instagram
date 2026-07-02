@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { NavLink, useNavigate, useParams } from "react-router-dom";
-import { ChevronLeft, Moon, Sun } from "lucide-react";
+import { ChevronLeft, Trash2, X, Moon, Sun } from "lucide-react";
 
 import { searchUsers } from "../../api/userApi";
+import { logoutUser } from "../../api/userApi";
 import { useTheme } from "../../context/ThemeContext";
 import {
   addHiddenStoryUser,
@@ -23,6 +24,7 @@ import {
   updateStoryMentions,
   updateStoryReplies,
   getActivity,
+  deleteAccount as deleteAccountApi,
 } from "../../api/settingsApi";
 import { useCurrentUser, clearCurrentUserCache } from "../../hooks/useCurrentUser";
 import { getAvatarUrl } from "../../utils/avatar";
@@ -40,6 +42,7 @@ const items = [
   { slug: "comments", label: "Comments" },
   { slug: "appearance", label: "Appearance" },
   { slug: "activity", label: "Your Activity" },
+  { slug: "manage-account", label: "Manage Account" },
 ];
 
 function MissingEndpoint({ endpoints }) {
@@ -859,6 +862,109 @@ function ActivitySettings() {
   );
 }
 
+function ManageAccountSettings({ currentUser }) {
+  const navigate = useNavigate();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState("");
+
+  const createdAt = currentUser?.createdAt
+    ? new Date(currentUser.createdAt).toLocaleDateString([], { month: "long", day: "numeric", year: "numeric" })
+    : "";
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    setError("");
+    try {
+      await deleteAccountApi();
+      clearCurrentUserCache();
+      await logoutUser();
+      navigate("/login", { replace: true });
+    } catch {
+      setError("Could not delete your account. Please try again.");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <>
+      <h1 className="text-2xl font-bold">Manage Account</h1>
+      <div className="mt-6 space-y-4">
+        <section className="rounded-lg border border-[var(--border-primary)]">
+          <div className="border-b border-[var(--border-secondary)] px-4 py-3">
+            <p className="text-sm font-semibold">Instagram</p>
+          </div>
+          <div className="flex items-center justify-between gap-4 px-4 py-4">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold">{currentUser?.username || "Your account"}</p>
+              <p className="mt-1 text-xs text-[var(--text-secondary)]">{createdAt ? `Created ${createdAt}` : "Account details"}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setConfirmOpen(true)}
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold text-[#ed4956] hover:bg-[var(--hover-bg)]"
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete account
+            </button>
+          </div>
+        </section>
+        <p className="text-sm text-[var(--text-secondary)]">
+          Deleting your account removes your profile information and signs you out.
+        </p>
+      </div>
+
+      {confirmOpen && (
+        <div className="fixed inset-0 z-[900] flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-[600px] rounded-2xl bg-[var(--bg-primary)] p-5 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <button type="button" onClick={() => setConfirmOpen(false)} disabled={deleting} className="rounded-full p-2 hover:bg-[var(--hover-bg)]">
+                <ChevronLeft className="h-6 w-6" />
+              </button>
+              <button type="button" onClick={() => setConfirmOpen(false)} disabled={deleting} className="rounded-full p-2 hover:bg-[var(--hover-bg)]">
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            <h2 className="mt-4 text-2xl font-bold">Your Instagram account info will be deleted</h2>
+            <div className="mt-5 rounded-xl border border-[var(--border-primary)] p-4">
+              <div className="flex items-center gap-3">
+                <img src={getAvatarUrl(currentUser || {})} alt="" className="h-12 w-12 rounded-full object-cover" onError={(e) => { e.currentTarget.src = "/default-avatar.png"; e.currentTarget.onerror = null; }} />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold">{currentUser?.username}</p>
+                  <p className="text-sm text-[var(--text-secondary)]">Instagram</p>
+                  {createdAt && <p className="text-sm text-[var(--text-secondary)]">Created {createdAt}</p>}
+                </div>
+              </div>
+            </div>
+            <h3 className="mt-6 text-lg font-bold">Your profile information will be deleted</h3>
+            <div className="mt-4 rounded-xl border border-[var(--border-primary)] p-4">
+              <div className="flex items-center gap-3">
+                <div className="grid h-9 w-9 place-items-center rounded-full bg-[var(--bg-tertiary)]">
+                  <Trash2 className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold">{currentUser?.followersCount || 0} follower{currentUser?.followersCount === 1 ? "" : "s"}</p>
+                  <p className="text-sm text-[var(--text-secondary)]">Profile, personal details, and login access</p>
+                </div>
+              </div>
+            </div>
+            {error && <p className="mt-4 text-sm font-semibold text-[#ed4956]">{error}</p>}
+            <div className="mt-8 grid grid-cols-2 gap-3">
+              <button type="button" onClick={() => setConfirmOpen(false)} disabled={deleting} className="h-11 rounded-full bg-[var(--bg-tertiary)] text-sm font-bold disabled:opacity-50">
+                Cancel
+              </button>
+              <button type="button" onClick={handleDelete} disabled={deleting} className="h-11 rounded-full bg-[#0095f6] text-sm font-bold text-white disabled:opacity-50">
+                {deleting ? "Deleting..." : "Continue"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 function SettingsPage() {
   const { section = "" } = useParams();
   const navigate = useNavigate();
@@ -877,6 +983,7 @@ function SettingsPage() {
     comments: <CommentsSettings />,
     appearance: <AppearanceSettings />,
     activity: <ActivitySettings />,
+    "manage-account": <ManageAccountSettings currentUser={currentUser} />,
   };
 
   return (

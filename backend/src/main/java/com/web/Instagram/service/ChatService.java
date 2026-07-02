@@ -6,6 +6,8 @@ import com.web.Instagram.entity.ChatSetting;
 import com.web.Instagram.entity.User;
 import com.web.Instagram.repository.ChatRepository;
 import com.web.Instagram.repository.ChatSettingRepository;
+import com.web.Instagram.repository.GroupChatMessageRepository;
+import com.web.Instagram.repository.GroupChatRepository;
 import com.web.Instagram.repository.MessageRepository;
 import com.web.Instagram.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +29,8 @@ public class ChatService {
     private final UserRepository userRepository;
     private final MessageRepository messageRepository;
     private final ChatSettingRepository chatSettingRepository;
+    private final GroupChatRepository groupChatRepository;
+    private final GroupChatMessageRepository groupChatMessageRepository;
 
     public ChatDto startChat(Long targetUserId) {
 
@@ -51,6 +55,9 @@ public class ChatService {
         User targetUser = userRepository
                 .findById(targetUserId)
                 .orElseThrow(() -> new RuntimeException("Target user not found"));
+        if (isDeleted(targetUser)) {
+            throw new RuntimeException("Target user not found");
+        }
 
         Chat chat = new Chat();
         chat.setUserOne(currentUser);
@@ -78,6 +85,24 @@ public class ChatService {
                 .map(chat -> convert(chat, currentUser.getId()))
                 .forEach(chat -> chatsByOtherUser.putIfAbsent(chat.getOtherUserId(), chat));
         return List.copyOf(chatsByOtherUser.values());
+    }
+
+    public long getUnreadCount() {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        long directUnread = getChats().stream().mapToLong(ChatDto::getUnreadCount).sum();
+        List<Long> groupIds = groupChatRepository.findByMembersIdOrderByLastMessageAtDesc(currentUser.getId())
+                .stream().map(group -> group.getId()).toList();
+        if (groupIds.isEmpty()) {
+            return directUnread;
+        }
+        long groupUnread = groupChatMessageRepository.countUnreadPerGroupForUser(groupIds, currentUser.getId())
+                .stream()
+                .mapToLong(row -> ((Number) row[1]).longValue())
+                .sum();
+        return directUnread + groupUnread;
     }
 
     @Transactional
@@ -149,28 +174,25 @@ public class ChatService {
 
     private ChatDto convert(Chat chat, Long currentUserId) {
 
-        User otherUser;
-        if (chat.getUserOne().getId().equals(currentUserId)) {
-            otherUser = chat.getUserTwo();
-        } else {
-            otherUser = chat.getUserOne();
-        }
+        User otherUser = getOtherUser(chat, currentUserId);
+        boolean otherUserDeleted = isDeleted(otherUser);
 
         long unreadCount = messageRepository.countByChatIdAndSeenFalseAndSenderIdNot(chat.getId(), currentUserId);
 
         ChatDto dto = new ChatDto();
         dto.setId(chat.getId());
         dto.setOtherUserId(otherUser.getId());
-        dto.setUsername(otherUser.getUsername());
-        dto.setFullName(otherUser.getFullName());
-        dto.setProfilePicture(otherUser.getProfilePicture());
+        dto.setUsername(otherUserDeleted ? "Instagram user" : otherUser.getUsername());
+        dto.setFullName(otherUserDeleted ? "" : otherUser.getFullName());
+        dto.setProfilePicture(otherUserDeleted ? null : otherUser.getProfilePicture());
         dto.setLastMessage(chat.getLastMessage() != null ? chat.getLastMessage() : "");
         dto.setLastMessageAt(chat.getLastMessageAt());
-        dto.setLastSeen(otherUser.getLastActiveAt());
+        dto.setLastSeen(otherUserDeleted ? null : otherUser.getLastActiveAt());
         dto.setUnreadCount(unreadCount);
-        dto.setOnline(otherUser.isOnline());
+        dto.setOnline(!otherUserDeleted && otherUser.isOnline());
         dto.setMuted(chat.isMuted());
         dto.setMuteUntil(chat.getMuteUntil());
+        dto.setOtherUserDeleted(otherUserDeleted);
 
         ChatSetting setting = chatSettingRepository.findByUserIdAndChatId(currentUserId, chat.getId()).orElse(null);
         if (setting != null) {
@@ -178,5 +200,13 @@ public class ChatService {
         }
 
         return dto;
+    }
+
+    private User getOtherUser(Chat chat, Long currentUserId) {
+        return chat.getUserOne().getId().equals(currentUserId) ? chat.getUserTwo() : chat.getUserOne();
+    }
+
+    private boolean isDeleted(User user) {
+        return user != null && "DELETED".equalsIgnoreCase(user.getAccountStatus());
     }
 }

@@ -21,4 +21,5 @@ public class ChatDto {
     private boolean muted;
     private LocalDateTime muteUntil;
     private String nickname;
+    private boolean otherUserDeleted;
 }

@@ -101,4 +101,12 @@ public class GroupChatRestController {
         return ResponseEntity.ok(groupChatService.deleteMessage(groupId, messageId));
     }
 
+    @PostMapping("/{groupId}/messages/{messageId}/reaction")
+    public ResponseEntity<GroupMessageDto> reactToMessage(
+            @PathVariable Long groupId,
+            @PathVariable Long messageId,
+            @RequestBody Map<String, String> body) {
+        return ResponseEntity.ok(groupChatService.reactToMessage(groupId, messageId, body.get("emoji")));
+    }
+
 }

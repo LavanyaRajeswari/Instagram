@@ -33,8 +33,9 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "posts", indexes = {
-    @Index(name = "idx_post_user_id", columnList = "user_id"),
-    @Index(name = "idx_post_created_at", columnList = "createdAt")
+    @Index(name = "idx_posts_created_at", columnList = "created_at"),
+    @Index(name = "idx_posts_user_created_at", columnList = "user_id, created_at"),
+    @Index(name = "idx_posts_original_post_id", columnList = "original_post_id")
 })
 public class Post implements Serializable {
     private static final long serialVersionUID = 1L;

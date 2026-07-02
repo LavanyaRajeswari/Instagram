@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Camera, CameraOff, Mic, MicOff, PhoneOff, UserRound, Users, Video } from "lucide-react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { cancelCall, endCall, getCallHistory, leaveCall, startCall, startGroupCall } from "../api/callsApi";
+import { cancelCall, endCall, getCallById, leaveCall, startCall, startGroupCall } from "../api/callsApi";
 import { getAvatarUrl } from "../utils/avatar";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import {
@@ -22,6 +22,8 @@ const ICE_SERVERS = [
   { urls: "stun:stun4.l.google.com:19302" },
 ];
 
+const ACTIVE_CALL_STORAGE_KEY = "activeCall";
+
 function CallPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -33,11 +35,25 @@ function CallPage() {
   const groupId = callState.groupId || searchParams.get("groupId") || "";
   const isGroupCall = Boolean(groupId);
   const callType = hasVideo ? "VIDEO" : "VOICE";
-  const [callId, setCallId] = useState(callState.callId || urlCallId || "");
-  const initialStatus = callState.accepted ? "connected" : callState.autoStart ? "dialing" : callState.callId || urlCallId ? "ringing" : "idle";
+  const savedCallState = (() => {
+    try {
+      const saved = sessionStorage.getItem(ACTIVE_CALL_STORAGE_KEY);
+      if (!saved) return null;
+      const parsed = JSON.parse(saved);
+      if (urlCallId && String(parsed.callId) === String(urlCallId)) return parsed;
+      if (groupId && String(parsed.groupId) === String(groupId)) return parsed;
+      const userId = searchParams.get("userId") || callState.otherUserId;
+      if (userId && String(parsed.otherUserId) === String(userId)) return parsed;
+      return null;
+    } catch {
+      return null;
+    }
+  })();
+  const [callId, setCallId] = useState(callState.callId || urlCallId || savedCallState?.callId || "");
+  const initialStatus = callState.accepted ? "connected" : callState.autoStart ? "dialing" : callState.callId || urlCallId || savedCallState?.callId ? "ringing" : "idle";
   const [callStatus, setCallStatus] = useState(initialStatus);
-  const [peerUserId, setPeerUserId] = useState(callState.otherUserId || searchParams.get("userId") || "");
-  const [callerId, setCallerId] = useState(callState.callerId || callState.otherUserId || "");
+  const [peerUserId, setPeerUserId] = useState(callState.otherUserId || searchParams.get("userId") || savedCallState?.otherUserId || "");
+  const [callerId, setCallerId] = useState(callState.callerId || savedCallState?.callerId || callState.otherUserId || "");
 
   const prevCallIdRef = useRef(null);
   useEffect(() => {
@@ -93,21 +109,11 @@ function CallPage() {
   useEffect(() => { peerUserIdRef.current = peerUserId; }, [peerUserId]);
   useEffect(() => { hasVideoRef.current = hasVideo; }, [hasVideo]);
 
-  const savedCallState = (() => {
-    if (!urlCallId || callState.callId) return null;
-    try {
-      const s = sessionStorage.getItem("activeGroupCall");
-      if (!s) return null;
-      const p = JSON.parse(s);
-      return p.callId === urlCallId ? p : null;
-    } catch { return null; }
-  })();
-
   const groupName = callState.groupName || savedCallState?.groupName || "Group call";
-  const directName = callState.username || "Instagram user";
+  const directName = callState.username || savedCallState?.username || "Instagram user";
   const title = isGroupCall ? groupName : directName;
-  const callerName = callState.username || callState.callerUsername || "Instagram user";
-  const displayPicture = callState.groupProfilePicture || savedCallState?.groupProfilePicture || callState.profilePicture;
+  const callerName = callState.username || callState.callerUsername || savedCallState?.username || "Instagram user";
+  const displayPicture = callState.groupProfilePicture || savedCallState?.groupProfilePicture || callState.profilePicture || savedCallState?.profilePicture;
   const returnTo = callState.returnTo || savedCallState?.returnTo || "/messages";
   const connected = callStatus === "connected";
 
@@ -155,8 +161,11 @@ function CallPage() {
       window.clearInterval(durationTimerRef.current);
       durationTimerRef.current = null;
     }
-    try { sessionStorage.removeItem("activeGroupCall"); } catch {}
   }, [stopPeer]);
+
+  const clearSavedActiveCall = useCallback(() => {
+    try { sessionStorage.removeItem(ACTIVE_CALL_STORAGE_KEY); } catch {}
+  }, []);
 
   const handleRemoteOfferRef = useRef(null);
   const handleRemoteAnswerRef = useRef(null);
@@ -376,7 +385,7 @@ function CallPage() {
   useEffect(() => {
     if (!callId || callId === "started" || !isGroupCall) return;
     try {
-      sessionStorage.setItem("activeGroupCall", JSON.stringify({
+      sessionStorage.setItem(ACTIVE_CALL_STORAGE_KEY, JSON.stringify({
         callId,
         groupId,
         groupName,
@@ -384,7 +393,21 @@ function CallPage() {
         returnTo,
       }));
     } catch {}
-  }, [callId, isGroupCall]);
+  }, [callId, isGroupCall, groupId, groupName, returnTo]);
+
+  useEffect(() => {
+    if (!callId || callId === "started" || isGroupCall) return;
+    try {
+      sessionStorage.setItem(ACTIVE_CALL_STORAGE_KEY, JSON.stringify({
+        callId,
+        otherUserId: peerUserId,
+        callerId,
+        username: directName,
+        profilePicture: displayPicture || "",
+        returnTo,
+      }));
+    } catch {}
+  }, [callId, callerId, directName, displayPicture, isGroupCall, peerUserId, returnTo]);
   useEffect(() => { handleRemoteOfferRef.current = handleRemoteOffer; }, [handleRemoteOffer]);
   useEffect(() => { handleRemoteAnswerRef.current = handleRemoteAnswer; }, [handleRemoteAnswer]);
   useEffect(() => { handleRemoteIceCandidateRef.current = handleRemoteIceCandidate; }, [handleRemoteIceCandidate]);
@@ -510,11 +533,13 @@ function CallPage() {
         endedRef.current = true;
         setCallStatus("declined");
         cleanupCallRef.current?.();
+        clearSavedActiveCall();
         window.setTimeout(() => nFn(rTo, { replace: true }), 2000);
       } else if (event.type === "CALL_ENDED" || event.type === "CALL_CANCELLED") {
         endedRef.current = true;
         setCallStatus("ended");
         cleanupCallRef.current?.();
+        clearSavedActiveCall();
         window.setTimeout(() => nFn(rTo, { replace: true }), 1500);
       } else if (event.type === "CALL_LEFT" && event.participantId) {
         offerTargetsRef.current.delete(String(event.participantId));
@@ -532,7 +557,7 @@ function CallPage() {
       }
     });
     return () => { unsub?.(); };
-  }, [currentUserId]);
+  }, [clearSavedActiveCall, currentUserId]);
 
   useEffect(() => {
     if (!callId || callId === "started") return;
@@ -557,10 +582,8 @@ function CallPage() {
 
     const pollCallStatus = async () => {
       try {
-        const history = await getCallHistory();
+        const call = await getCallById(thisCallId);
         if (pollCancelledRef.current || pollGenRef.current !== thisGen || callIdRef.current !== thisCallId) return;
-        const calls = Array.isArray(history) ? history : Array.isArray(history?.content) ? history.content : [];
-        const call = calls.find((item) => String(item?.id || item?.callId) === String(thisCallId));
         const curStatus = callStatusRef.current;
         const curPeerId = peerUserIdRef.current;
         const uId = userIdRef.current;
@@ -576,6 +599,11 @@ function CallPage() {
         if (call?.groupMembers && upsertMembersRef.current) upsertMembersRef.current(call.groupMembers);
         if (call?.participants && replaceParticipantsRef.current) replaceParticipantsRef.current(call.participants);
         const status = String(call?.status || "").toUpperCase();
+
+        if (status === "ANSWERED") {
+          const elapsed = getElapsedSeconds(call.startedAt);
+          if (elapsed > 0) setCallDuration(elapsed);
+        }
 
         if (status === "ANSWERED" && curStatus !== "connected") {
           setCallStatus("connected");
@@ -598,6 +626,7 @@ function CallPage() {
 
         endedRef.current = true;
         cleanupCallRef.current?.();
+        clearSavedActiveCall();
         setCallStatus(status === "REJECTED" || status === "DECLINED" ? "declined" : "ended");
         window.setTimeout(() => navigateRef.current?.(returnToRef.current, { replace: true }), status === "REJECTED" || status === "DECLINED" ? 2000 : 1500);
       } catch {
@@ -610,14 +639,64 @@ function CallPage() {
       pollCancelledRef.current = true;
       window.clearInterval(intervalId);
     };
-  }, [callId]);
+  }, [callId, clearSavedActiveCall]);
+
+  useEffect(() => {
+    if (!callId || callId === "started") return;
+    let cancelled = false;
+
+    const hydrateCall = async () => {
+      try {
+        const call = await getCallById(callId);
+        if (cancelled) return;
+        if (!call) return;
+
+        const status = String(call.status || "").toUpperCase();
+        if (call.callerId) setCallerId(call.callerId);
+        if (call.groupMembers) upsertMembers(call.groupMembers);
+        if (call.participants) replaceParticipants(call.participants);
+        if (!isGroupCall && !peerUserId) {
+          const otherId = String(call.callerId) === String(currentUserId) ? call.calleeId : call.callerId;
+          if (otherId) setPeerUserId(String(otherId));
+        }
+        if (status === "ANSWERED") {
+          setCallStatus("connected");
+          setCallDuration(getElapsedSeconds(call.startedAt));
+        } else if (status === "CALLING" && callStatusRef.current === "idle") {
+          setCallStatus("ringing");
+        }
+      } catch {
+      }
+    };
+
+    hydrateCall();
+    return () => { cancelled = true; };
+  }, [callId, currentUserId, isGroupCall, peerUserId, replaceParticipants, upsertMembers]);
 
   useEffect(() => {
     if (callStatus !== "connected") return;
+    if (durationTimerRef.current) window.clearInterval(durationTimerRef.current);
     durationTimerRef.current = window.setInterval(() => setCallDuration((prev) => prev + 1), 1000);
     return () => {
-      if (durationTimerRef.current) window.clearInterval(durationTimerRef.current);
+      if (durationTimerRef.current) {
+        window.clearInterval(durationTimerRef.current);
+        durationTimerRef.current = null;
+      }
     };
+  }, [callStatus]);
+
+  useEffect(() => {
+    const shouldBlockBack = ["dialing", "ringing", "connected"].includes(callStatus);
+    if (!shouldBlockBack) return;
+
+    window.history.pushState({ callBackGuard: true }, "", window.location.href);
+    const handlePopState = () => {
+      if (["dialing", "ringing", "connected"].includes(callStatusRef.current)) {
+        window.history.pushState({ callBackGuard: true }, "", window.location.href);
+      }
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
   }, [callStatus]);
 
   useEffect(() => {
@@ -653,6 +732,13 @@ function CallPage() {
       if (data?.participants) upsertParticipants(data.participants);
       setCallId(newCallId || "started");
       setCallStatus("ringing");
+      if (newCallId) {
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.set("callId", newCallId);
+        if (groupId) nextParams.set("groupId", groupId);
+        else if (nextPeerUserId) nextParams.set("userId", nextPeerUserId);
+        navigate(`/call?${nextParams.toString()}`, { replace: true, state: { ...callState, callId: newCallId } });
+      }
     } catch (err) {
       setError(err?.response?.data?.message || "Unable to start call right now.");
     } finally {
@@ -673,6 +759,7 @@ function CallPage() {
     cleanupCallRef.current?.();
 
     if (!callId || callId === "started") {
+      clearSavedActiveCall();
       navigateRef.current(returnToRef.current, { replace: true });
       return;
     }
@@ -683,6 +770,7 @@ function CallPage() {
       const isGroupCaller = isGroupCallRef.current && String(callerId || currentUserId) === String(currentUserId);
       if (isGroupCallRef.current && !isGroupCaller) {
         await leaveCall(callId);
+        clearSavedActiveCall();
         navigateRef.current(returnToRef.current, { replace: true });
         return;
       }
@@ -702,6 +790,7 @@ function CallPage() {
     } catch {
     }
 
+    clearSavedActiveCall();
     navigateRef.current(returnToRef.current, { replace: true });
   };
 
@@ -1000,6 +1089,13 @@ function formatDuration(seconds) {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
   return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+}
+
+function getElapsedSeconds(startedAt) {
+  if (!startedAt) return 0;
+  const started = new Date(startedAt).getTime();
+  if (!Number.isFinite(started)) return 0;
+  return Math.max(0, Math.floor((Date.now() - started) / 1000));
 }
 
 function stopMediaTracks(stream) {

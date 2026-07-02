@@ -22,6 +22,7 @@ import { FaWhatsapp, FaThreads } from "react-icons/fa6";
 import { logoutUser } from "../api/userApi";
 import { clearCurrentUserCache } from "../hooks/useCurrentUser";
 import { getUnreadNotificationCount } from "../api/notificationsApi";
+import { getUnreadMessageCount } from "../api/messagesApi";
 import { subscribeToNotifications, connect } from "../hooks/useWebSocket";
 import React, { useEffect, useRef, useState } from "react";
 
@@ -45,6 +46,7 @@ function Sidebar({ onCreateClick, compact = false }) {
   const [moreOpen, setMoreOpen] = useState(false);
   const [metaOpen, setMetaOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const moreRef = useRef(null);
 
   const refreshUnread = () => {
@@ -54,8 +56,15 @@ function Sidebar({ onCreateClick, compact = false }) {
     }).catch(() => {});
   };
 
+  const refreshMessageUnread = () => {
+    getUnreadMessageCount().then((count) => {
+      setUnreadMessageCount(typeof count === "number" ? count : 0);
+    }).catch(() => {});
+  };
+
   useEffect(() => {
     refreshUnread();
+    refreshMessageUnread();
 
     const unsub = subscribeToNotifications(() => {
       refreshUnread();
@@ -65,20 +74,28 @@ function Sidebar({ onCreateClick, compact = false }) {
 
     const handleSeen = () => refreshUnread();
     const handleNew = () => refreshUnread();
+    const handleMessageChange = () => refreshMessageUnread();
 
     window.addEventListener("notifications-seen", handleSeen);
     window.addEventListener("notification-new", handleNew);
+    window.addEventListener("messages-seen", handleMessageChange);
+    window.addEventListener("message-new", handleMessageChange);
 
     return () => {
       if (unsub) unsub();
       window.removeEventListener("notifications-seen", handleSeen);
       window.removeEventListener("notification-new", handleNew);
+      window.removeEventListener("messages-seen", handleMessageChange);
+      window.removeEventListener("message-new", handleMessageChange);
     };
   }, []);
 
   useEffect(() => {
     if (location.pathname === "/notifications") {
       refreshUnread();
+    }
+    if (location.pathname === "/messages") {
+      refreshMessageUnread();
     }
   }, [location.pathname]);
 
@@ -183,6 +200,11 @@ function Sidebar({ onCreateClick, compact = false }) {
                   {item.name === "Notifications" && unreadCount > 0 && (
                     <span className="absolute -right-1.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#ed4956] px-1 text-[10px] font-bold leading-none text-white">
                       {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  )}
+                  {item.name === "Messages" && unreadMessageCount > 0 && (
+                    <span className="absolute -right-1.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#ed4956] px-1 text-[10px] font-bold leading-none text-white">
+                      {unreadMessageCount > 99 ? "99+" : unreadMessageCount}
                     </span>
                   )}
                 </div>

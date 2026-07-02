@@ -76,4 +76,11 @@ public class MessageRestController {
             @RequestBody Map<String, String> body) {
         return ResponseEntity.ok(messageService.editMessage(messageId, body.get("content")));
     }
+
+    @PostMapping("/{messageId}/reaction")
+    public ResponseEntity<MessageDto> reactToMessage(
+            @PathVariable Long messageId,
+            @RequestBody Map<String, String> body) {
+        return ResponseEntity.ok(messageService.reactToMessage(messageId, body.get("emoji")));
+    }
 }

@@ -2,6 +2,7 @@ package com.web.Instagram.repository;
 
 import com.web.Instagram.entity.GroupChatAdmin;
 import org.springframework.data.jpa.repository.JpaRepository;
+
 import java.util.List;
 import java.util.Optional;
 

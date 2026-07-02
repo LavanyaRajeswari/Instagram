@@ -73,6 +73,7 @@ public class NotificationService {
         }
 
         return notifications.stream()
+                .filter(n -> n.getSender() == null || !"DELETED".equalsIgnoreCase(n.getSender().getAccountStatus()))
                 .map(n -> toResponse(n, pendingFollowRequestBySenderId))
                 .toList();
     }
@@ -80,6 +81,9 @@ public class NotificationService {
     private NotificationResponse toResponse(Notification n, Map<Long, Long> pendingFollowRequestBySenderId) {
         User actor = n.getSender();
         Long followRequestId = null;
+        if (actor != null && "DELETED".equalsIgnoreCase(actor.getAccountStatus())) {
+            actor = null;
+        }
         if ("FOLLOW_REQUEST".equalsIgnoreCase(n.getType()) && actor != null) {
             followRequestId = pendingFollowRequestBySenderId.get(actor.getId());
         }

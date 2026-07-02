@@ -5,6 +5,11 @@ export const getChats = async () => {
   return data;
 };
 
+export const getUnreadMessageCount = async () => {
+  const { data } = await api.get("/chats/unread-count");
+  return data?.count ?? 0;
+};
+
 export const getMessages = async (chatId, { page = 0, size = 30 } = {}) => {
   const { data } = await api.get(`/messages/${chatId}`, {
     params: { page, size },
@@ -46,6 +51,11 @@ export const editMessage = async (messageId, content) => {
 export const deleteMessageById = async (messageId) => {
   await api.delete(`/messages/${messageId}`);
   return true;
+};
+
+export const reactToMessage = async (messageId, emoji) => {
+  const { data } = await api.post(`/messages/${messageId}/reaction`, { emoji });
+  return data;
 };
 
 export const searchUsersForChat = async (query) => {
@@ -95,9 +105,18 @@ export const getGroups = async () => {
   return Array.isArray(data) ? data : [];
 };
 
+export const getGroup = async (groupId) => {
+  const { data } = await api.get(`/groups/${groupId}`);
+  return data;
+};
+
 export const createGroup = async ({ name, description = "", memberIds = [] }) => {
   const { data } = await api.post("/groups", { name, description, memberIds });
   return data;
+};
+
+export const addGroupMember = async (groupId, userId) => {
+  await api.post(`/groups/${groupId}/members/${userId}`);
 };
 
 export const getGroupMessages = async (groupId, { page = 0, size = 30 } = {}) => {
@@ -124,6 +143,11 @@ export const editGroupMessage = async (groupId, messageId, content) => {
 
 export const deleteGroupMessage = async (groupId, messageId) => {
   const { data } = await api.delete(`/groups/${groupId}/messages/${messageId}`);
+  return data;
+};
+
+export const reactToGroupMessage = async (groupId, messageId, emoji) => {
+  const { data } = await api.post(`/groups/${groupId}/messages/${messageId}/reaction`, { emoji });
   return data;
 };
 

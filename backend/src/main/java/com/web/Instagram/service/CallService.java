@@ -95,7 +95,9 @@ public class CallService {
         Call call = callRepository.findById(callId)
                 .orElseThrow(() -> new RuntimeException("Call not found"));
         call.setStatus("ANSWERED");
-        call.setStartedAt(LocalDateTime.now());
+        if (call.getStartedAt() == null) {
+            call.setStartedAt(LocalDateTime.now());
+        }
         Call saved = callRepository.save(call);
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         userRepository.findByUsername(username).ifPresent(user -> addParticipant(saved.getId(), user.getId()));
@@ -157,6 +159,22 @@ public class CallService {
                 .orElseThrow(() -> new RuntimeException("Call not found"));
     }
 
+    public Call getAccessibleCall(Long callId) {
+        Call call = getCall(callId);
+        User currentUser = getCurrentUser();
+        Long currentUserId = currentUser.getId();
+        boolean directParticipant = call.getCaller().getId().equals(currentUserId)
+                || call.getCallee().getId().equals(currentUserId);
+        boolean groupMember = Boolean.TRUE.equals(call.getGroupCall())
+                && call.getGroupChat() != null
+                && call.getGroupChat().getMembers().stream().anyMatch(member -> member.getId().equals(currentUserId));
+        boolean joinedParticipant = participantRepository.existsByCallIdAndUserId(callId, currentUserId);
+        if (!directParticipant && !groupMember && !joinedParticipant) {
+            throw new RuntimeException("Access denied");
+        }
+        return call;
+    }
+
     public Page<Call> getCallHistory(int page, int size) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         User currentUser = userRepository.findByUsername(username)
@@ -198,6 +216,12 @@ public class CallService {
         } else {
             saveDirectCallMessage(call, actor, content);
         }
+    }
+
+    private User getCurrentUser() {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        return userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
     }
 
     private void closeParticipants(Call call) {

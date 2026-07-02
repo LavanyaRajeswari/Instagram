@@ -1,17 +1,5 @@
 package com.web.Instagram.service;
 
-import java.util.List;
-import java.util.Map;
-
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.http.HttpStatus;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.server.ResponseStatusException;
-
 import com.web.Instagram.dto.user.LoginRequest;
 import com.web.Instagram.dto.user.LoginResponse;
 import com.web.Instagram.dto.user.RegisterRequest;
@@ -22,12 +10,25 @@ import com.web.Instagram.dto.user.UserResponse;
 import com.web.Instagram.entity.SearchHistory;
 import com.web.Instagram.entity.User;
 import com.web.Instagram.repository.FollowRepository;
+import com.web.Instagram.repository.NotificationRepository;
 import com.web.Instagram.repository.PostRepository;
 import com.web.Instagram.repository.SearchHistoryRepository;
 import com.web.Instagram.repository.UserRepository;
 import com.web.Instagram.security.JwtService;
-
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -37,13 +38,16 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final CloudinaryService cloudinaryService;
+    private final PostService postService;
+    private final StoryService storyService;
     private final PostRepository postRepository;
     private final FollowRepository followRepository;
+    private final NotificationRepository notificationRepository;
     private final SearchHistoryRepository searchHistoryRepository;
 
     public List<UserResponse> getAllUsers(int limit) {
         int safeLimit = Math.min(Math.max(limit, 1), 100);
-        return userRepository.findAll(org.springframework.data.domain.PageRequest.of(0, safeLimit))
+        return userRepository.findAll(PageRequest.of(0, safeLimit))
                 .stream().map(this::mapToResponse).toList();
     }
 
@@ -55,6 +59,9 @@ public class UserService {
     public UserResponse getUser(Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+        if (isDeleted(user)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
+        }
         return mapToResponse(user);
     }
 
@@ -116,6 +123,9 @@ public class UserService {
 
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized"));
+        if (isDeleted(user)) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized");
+        }
 
         return mapToResponse(user);
     }
@@ -194,6 +204,10 @@ public class UserService {
                 .build();
     }
 
+    private boolean isDeleted(User user) {
+        return user != null && "DELETED".equalsIgnoreCase(user.getAccountStatus());
+    }
+
     private LoginResponse mapToLoginResponse(User user) {
         String token = jwtService.generateToken(user.getUsername());
         return LoginResponse.builder()
@@ -214,7 +228,7 @@ public class UserService {
 
     public List<UserResponse> getSuggestedUsers(Long userId, int limit) {
         return userRepository.findSuggestedUsers(userId,
-            org.springframework.data.domain.PageRequest.of(0, limit))
+            PageRequest.of(0, limit))
             .stream().map(this::mapToResponse).toList();
     }
 
@@ -293,6 +307,36 @@ public class UserService {
 
     @Transactional
     public void clearSearchHistory(Long userId) {
+        searchHistoryRepository.deleteByUserId(userId);
+    }
+
+    @Transactional
+    @CacheEvict(cacheNames = {"userProfiles", "postById", "feed", "reels"}, allEntries = true)
+    public void deleteAccount(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        List<Long> postIds = postRepository.findIdsByUserId(userId);
+        postIds.forEach(postId -> postService.deletePost(postId, userId));
+        storyService.deleteStoriesAndHighlightsForUser(userId);
+        String deletedUsername = "deleted_" + user.getId();
+        user.setUsername(deletedUsername.length() <= 30 ? deletedUsername : deletedUsername.substring(0, 30));
+        user.setFullName("Deleted User");
+        user.setEmail(null);
+        user.setMobileNumber(null);
+        user.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
+        user.setBio(null);
+        user.setGender(null);
+        user.setProfilePicture(null);
+        user.setWebsite(null);
+        user.setPronouns(null);
+        user.setIsPrivate(true);
+        user.setOnline(false);
+        user.setAccountStatus("DELETED");
+        userRepository.save(user);
+        followRepository.deleteByFollowerId(userId);
+        followRepository.deleteByFollowingId(userId);
+        notificationRepository.deleteBySenderId(userId);
+        notificationRepository.deleteByRecipientId(userId);
         searchHistoryRepository.deleteByUserId(userId);
     }
 }

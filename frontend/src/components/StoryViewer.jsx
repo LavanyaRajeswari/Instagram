@@ -30,6 +30,7 @@ import {
   archiveStory,
 } from "../api/storiesApi";
 import ShareModal from "./ShareModal";
+import LinkedText from "./LinkedText";
 import { createReport } from "../api/reportsApi";
 import { getAvatarUrl } from "../utils/avatar";
 import { useCurrentUser } from "../hooks/useCurrentUser";
@@ -106,7 +107,7 @@ const storyReportOptions = {
   },
 };
 
-function StoryViewer({ user, stories = [], onClose }) {
+function StoryViewer({ user, stories = [], onClose, viewerMode = "story", onDeleteHighlight }) {
   const navigate = useNavigate();
   const { currentUserId } = useCurrentUser();
   const [index, setIndex] = useState(0);
@@ -119,6 +120,7 @@ function StoryViewer({ user, stories = [], onClose }) {
   const [viewCount, setViewCount] = useState(0);
   const [replyCount, setReplyCount] = useState(0);
   const isOwnStory = String(currentUserId || "") === String(user?.id || "");
+  const isHighlightViewer = viewerMode === "highlight";
   const [menuOpen, setMenuOpen] = useState(false);
   const [showOwnerAnalytics, setShowOwnerAnalytics] = useState(false);
   const [analyticsList, setAnalyticsList] = useState(null);
@@ -328,6 +330,13 @@ function StoryViewer({ user, stories = [], onClose }) {
   const handleDelete = async () => {
     if (!activeStory) return;
     try {
+      if (isHighlightViewer && onDeleteHighlight) {
+        await onDeleteHighlight();
+        setMenuOpen(false);
+        setToast("Highlight deleted");
+        setTimeout(onClose, 300);
+        return;
+      }
       await deleteStory(activeStory.id);
       setMenuOpen(false);
       setToast("Story deleted");
@@ -335,7 +344,7 @@ function StoryViewer({ user, stories = [], onClose }) {
     } catch {
       setMenuOpen(false);
       setPaused(false);
-      setToast("Could not delete story");
+      setToast(isHighlightViewer ? "Could not delete highlight" : "Could not delete story");
       setTimeout(() => setToast(""), 2000);
     }
   };
@@ -532,7 +541,7 @@ function StoryViewer({ user, stories = [], onClose }) {
 
           {activeStory.caption && (
             <p className={`absolute ${activeStory.musicAudioUrl ? "bottom-36" : "bottom-24"} left-5 right-5 z-30 whitespace-pre-wrap rounded-lg bg-black/30 px-3 py-2 text-sm`}>
-              {activeStory.caption}
+              <LinkedText text={activeStory.caption} />
             </p>
           )}
 
@@ -682,20 +691,22 @@ function StoryViewer({ user, stories = [], onClose }) {
           <div className="w-[420px] overflow-hidden rounded-2xl bg-card text-center text-sm text-primary">
             {isOwnStory ? (
               <>
-                <button
-                  type="button"
-                  onClick={handleArchive}
-                  className="block w-full border-b border-primary py-4 font-semibold"
-                >
-                  Archive
-                </button>
+                {!isHighlightViewer && (
+                  <button
+                    type="button"
+                    onClick={handleArchive}
+                    className="block w-full border-b border-primary py-4 font-semibold"
+                  >
+                    Archive
+                  </button>
+                )}
 
                 <button
                   type="button"
                   onClick={handleDelete}
                   className="block w-full border-b border-primary py-4 font-semibold text-[#ed4956]"
                 >
-                  Delete
+                  {isHighlightViewer ? "Delete highlight" : "Delete"}
                 </button>
 
                 <button

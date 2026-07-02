@@ -45,10 +45,10 @@ public class Call {
     @JoinColumn(name = "group_chat_id")
     private GroupChat groupChat;
 
+    private Long groupId;
+
     @Builder.Default
     private Boolean recording = false;
-
-    private Long groupId;
 
     @CreationTimestamp
     private LocalDateTime createdAt;

@@ -25,5 +25,6 @@ public class GroupMessageDto {
     private Long replyToId;
     private Boolean seen;
     private Boolean deleted;
+    private String reactions;
     private LocalDateTime createdAt;
 }

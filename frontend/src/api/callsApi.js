@@ -5,6 +5,11 @@ export const getCallHistory = async () => {
   return unwrapPage(data);
 };
 
+export const getCallById = async (callId) => {
+  const { data } = await api.get(`/calls/${callId}`);
+  return data;
+};
+
 export const answerCall = async (callId) => {
   const { data } = await api.post(`/calls/${callId}/answer`);
   return data;

@@ -33,6 +33,11 @@ public class ChatRestController {
         );
     }
 
+    @GetMapping("/unread-count")
+    public ResponseEntity<Map<String, Long>> getUnreadCount() {
+        return ResponseEntity.ok(Map.of("count", chatService.getUnreadCount()));
+    }
+
     @DeleteMapping("/{chatId}")
     public ResponseEntity<Void> deleteChat(@PathVariable Long chatId) {
         chatService.deleteChat(chatId);

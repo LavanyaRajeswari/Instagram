@@ -132,6 +132,11 @@ public class CallRestController {
         return ResponseEntity.ok().build();
     }
 
+    @GetMapping("/{callId}")
+    public ResponseEntity<Map<String, Object>> getCall(@PathVariable Long callId) {
+        return ResponseEntity.ok(callResponse(callService.getAccessibleCall(callId)));
+    }
+
     private Map<String, Object> callEvent(Call call, String type) {
         Map<String, Object> event = new LinkedHashMap<>();
         event.put("type", type);

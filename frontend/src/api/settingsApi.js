@@ -102,3 +102,7 @@ export const getActivity = async () => {
   const { data } = await api.get("/settings/activity");
   return Array.isArray(data) ? data : [];
 };
+
+export const deleteAccount = async () => {
+  await api.delete("/users/me");
+};

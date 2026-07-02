@@ -1,14 +1,25 @@
 package com.web.Instagram.entity;
 
-import jakarta.persistence.*;
-import lombok.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "refresh_tokens", indexes = {
     @Index(name = "idx_refresh_tokens_token", columnList = "token"),
-    @Index(name = "idx_refresh_tokens_username", columnList = "username")
+    @Index(name = "idx_refresh_tokens_username", columnList = "username"),
+    @Index(name = "idx_refresh_tokens_expires_at", columnList = "expires_at")
 })
 @Getter
 @Setter

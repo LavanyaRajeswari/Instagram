@@ -132,4 +132,11 @@ public class UserRestController {
         return ResponseEntity.ok().build();
     }
 
+    @DeleteMapping("/me")
+    public ResponseEntity<Void> deleteAccount(Principal principal) {
+        Long userId = userService.getCurrentUser(principal.getName()).getId();
+        userService.deleteAccount(userId);
+        return ResponseEntity.ok().build();
+    }
+
 }

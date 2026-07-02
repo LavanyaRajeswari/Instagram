@@ -1,5 +1,7 @@
 package com.web.Instagram.repository;
 
+import com.web.Instagram.entity.MediaType;
+import com.web.Instagram.entity.Post;
 import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -10,10 +12,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import com.web.Instagram.entity.MediaType;
-import com.web.Instagram.entity.Post;
-import org.springframework.data.jpa.repository.Query;
-
 @Repository
 public interface PostRepository extends JpaRepository<Post, Long> {
     @EntityGraph(attributePaths = {"media", "user"})
@@ -21,6 +19,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
         select distinct p from Post p join p.media m
         where m.mediaType = :mediaType
           and coalesce(p.user.isPrivate, false) = false
+          and (p.user.accountStatus is null or upper(p.user.accountStatus) <> 'DELETED')
         order by p.createdAt desc
     """)
     Page<Post> findDistinctByMediaType(@Param("mediaType") MediaType mediaType, Pageable pageable);
@@ -29,6 +28,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Query("""
         select distinct p from Post p join p.media m
         where m.mediaType = :mediaType
+          and (p.user.accountStatus is null or upper(p.user.accountStatus) <> 'DELETED')
           and (
             coalesce(p.user.isPrivate, false) = false
             or exists (select f from Follow f where f.follower.id = :userId and f.following.id = p.user.id)
@@ -38,7 +38,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     Page<Post> findDistinctByMediaTypeWithFollowed(@Param("mediaType") MediaType mediaType, @Param("userId") Long userId, Pageable pageable);
 
     @EntityGraph(attributePaths = {"media", "user"})
-    @Query("select distinct p from Post p where coalesce(p.user.isPrivate, false) = false order by p.createdAt desc")
+    @Query("select distinct p from Post p where coalesce(p.user.isPrivate, false) = false and (p.user.accountStatus is null or upper(p.user.accountStatus) <> 'DELETED') order by p.createdAt desc")
     Page<Post> findAllPosts(Pageable pageable);
 
     @EntityGraph(attributePaths = {"media", "user"})
@@ -46,6 +46,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
         select distinct p from Post p
         where lower(p.caption) like lower(concat('%', :query, '%'))
           and coalesce(p.user.isPrivate, false) = false
+          and (p.user.accountStatus is null or upper(p.user.accountStatus) <> 'DELETED')
         order by p.createdAt desc
     """)
     Page<Post> searchPosts(@Param("query") String query, Pageable pageable);
@@ -59,9 +60,10 @@ public interface PostRepository extends JpaRepository<Post, Long> {
         LEFT JOIN (SELECT post_id, COUNT(*) AS sc FROM shares GROUP BY post_id) s ON s.post_id = p.id
         LEFT JOIN (SELECT post_id, COUNT(*) AS pc FROM saved_posts GROUP BY post_id) sp ON sp.post_id = p.id
         WHERE COALESCE(u.is_private, false) = false
+          AND COALESCE(UPPER(u.account_status), '') <> 'DELETED'
         ORDER BY (COALESCE(l.lc,0)*5 + COALESCE(c.cc,0)*3 + COALESCE(s.sc,0)*4 + COALESCE(sp.pc,0)*6) DESC, p.created_at DESC
         """,
-        countQuery = "SELECT COUNT(DISTINCT p.id) FROM posts p JOIN users u ON u.id = p.user_id WHERE COALESCE(u.is_private, false) = false",
+        countQuery = "SELECT COUNT(DISTINCT p.id) FROM posts p JOIN users u ON u.id = p.user_id WHERE COALESCE(u.is_private, false) = false AND COALESCE(UPPER(u.account_status), '') <> 'DELETED'",
         nativeQuery = true)
     Page<Post> findExplorePostsByEngagement(Pageable pageable);
 
@@ -77,13 +79,17 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     void clearOriginalPostReferences(@Param("originalPostId") Long originalPostId);
 
     @EntityGraph(attributePaths = {"media", "user"})
-    @Query("select distinct p from Post p where p.user.id = :userId order by p.createdAt desc")
+    @Query("select distinct p from Post p where p.user.id = :userId and (p.user.accountStatus is null or upper(p.user.accountStatus) <> 'DELETED') order by p.createdAt desc")
     Page<Post> findByUserId(@Param("userId") Long userId, Pageable pageable);
+
+    @Query("select p.id from Post p where p.user.id = :userId")
+    List<Long> findIdsByUserId(@Param("userId") Long userId);
 
     @EntityGraph(attributePaths = {"media", "user"})
     @Query("""
         select distinct p from Post p
         where (p.user.id in (select f.following.id from Follow f where f.follower.id = :userId) or p.user.id = :userId)
+          and (p.user.accountStatus is null or upper(p.user.accountStatus) <> 'DELETED')
           and p.user.id not in (select b.blocked.id from BlockedUser b where b.blocker.id = :userId)
           and p.user.id not in (select b.blocker.id from BlockedUser b where b.blocked.id = :userId)
         order by p.createdAt desc
@@ -109,6 +115,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
                   and f.following.id = p.user.id
             ))
           )
+          and (p.user.accountStatus is null or upper(p.user.accountStatus) <> 'DELETED')
         order by p.createdAt desc
     """)
     Page<Post> findVisiblePostsByHashtag(
@@ -135,6 +142,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
                   and f.following.id = p.user.id
             ))
           )
+          and (p.user.accountStatus is null or upper(p.user.accountStatus) <> 'DELETED')
     """)
     long countVisiblePostsByHashtag(
             @Param("tag") String tag,
@@ -145,6 +153,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Query("""
         select distinct p from Post p
         where lower(p.caption) like lower(concat('%@', :username, '%'))
+          and (p.user.accountStatus is null or upper(p.user.accountStatus) <> 'DELETED')
         order by p.createdAt desc
     """)
     List<Post> findByCaptionMentioningUsername(@Param("username") String username);

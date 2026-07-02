@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Bell, BellOff, Download, ExternalLink, Info, Maximize2, MoreHorizontal, Pencil, Phone, Trash2, UserX, Video, X, Smile, Image, Mic, Plus, Users } from "lucide-react";
+import { Bell, BellOff, Download, ExternalLink, Info, Maximize2, MoreHorizontal, Pencil, Phone, Reply, Trash2, UserPlus, UserX, Video, X, Smile, Image, Mic, Plus, Users } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   deleteChat,
@@ -7,7 +7,9 @@ import {
   deleteMessageById,
   editGroupMessage,
   editMessage,
+  addGroupMember,
   createGroup,
+  getGroup,
   getChats,
   getGroupMessages,
   getGroups,
@@ -16,6 +18,8 @@ import {
   markGroupMessagesSeen,
   markMessagesSeen,
   muteChatUntil,
+  reactToGroupMessage,
+  reactToMessage,
   removeChatNickname,
   searchUsersForChat,
   sendMessage,
@@ -75,6 +79,8 @@ function Messages() {
   const [pendingMedia, setPendingMedia] = useState(null);
   const [messageMenu, setMessageMenu] = useState(null);
   const [editingMessage, setEditingMessage] = useState(null);
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [reactionTarget, setReactionTarget] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [groupDetailsOpen, setGroupDetailsOpen] = useState(false);
   const [recording, setRecording] = useState(false);
@@ -208,6 +214,7 @@ function Messages() {
     const chatId = selectedChat.id;
 
     const unsubMsg = subscribeToChat(chatId, (newMessage) => {
+      window.dispatchEvent(new CustomEvent("message-new"));
       setMessages((prev) => {
         if (prev.some((m) => m.id === newMessage.id)) return prev;
         return [...prev, newMessage].sort(
@@ -251,6 +258,7 @@ function Messages() {
     chats.forEach((chat) => {
       if (subs[chat.id]) return;
       subs[chat.id] = subscribeToChat(chat.id, (newMessage) => {
+        window.dispatchEvent(new CustomEvent("message-new"));
         setChats((prev) =>
           prev.map((c) =>
             c.id === chat.id
@@ -284,6 +292,7 @@ function Messages() {
     groups.forEach((group) => {
       if (subs[group.id]) return;
       subs[group.id] = subscribeToGroup(group.id, (newMessage) => {
+        window.dispatchEvent(new CustomEvent("message-new"));
         setGroups((prev) =>
           prev.map((g) =>
             g.id === group.id
@@ -345,6 +354,7 @@ function Messages() {
       const data = await getMessages(chat.id);
       setMessages([...data].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)));
       await markMessagesSeen(chat.id);
+      window.dispatchEvent(new CustomEvent("messages-seen"));
       setChats((prev) =>
         prev.map((item) =>
           item.id === chat.id ? { ...item, unreadCount: 0 } : item
@@ -372,6 +382,7 @@ function Messages() {
       const data = await getGroupMessages(group.id);
       setMessages([...data].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)));
       await markGroupMessagesSeen(group.id).catch(() => {});
+      window.dispatchEvent(new CustomEvent("messages-seen"));
       setGroups((prev) => prev.map((g) => g.id === group.id ? { ...g, unreadCount: 0 } : g));
     } catch {
       setError("Could not load messages for this group.");
@@ -449,14 +460,17 @@ function Messages() {
 
     try {
       const newMessage = selectedGroup
-        ? await sendGroupMessage({ groupId: selectedGroup.id, content })
+        ? await sendGroupMessage({ groupId: selectedGroup.id, content, replyToId: replyingTo?.id })
         : await sendMessage({
             chatId: selectedChat.id,
             content,
+            replyToId: replyingTo?.id,
           });
 
       upsertMessage(newMessage);
+      window.dispatchEvent(new CustomEvent("message-new"));
       setMessageText("");
+      setReplyingTo(null);
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
         typingTimeoutRef.current = null;
@@ -520,11 +534,14 @@ function Messages() {
         messageType: upload.messageType || fallbackType,
         mediaUrl: upload.mediaUrl,
         mediaType: upload.mediaType || file.type,
+        replyToId: replyingTo?.id,
       };
       const newMessage = selectedGroup
         ? await sendGroupMessage({ groupId: selectedGroup.id, ...payload })
         : await sendMessage({ chatId: selectedChat.id, ...payload });
       upsertMessage(newMessage);
+      window.dispatchEvent(new CustomEvent("message-new"));
+      setReplyingTo(null);
       setPendingMedia((prev) => {
         if (prev?.previewUrl) URL.revokeObjectURL(prev.previewUrl);
         return null;
@@ -565,11 +582,14 @@ function Messages() {
         messageType: "AUDIO",
         mediaUrl: upload.mediaUrl,
         mediaType: upload.mediaType || audioFile.type,
+        replyToId: replyingTo?.id,
       };
       const newMessage = selectedGroup
         ? await sendGroupMessage({ groupId: selectedGroup.id, ...payload })
         : await sendMessage({ chatId: selectedChat.id, ...payload });
       upsertMessage(newMessage);
+      window.dispatchEvent(new CustomEvent("message-new"));
+      setReplyingTo(null);
     } catch {
       setError("Could not send this voice message. Please try again.");
     } finally {
@@ -658,13 +678,68 @@ function Messages() {
     }
   };
 
-  const downloadMedia = (url) => {
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = url.split("/").pop()?.split("?")[0] || "media";
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    link.click();
+  const handleReplyToMessage = (message) => {
+    setReplyingTo(message);
+    setMessageMenu(null);
+    setReactionTarget(null);
+  };
+
+  const handleReactToMessage = async (message, emoji) => {
+    try {
+      const newMessage = selectedGroup
+        ? await reactToGroupMessage(selectedGroup.id, message.id, emoji)
+        : await reactToMessage(message.id, emoji);
+      upsertMessage(newMessage);
+      window.dispatchEvent(new CustomEvent("message-new"));
+      setReactionTarget(null);
+      setMessageMenu(null);
+    } catch {
+      setError("Could not send this reaction.");
+    }
+  };
+
+  const handleGroupMemberAdded = async () => {
+    if (!selectedGroup?.id) return;
+    try {
+      const freshGroup = await getGroup(selectedGroup.id);
+      setSelectedGroup(freshGroup);
+      setGroups((prev) => prev.map((group) => (group.id === freshGroup.id ? freshGroup : group)));
+    } catch {
+      await loadInitialData();
+    }
+  };
+
+  const getDownloadFileName = (url = "", contentType = "") => {
+    const pathName = String(url).split("?")[0].split("/").pop();
+    if (pathName && pathName.includes(".")) return pathName;
+    if (contentType.includes("audio")) return "audio-message.webm";
+    if (contentType.includes("video")) return "video-message.mp4";
+    if (contentType.includes("image")) return "image-message.jpg";
+    return pathName || "message-media";
+  };
+
+  const downloadMedia = async (url) => {
+    if (!url) return;
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Download failed");
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = getDownloadFileName(url, blob.type);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch {
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = getDownloadFileName(url);
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.click();
+    }
   };
 
   const handleTyping = (e) => {
@@ -886,6 +961,37 @@ function Messages() {
       return `Last seen ${days} day${days === 1 ? "" : "s"} ago`;
     }
     return "";
+  };
+
+  const getMessageSummary = (message) => {
+    if (!message) return "Message";
+    if (message.deleted) return "Message deleted";
+    const type = String(message.messageType || "TEXT").toUpperCase();
+    if (type === "IMAGE") return "Photo";
+    if (type === "VIDEO") return "Video";
+    if (type === "AUDIO") return "Voice message";
+    if (type === "POST") return "Shared post";
+    if (type === "STORY") return "Shared story";
+    return message.content || "Message";
+  };
+
+  const findReplyMessage = (message) => {
+    if (!message?.replyToId) return null;
+    return messages.find((item) => String(item.id) === String(message.replyToId));
+  };
+
+  const parseReactions = (value) => {
+    if (!value) return [];
+    return String(value)
+      .split(";")
+      .map((entry) => {
+        const [emoji, count] = entry.split("=");
+        const reactionCount = count?.startsWith("u:")
+          ? count.slice(2).split(",").filter(Boolean).length
+          : Number(count) || 1;
+        return emoji ? { emoji, count: reactionCount } : null;
+      })
+      .filter(Boolean);
   };
 
   return (
@@ -1123,6 +1229,7 @@ function Messages() {
                     const mediaUrl = msg.mediaUrl || msg.content;
                     const isSystem = msgMediaType === "SYSTEM";
                     const senderName = mine ? "Me" : msg.senderUsername || msg.sender?.username || "User";
+                    const replyMessage = findReplyMessage(msg);
                     return (
                       isSystem ? (
                         <div key={msg.id} className="flex justify-center">
@@ -1141,12 +1248,36 @@ function Messages() {
                             <span className={`mb-1 px-2 text-[11px] font-semibold text-secondary ${mine ? "text-right" : "text-left"}`}>{senderName}</span>
                           )}
                         <div
+                          id={`message-${msg.id}`}
                           className={`rounded-3xl text-sm ${
                             msgMediaType === "IMAGE" || msgMediaType === "VIDEO" || msgMediaType === "AUDIO" || msgMediaType === "POST" || msgMediaType === "STORY"
-                              ? "overflow-hidden"
+                              ? "overflow-hidden bg-transparent"
                               : `px-4 py-2 ${mine ? "bg-[#3797f0] text-white" : "bg-tertiary text-primary"}`
                           }`}
                         >
+                          {msg.replyToId && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const target = document.getElementById(`message-${msg.replyToId}`);
+                                target?.scrollIntoView({ behavior: "smooth", block: "center" });
+                              }}
+                              className={`mb-2 block w-full max-w-[260px] rounded-2xl px-3 py-2 text-left text-xs ${
+                                mine
+                                  ? "bg-white/20 text-white"
+                                  : "bg-card text-primary"
+                              }`}
+                            >
+                              <span className={`block font-semibold ${mine ? "text-white" : "text-primary"}`}>
+                                {replyMessage
+                                  ? String(replyMessage.senderId || replyMessage.sender?.id) === String(currentUser?.id)
+                                    ? "You"
+                                    : replyMessage.senderUsername || replyMessage.sender?.username || selectedThreadName
+                                  : "Replying to"}
+                              </span>
+                              <span className={`block truncate ${mine ? "text-blue-100" : "text-secondary"}`}>{replyMessage ? getMessageSummary(replyMessage) : "Original message"}</span>
+                            </button>
+                          )}
                           {editingMessage?.id === msg.id ? (
                             <div className="flex w-[min(320px,calc(100vw-96px))] flex-col gap-2 rounded-2xl bg-card p-2 text-primary shadow-sm">
                               <textarea value={editingMessage.content} onChange={(event) => setEditingMessage((prev) => ({ ...prev, content: event.target.value }))} className="min-h-20 w-full resize-none rounded-lg border border-primary p-2 text-sm outline-none" />
@@ -1202,16 +1333,42 @@ function Messages() {
                             <p className={`px-3 pb-2 text-[10px] ${mine ? "text-blue-100" : "text-secondary"}`}>{formatTime(msg.createdAt)}</p>
                           )}
                         </div>
-                          {mine && (
-                            <button type="button" onClick={() => setMessageMenu(messageMenu?.id === msg.id ? null : msg)} className="absolute -left-8 top-5 rounded-full bg-card p-1 text-secondary opacity-0 shadow group-hover/message:opacity-100" aria-label="Message options">
+                          {parseReactions(msg.reactions).length > 0 && (
+                            <div className={`mt-1 flex max-w-[260px] flex-wrap gap-1 ${mine ? "justify-end" : "justify-start"}`}>
+                              {parseReactions(msg.reactions).map(({ emoji, count }) => (
+                                <span key={emoji} className="rounded-full bg-card px-2 py-0.5 text-xs shadow">
+                                  {emoji} {count > 1 ? count : ""}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          <div className={`absolute top-5 flex items-center gap-1 rounded-full bg-card px-1 py-0.5 text-secondary opacity-0 shadow transition-opacity group-hover/message:opacity-100 ${mine ? "-left-24" : "-right-24"}`}>
+                            <button type="button" onClick={() => handleReplyToMessage(msg)} className="rounded-full p-1 hover:bg-hover" aria-label="Reply to message">
+                              <Reply className="h-4 w-4" />
+                            </button>
+                            <button type="button" onClick={() => setReactionTarget(reactionTarget?.id === msg.id ? null : msg)} className="rounded-full p-1 hover:bg-hover" aria-label="React with emoji">
+                              <Smile className="h-4 w-4" />
+                            </button>
+                            <button type="button" onClick={() => setMessageMenu(messageMenu?.id === msg.id ? null : msg)} className="rounded-full p-1 hover:bg-hover" aria-label="Message options">
                               <MoreHorizontal className="h-4 w-4" />
                             </button>
+                          </div>
+                          {reactionTarget?.id === msg.id && (
+                            <div className={`absolute top-12 z-40 flex gap-1 rounded-full border border-primary bg-card p-1 shadow-xl ${mine ? "right-full mr-2" : "left-full ml-2"}`}>
+                              {["❤️", "😂", "😮", "😢", "👏", "🔥"].map((emoji) => (
+                                <button key={emoji} type="button" onClick={() => handleReactToMessage(msg, emoji)} className="h-8 w-8 rounded-full text-lg hover:bg-secondary" aria-label={`React ${emoji}`}>
+                                  {emoji}
+                                </button>
+                              ))}
+                            </div>
                           )}
                           {messageMenu?.id === msg.id && (
-                            <div className="absolute right-full top-6 z-40 mr-2 w-40 overflow-hidden rounded-lg border border-primary bg-card text-sm shadow-xl">
+                            <div className={`absolute top-14 z-40 w-44 overflow-hidden rounded-lg border border-primary bg-card text-sm shadow-xl ${mine ? "right-full mr-2" : "left-full ml-2"}`}>
+                              <div className="border-b border-primary px-3 py-2 text-[11px] text-secondary">{formatTime(msg.createdAt)}</div>
+                              <button type="button" onClick={() => handleReplyToMessage(msg)} className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-secondary"><Reply className="h-4 w-4" /> Reply</button>
                               {(msgMediaType === "IMAGE" || msgMediaType === "VIDEO" || msgMediaType === "AUDIO") && (
                                 <>
-                                  <button type="button" onClick={() => downloadMedia(mediaUrl)} className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-secondary"><Download className="h-4 w-4" /> Download</button>
+                                  <button type="button" onClick={async () => { await downloadMedia(mediaUrl); setMessageMenu(null); }} className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-secondary"><Download className="h-4 w-4" /> Download</button>
                                   {msgMediaType === "IMAGE" && <button type="button" onClick={() => setImagePreview(mediaUrl)} className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-secondary"><Maximize2 className="h-4 w-4" /> Full screen</button>}
                                 </>
                               )}
@@ -1220,6 +1377,9 @@ function Messages() {
                               )}
                               {mine && (
                                 <button type="button" onClick={() => handleDeleteMessage(msg)} className="flex w-full items-center gap-2 px-3 py-2 text-left text-[#ed4956] hover:bg-secondary"><Trash2 className="h-4 w-4" /> Delete</button>
+                              )}
+                              {!mine && (
+                                <button type="button" disabled className="flex w-full cursor-not-allowed items-center gap-2 px-3 py-2 text-left text-secondary opacity-60"><Trash2 className="h-4 w-4" /> Delete</button>
                               )}
                             </div>
                           )}
@@ -1250,6 +1410,19 @@ function Messages() {
             </div>
 
             <form onSubmit={handleSend} className="relative border-t border-primary px-4 pb-4 pt-3">
+              {replyingTo && (
+                <div className="mb-2 flex items-center justify-between gap-3 rounded-xl border border-primary bg-secondary px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-primary">
+                      Replying to {String(replyingTo.senderId || replyingTo.sender?.id) === String(currentUser?.id) ? "yourself" : replyingTo.senderUsername || replyingTo.sender?.username || selectedThreadName}
+                    </p>
+                    <p className="truncate text-xs text-secondary">{getMessageSummary(replyingTo)}</p>
+                  </div>
+                  <button type="button" onClick={() => setReplyingTo(null)} className="shrink-0 rounded-full p-1 hover:bg-hover" aria-label="Cancel reply">
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
               <div className="flex items-center gap-2 rounded-xl border border-primary bg-card px-3 py-2.5">
                 <button type="button" onClick={() => setMessageEmojiOpen((prev) => !prev)} className="shrink-0 text-secondary hover:text-secondary">
                   <Smile className="h-5 w-5" />
@@ -1359,6 +1532,7 @@ function Messages() {
           currentUserId={currentUser?.id}
           onClose={() => setGroupDetailsOpen(false)}
           onProfileClick={(userId) => navigate(`/profile/${userId}`)}
+          onMemberAdded={handleGroupMemberAdded}
         />
       )}
       {pendingMedia && (
@@ -1456,8 +1630,10 @@ function ChatDetailsPanel({ details, currentUserId, onClose, onToggleMute, onNic
   );
 }
 
-function GroupDetailsModal({ group, currentUserId, onClose, onProfileClick }) {
+function GroupDetailsModal({ group, currentUserId, onClose, onProfileClick, onMemberAdded }) {
   const members = Array.isArray(group.members) ? group.members : [];
+  const [addingOpen, setAddingOpen] = useState(false);
+
   return (
     <div className="fixed inset-0 z-[900] flex items-center justify-center bg-black/50 p-4">
       <div className="w-full max-w-[420px] overflow-hidden rounded-2xl bg-card">
@@ -1476,7 +1652,13 @@ function GroupDetailsModal({ group, currentUserId, onClose, onProfileClick }) {
           {group.description && <p className="mt-2 text-sm text-secondary">{group.description}</p>}
         </div>
         <div className="border-t border-primary p-4">
-          <h4 className="mb-3 text-sm font-bold">Participants</h4>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h4 className="text-sm font-bold">Participants</h4>
+            <button type="button" onClick={() => setAddingOpen(true)} className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-bold text-[#0095f6] hover:bg-hover">
+              <UserPlus className="h-4 w-4" />
+              Add
+            </button>
+          </div>
           <div className="max-h-72 overflow-y-auto">
             {members.map((member) => (
               <button
@@ -1492,6 +1674,106 @@ function GroupDetailsModal({ group, currentUserId, onClose, onProfileClick }) {
                 </div>
               </button>
             ))}
+          </div>
+        </div>
+      </div>
+      {addingOpen && (
+        <AddGroupMembersModal
+          group={group}
+          currentUserId={currentUserId}
+          onClose={() => setAddingOpen(false)}
+          onAdded={async () => {
+            setAddingOpen(false);
+            await onMemberAdded?.();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function AddGroupMembersModal({ group, currentUserId, onClose, onAdded }) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState([]);
+  const [savingId, setSavingId] = useState(null);
+  const [error, setError] = useState("");
+  const members = Array.isArray(group?.members) ? group.members : [];
+  const memberIds = useMemo(() => new Set(members.map((member) => String(member.id))), [members]);
+
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      const trimmed = query.trim();
+      if (trimmed.length < 1) {
+        setResults([]);
+        return;
+      }
+      try {
+        const users = await searchUsersForChat(trimmed);
+        setResults((Array.isArray(users) ? users : []).filter((user) => String(user.id) !== String(currentUserId) && !memberIds.has(String(user.id))));
+      } catch {
+        setError("Could not search users. Please try again.");
+        setResults([]);
+      }
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [query, currentUserId, memberIds]);
+
+  const addUser = async (user) => {
+    setSavingId(user.id);
+    setError("");
+    try {
+      await addGroupMember(group.id, user.id);
+      await onAdded();
+    } catch {
+      setError("Could not add this participant.");
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[920] flex items-center justify-center bg-black/60 p-4">
+      <div className="w-full max-w-[420px] overflow-hidden rounded-2xl bg-card">
+        <div className="relative flex h-12 items-center justify-center border-b border-primary">
+          <h2 className="text-sm font-bold">Add participants</h2>
+          <button type="button" onClick={onClose} className="absolute right-4">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="p-4">
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search users"
+            className="h-11 w-full rounded-lg border border-primary bg-card px-3 text-sm outline-none"
+          />
+          {error && <p className="mt-3 text-sm text-[#ed4956]">{error}</p>}
+          <div className="mt-3 max-h-72 overflow-y-auto rounded-lg border border-primary">
+            {query.trim().length < 1 ? (
+              <p className="p-4 text-sm text-secondary">Search for someone to add.</p>
+            ) : results.length === 0 ? (
+              <p className="p-4 text-sm text-secondary">No available users found.</p>
+            ) : (
+              results.map((user) => (
+                <div key={user.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <img src={getAvatarUrl(user)} alt="" className="h-9 w-9 rounded-full object-cover" onError={(e) => { e.currentTarget.src = "/default-avatar.png"; e.currentTarget.onerror = null; }} />
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold">{user.username}</p>
+                      <p className="truncate text-xs text-secondary">{user.fullName}</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={savingId === user.id}
+                    onClick={() => addUser(user)}
+                    className="rounded-lg bg-[#0095f6] px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"
+                  >
+                    {savingId === user.id ? "Adding..." : "Add"}
+                  </button>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>
