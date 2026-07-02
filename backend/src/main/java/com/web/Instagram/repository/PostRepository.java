@@ -51,7 +51,6 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     """)
     Page<Post> searchPosts(@Param("query") String query, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"media", "user"})
     @Query(value = """
         SELECT DISTINCT p.* FROM posts p
         JOIN users u ON u.id = p.user_id
