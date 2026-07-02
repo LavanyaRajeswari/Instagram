@@ -15,6 +15,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.security.Principal;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
@@ -24,16 +25,64 @@ public class PostRestController {
     private final PostService postService;
     private final UserService userService;
 
+    @GetMapping
+    public ResponseEntity<Map<String, Object>> getAllPosts(
+            Principal principal,
+            @PageableDefault(size = 20) Pageable pageable) {
+        Long currentUserId = resolveUserId(principal);
+        Page<PostResponse> posts = filterVisible(
+                postService.getExplorePosts(pageable, currentUserId),
+                principal,
+                pageable
+        );
+
+        return ResponseEntity.ok(Map.of(
+                "content", posts.getContent(),
+                "page", posts.getNumber(),
+                "size", posts.getSize(),
+                "totalElements", posts.getTotalElements(),
+                "totalPages", posts.getTotalPages(),
+                "last", posts.isLast()
+        ));
+    }
+
     @GetMapping("/feed")
-    public ResponseEntity<Page<PostResponse>> getFeed(Principal principal, @PageableDefault(size = 20) Pageable pageable) {
-        if (principal == null) return ResponseEntity.ok(Page.empty(pageable));
+    public ResponseEntity<Map<String, Object>> getFeed(Principal principal, @PageableDefault(size = 20) Pageable pageable) {
+        if (principal == null) {
+            Page<PostResponse> posts = Page.empty(pageable);
+            return ResponseEntity.ok(Map.of(
+                    "content", posts.getContent(),
+                    "page", posts.getNumber(),
+                    "size", posts.getSize(),
+                    "totalElements", posts.getTotalElements(),
+                    "totalPages", posts.getTotalPages(),
+                    "last", posts.isLast()
+            ));
+        }
         Long userId;
         try {
             userId = userService.getCurrentUser(principal.getName()).getId();
         } catch (RuntimeException e) {
-            return ResponseEntity.ok(Page.empty(pageable));
+            Page<PostResponse> posts = Page.empty(pageable);
+            return ResponseEntity.ok(Map.of(
+                    "content", posts.getContent(),
+                    "page", posts.getNumber(),
+                    "size", posts.getSize(),
+                    "totalElements", posts.getTotalElements(),
+                    "totalPages", posts.getTotalPages(),
+                    "last", posts.isLast()
+            ));
         }
-        return ResponseEntity.ok(postService.getFeed(userId, pageable));
+        Page<PostResponse> posts = postService.getFeed(userId, pageable);
+
+        return ResponseEntity.ok(Map.of(
+                "content", posts.getContent(),
+                "page", posts.getNumber(),
+                "size", posts.getSize(),
+                "totalElements", posts.getTotalElements(),
+                "totalPages", posts.getTotalPages(),
+                "last", posts.isLast()
+        ));
     }
 
     @GetMapping("/user/{userId}")
