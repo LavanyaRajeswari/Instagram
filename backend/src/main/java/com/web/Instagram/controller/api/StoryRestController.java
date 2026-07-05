@@ -38,9 +38,10 @@ public class StoryRestController {
     public ResponseEntity<StoryResponse> createStory(
             Principal principal,
             @RequestParam(required = false) String caption,
-            @RequestParam MultipartFile media) {
+            @RequestParam MultipartFile media,
+            @RequestParam(defaultValue = "false") Boolean closeFriendsOnly) {
         Long userId = userService.getCurrentUser(principal.getName()).getId();
-        return ResponseEntity.ok(storyService.createStory(userId, caption, media));
+        return ResponseEntity.ok(storyService.createStory(userId, caption, media, closeFriendsOnly));
     }
 
     @PostMapping("/{storyId}/like")

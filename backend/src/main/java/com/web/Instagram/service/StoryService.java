@@ -8,17 +8,7 @@ import com.web.Instagram.entity.StoryReply;
 import com.web.Instagram.entity.StoryView;
 import com.web.Instagram.entity.User;
 import com.web.Instagram.entity.SavedStory;
-import com.web.Instagram.repository.FollowRepository;
-import com.web.Instagram.repository.HighlightRepository;
-import com.web.Instagram.repository.StoryArchiveRepository;
-import com.web.Instagram.repository.StoryLikeRepository;
-import com.web.Instagram.repository.StoryReplyRepository;
-import com.web.Instagram.repository.StoryRepository;
-import com.web.Instagram.repository.StoryMusicRepository;
-import com.web.Instagram.repository.StoryViewRepository;
-import com.web.Instagram.repository.SavedStoryRepository;
-import com.web.Instagram.repository.ShareRepository;
-import com.web.Instagram.repository.UserRepository;
+import com.web.Instagram.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -47,16 +37,27 @@ public class StoryService {
     private final StoryMusicRepository storyMusicRepository;
     private final HighlightRepository highlightRepository;
     private final ShareRepository shareRepository;
+    private final CloseFriendRepository closeFriendRepository;
 
     public List<StoryResponse> getActiveStories(Long currentUserId) {
         User currentUser = getUserOrThrow(currentUserId);
         List<User> followedUsers = followRepository.findByFollowerId(currentUserId)
                 .stream().map(f -> f.getFollowing()).toList();
         List<Story> stories = storyRepository.findActiveStoriesByFollowedUsers(LocalDateTime.now(), followedUsers, currentUser);
-        return batchToResponse(stories, currentUserId);
+        Set<Long> closeFriendOwnerIds = closeFriendRepository.findOwnerIdsByFriendId(currentUserId);
+
+        List<Story> visibleStories = stories.stream()
+                .filter(story -> {
+                    if (!Boolean.TRUE.equals(story.getCloseFriendsOnly())) {
+                        return true;
+                    }
+                    return story.getUser().getId().equals(currentUserId) || closeFriendOwnerIds.contains(story.getUser().getId());
+                }).toList();
+
+        return batchToResponse(visibleStories, currentUserId);
     }
 
-    public StoryResponse createStory(Long userId, String caption, MultipartFile media) {
+    public StoryResponse createStory(Long userId, String caption, MultipartFile media, Boolean closeFriendsOnly) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -71,6 +72,7 @@ public class StoryService {
                 .caption(caption)
                 .mediaUrl(mediaUrl)
                 .mediaType(mediaType)
+                .closeFriendsOnly(closeFriendsOnly)
                 .build();
 
         return toResponse(storyRepository.save(story), userId);

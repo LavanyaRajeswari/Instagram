@@ -29,6 +29,7 @@ import {
 import { useCurrentUser, clearCurrentUserCache } from "../../hooks/useCurrentUser";
 import { getAvatarUrl } from "../../utils/avatar";
 import EditProfilePage from "../profile/EditProfilePage";
+import CloseFriendsPage from "./CloseFriendsPage";
 
 const items = [
   { slug: "edit-profile", label: "Edit Profile" },
@@ -36,6 +37,7 @@ const items = [
   { slug: "privacy", label: "Privacy" },
   { slug: "blocked-accounts", label: "Blocked Accounts" },
   { slug: "story-location", label: "Story" },
+  { slug: "close-friends", label: "Close Friends" },
   { slug: "messages-replies", label: "Messages and Story Replies" },
   { slug: "restricted-accounts", label: "Restricted Accounts" },
   { slug: "tags-mentions", label: "Tags and Mentions" },
@@ -47,9 +49,9 @@ const items = [
 
 function MissingEndpoint({ endpoints }) {
   return (
-    <div className="rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)] p-4 text-sm text-[var(--text-secondary)]">
-      Backend endpoint missing: {endpoints.join(", ")}
-    </div>
+      <div className="rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)] p-4 text-sm text-[var(--text-secondary)]">
+        Backend endpoint missing: {endpoints.join(", ")}
+      </div>
   );
 }
 
@@ -68,7 +70,7 @@ function UserListSettings({ title, currentUserId }) {
       const data = await getBlockedAccounts();
       setItems(data);
     } catch (error) {
-     
+
       setItems([]);
     } finally {
       setLoading(false);
@@ -90,7 +92,7 @@ function UserListSettings({ title, currentUserId }) {
         const data = await searchUsers(trimmed);
         setResults((Array.isArray(data) ? data : []).filter((user) => user.id !== currentUserId));
       } catch (error) {
-       
+
         setResults([]);
       }
     }, 300);
@@ -124,73 +126,73 @@ function UserListSettings({ title, currentUserId }) {
   };
 
   return (
-    <>
-      <h1 className="text-2xl font-bold">{title}</h1>
-      <div className="mt-6">
-        <input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search users"
-          className="h-11 w-full rounded-lg border border-[var(--border-primary)] px-3 text-sm outline-none focus:border-[var(--text-secondary)]"
-        />
-      </div>
-
-      {results.length > 0 && (
-        <div className="mt-3 overflow-hidden rounded-lg border border-[var(--border-primary)]">
-          {results.map((user) => (
-            <div key={user.id} className="flex items-center justify-between gap-3 px-4 py-3">
-              <UserRow user={user} />
-              <button
-                type="button"
-                disabled={savingId === user.id || listedUserIds.has(String(user.id))}
-                onClick={() => addUser(user.id)}
-                className="rounded-lg bg-[#0095f6] px-3 py-1.5 text-xs font-bold text-white disabled:opacity-40"
-              >
-                {listedUserIds.has(String(user.id)) ? "Added" : isCloseFriends ? "Add" : "Block"}
-              </button>
-            </div>
-          ))}
+      <>
+        <h1 className="text-2xl font-bold">{title}</h1>
+        <div className="mt-6">
+          <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search users"
+              className="h-11 w-full rounded-lg border border-[var(--border-primary)] px-3 text-sm outline-none focus:border-[var(--text-secondary)]"
+          />
         </div>
-      )}
 
-      <div className="mt-6 overflow-hidden rounded-lg border border-[var(--border-primary)]">
-        {loading ? (
-          <p className="p-4 text-sm text-[var(--text-secondary)]">Loading...</p>
-        ) : listedUsers.length === 0 ? (
-          <p className="p-4 text-sm text-[var(--text-secondary)]">No users found.</p>
-        ) : (
-          listedUsers.map((user) => (
-            <div key={user.id} className="flex items-center justify-between gap-3 border-b border-[var(--border-secondary)] px-4 py-3 last:border-b-0">
-              <UserRow user={user} />
-              <button
-                type="button"
-                disabled={savingId === user.id}
-                onClick={() => removeUser(user.id)}
-                className="rounded-lg border border-[var(--border-primary)] px-3 py-1.5 text-xs font-bold disabled:opacity-40"
-              >
-                {isCloseFriends ? "Remove" : "Unblock"}
-              </button>
+        {results.length > 0 && (
+            <div className="mt-3 overflow-hidden rounded-lg border border-[var(--border-primary)]">
+              {results.map((user) => (
+                  <div key={user.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                    <UserRow user={user} />
+                    <button
+                        type="button"
+                        disabled={savingId === user.id || listedUserIds.has(String(user.id))}
+                        onClick={() => addUser(user.id)}
+                        className="rounded-lg bg-[#0095f6] px-3 py-1.5 text-xs font-bold text-white disabled:opacity-40"
+                    >
+                      {listedUserIds.has(String(user.id)) ? "Added" : isCloseFriends ? "Add" : "Block"}
+                    </button>
+                  </div>
+              ))}
             </div>
-          ))
         )}
-      </div>
-    </>
+
+        <div className="mt-6 overflow-hidden rounded-lg border border-[var(--border-primary)]">
+          {loading ? (
+              <p className="p-4 text-sm text-[var(--text-secondary)]">Loading...</p>
+          ) : listedUsers.length === 0 ? (
+              <p className="p-4 text-sm text-[var(--text-secondary)]">No users found.</p>
+          ) : (
+              listedUsers.map((user) => (
+                  <div key={user.id} className="flex items-center justify-between gap-3 border-b border-[var(--border-secondary)] px-4 py-3 last:border-b-0">
+                    <UserRow user={user} />
+                    <button
+                        type="button"
+                        disabled={savingId === user.id}
+                        onClick={() => removeUser(user.id)}
+                        className="rounded-lg border border-[var(--border-primary)] px-3 py-1.5 text-xs font-bold disabled:opacity-40"
+                    >
+                      {isCloseFriends ? "Remove" : "Unblock"}
+                    </button>
+                  </div>
+              ))
+          )}
+        </div>
+      </>
   );
 }
 
 function UserRow({ user }) {
   const navigate = useNavigate();
   return (
-    <div className="flex min-w-0 items-center gap-3">
-      <button type="button" onClick={() => navigate(`/profile/${user.id}`)} className="shrink-0">
-        <img src={getAvatarUrl(user)} alt="" className="h-10 w-10 rounded-full object-cover"
-                  onError={(e) => { e.currentTarget.src = '/default-avatar.png'; e.currentTarget.onerror = null; }} />
-      </button>
-      <div className="min-w-0">
-        <p className="truncate text-sm font-semibold">{user.username}</p>
-        <p className="truncate text-xs text-[var(--text-secondary)]">{user.fullName}</p>
+      <div className="flex min-w-0 items-center gap-3">
+        <button type="button" onClick={() => navigate(`/profile/${user.id}`)} className="shrink-0">
+          <img src={getAvatarUrl(user)} alt="" className="h-10 w-10 rounded-full object-cover"
+               onError={(e) => { e.currentTarget.src = '/default-avatar.png'; e.currentTarget.onerror = null; }} />
+        </button>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold">{user.username}</p>
+          <p className="truncate text-xs text-[var(--text-secondary)]">{user.fullName}</p>
+        </div>
       </div>
-    </div>
   );
 }
 
@@ -201,8 +203,8 @@ function NotificationSettingsComponent() {
 
   useEffect(() => {
     getNotificationSettings()
-      .then((data) => setSettings(data))
-      .finally(() => setLoading(false));
+        .then((data) => setSettings(data))
+        .finally(() => setLoading(false));
   }, []);
 
   const toggle = async (field) => {
@@ -232,22 +234,22 @@ function NotificationSettingsComponent() {
   ];
 
   return (
-    <>
-      <h1 className="text-2xl font-bold">Notifications</h1>
-      <div className="mt-6 space-y-3">
-        {toggles.map(({ key, label }) => (
-          <div key={key} className="flex items-center justify-between rounded-lg border border-[var(--border-primary)] p-4">
-            <div>
-              <p className="text-sm font-semibold">{label}</p>
-              <p className="mt-1 text-xs text-[var(--text-secondary)]">
-                {saving === key ? "Saving..." : settings?.[key] ? "Enabled" : "Disabled"}
-              </p>
-            </div>
-            <ToggleButton checked={Boolean(settings?.[key])} disabled={saving === key} onClick={() => toggle(key)} />
-          </div>
-        ))}
-      </div>
-    </>
+      <>
+        <h1 className="text-2xl font-bold">Notifications</h1>
+        <div className="mt-6 space-y-3">
+          {toggles.map(({ key, label }) => (
+              <div key={key} className="flex items-center justify-between rounded-lg border border-[var(--border-primary)] p-4">
+                <div>
+                  <p className="text-sm font-semibold">{label}</p>
+                  <p className="mt-1 text-xs text-[var(--text-secondary)]">
+                    {saving === key ? "Saving..." : settings?.[key] ? "Enabled" : "Disabled"}
+                  </p>
+                </div>
+                <ToggleButton checked={Boolean(settings?.[key])} disabled={saving === key} onClick={() => toggle(key)} />
+              </div>
+          ))}
+        </div>
+      </>
   );
 }
 
@@ -274,15 +276,15 @@ function AccountPrivacyToggle({ currentUser }) {
   };
 
   return (
-    <div className="flex items-center justify-between gap-4 rounded-lg border border-[var(--border-primary)] p-4">
-      <div>
-        <p className="text-sm font-semibold">Private account</p>
-        <p className="mt-1 text-xs text-[var(--text-secondary)]">
-          {saving ? "Saving..." : isPrivate ? "Only your followers can see your posts" : "Anyone can see your posts"}
-        </p>
+      <div className="flex items-center justify-between gap-4 rounded-lg border border-[var(--border-primary)] p-4">
+        <div>
+          <p className="text-sm font-semibold">Private account</p>
+          <p className="mt-1 text-xs text-[var(--text-secondary)]">
+            {saving ? "Saving..." : isPrivate ? "Only your followers can see your posts" : "Anyone can see your posts"}
+          </p>
+        </div>
+        <ToggleButton checked={isPrivate} disabled={saving || !currentUser?.id} onClick={handleToggle} />
       </div>
-      <ToggleButton checked={isPrivate} disabled={saving || !currentUser?.id} onClick={handleToggle} />
-    </div>
   );
 }
 
@@ -344,43 +346,43 @@ function StoryLocationSettings({ currentUserId }) {
   };
 
   return (
-    <>
-      <h1 className="text-2xl font-bold">Story</h1>
-      <section className="mt-6">
-        <h2 className="text-sm font-bold">Hide story from</h2>
-        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search users" className="mt-4 h-11 w-full rounded-lg border border-[var(--border-primary)] px-3 text-sm outline-none focus:border-[var(--text-secondary)]" />
+      <>
+        <h1 className="text-2xl font-bold">Story</h1>
+        <section className="mt-6">
+          <h2 className="text-sm font-bold">Hide story from</h2>
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search users" className="mt-4 h-11 w-full rounded-lg border border-[var(--border-primary)] px-3 text-sm outline-none focus:border-[var(--text-secondary)]" />
 
-        {results.length > 0 && (
-          <div className="mt-3 overflow-hidden rounded-lg border border-[var(--border-primary)]">
-            {results.map((user) => (
-              <div key={user.id} className="flex items-center justify-between gap-3 px-4 py-3">
-                <UserRow user={user} />
-                <button type="button" disabled={savingId === user.id || hiddenIds.has(String(user.id))} onClick={() => addUser(user.id)} className="rounded-lg bg-[#0095f6] px-3 py-1.5 text-xs font-bold text-white disabled:opacity-40">
-                  {hiddenIds.has(String(user.id)) ? "Hidden" : "Hide"}
-                </button>
+          {results.length > 0 && (
+              <div className="mt-3 overflow-hidden rounded-lg border border-[var(--border-primary)]">
+                {results.map((user) => (
+                    <div key={user.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                      <UserRow user={user} />
+                      <button type="button" disabled={savingId === user.id || hiddenIds.has(String(user.id))} onClick={() => addUser(user.id)} className="rounded-lg bg-[#0095f6] px-3 py-1.5 text-xs font-bold text-white disabled:opacity-40">
+                        {hiddenIds.has(String(user.id)) ? "Hidden" : "Hide"}
+                      </button>
+                    </div>
+                ))}
               </div>
-            ))}
-          </div>
-        )}
-
-        <div className="mt-6 overflow-hidden rounded-lg border border-[var(--border-primary)]">
-          {loading ? (
-            <p className="p-4 text-sm text-[var(--text-secondary)]">Loading...</p>
-          ) : hiddenUsers.length === 0 ? (
-            <p className="p-4 text-sm text-[var(--text-secondary)]">No hidden users.</p>
-          ) : (
-            hiddenUsers.map((user) => (
-              <div key={user.userId} className="flex items-center justify-between gap-3 border-b border-[var(--border-secondary)] px-4 py-3 last:border-b-0">
-                <UserRow user={{ ...user, id: user.userId }} />
-                <button type="button" disabled={savingId === user.userId} onClick={() => removeUser(user.userId)} className="rounded-lg border border-[var(--border-primary)] px-3 py-1.5 text-xs font-bold disabled:opacity-40">
-                  Remove
-                </button>
-              </div>
-            ))
           )}
-        </div>
-      </section>
-    </>
+
+          <div className="mt-6 overflow-hidden rounded-lg border border-[var(--border-primary)]">
+            {loading ? (
+                <p className="p-4 text-sm text-[var(--text-secondary)]">Loading...</p>
+            ) : hiddenUsers.length === 0 ? (
+                <p className="p-4 text-sm text-[var(--text-secondary)]">No hidden users.</p>
+            ) : (
+                hiddenUsers.map((user) => (
+                    <div key={user.userId} className="flex items-center justify-between gap-3 border-b border-[var(--border-secondary)] px-4 py-3 last:border-b-0">
+                      <UserRow user={{ ...user, id: user.userId }} />
+                      <button type="button" disabled={savingId === user.userId} onClick={() => removeUser(user.userId)} className="rounded-lg border border-[var(--border-primary)] px-3 py-1.5 text-xs font-bold disabled:opacity-40">
+                        Remove
+                      </button>
+                    </div>
+                ))
+            )}
+          </div>
+        </section>
+      </>
   );
 }
 
@@ -394,8 +396,8 @@ function MessageStoryReplySettings() {
 
   useEffect(() => {
     getMessagePrivacySettings()
-      .then((data) => setSettings((prev) => ({ ...prev, ...data })))
-      .finally(() => setLoading(false));
+        .then((data) => setSettings((prev) => ({ ...prev, ...data })))
+        .finally(() => setLoading(false));
   }, []);
 
   const toggle = async (field) => {
@@ -419,45 +421,45 @@ function MessageStoryReplySettings() {
   ];
 
   return (
-    <>
-      <h1 className="text-2xl font-bold">Messages and Story Replies</h1>
-      <div className="mt-6 space-y-3">
-        {toggles.map(({ key, label, desc }) => (
-          <div key={key} className="flex items-center justify-between gap-4 rounded-lg border border-[var(--border-primary)] p-4">
-            <div className="min-w-0">
-              <p className="text-sm font-semibold">{label}</p>
-              <p className="mt-1 text-xs text-[var(--text-secondary)]">{saving === key ? "Saving..." : desc}</p>
-            </div>
-            <ToggleButton checked={settings[key]} disabled={saving === key} onClick={() => toggle(key)} />
-          </div>
-        ))}
-      </div>
-    </>
+      <>
+        <h1 className="text-2xl font-bold">Messages and Story Replies</h1>
+        <div className="mt-6 space-y-3">
+          {toggles.map(({ key, label, desc }) => (
+              <div key={key} className="flex items-center justify-between gap-4 rounded-lg border border-[var(--border-primary)] p-4">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold">{label}</p>
+                  <p className="mt-1 text-xs text-[var(--text-secondary)]">{saving === key ? "Saving..." : desc}</p>
+                </div>
+                <ToggleButton checked={settings[key]} disabled={saving === key} onClick={() => toggle(key)} />
+              </div>
+          ))}
+        </div>
+      </>
   );
 }
 
 function ToggleButton({ checked, disabled, onClick }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={`relative inline-flex h-8 w-14 shrink-0 items-center rounded-full border p-1 transition-colors duration-200 ${
-        checked
-          ? "border-[#0095f6] bg-[#0095f6]"
-          : "border-[var(--border-primary)] bg-[var(--bg-secondary)]"
-      } disabled:cursor-not-allowed disabled:opacity-50`}
-      aria-pressed={checked}
-      aria-label={checked ? "On" : "Off"}
-    >
+      <button
+          type="button"
+          onClick={onClick}
+          disabled={disabled}
+          className={`relative inline-flex h-8 w-14 shrink-0 items-center rounded-full border p-1 transition-colors duration-200 ${
+              checked
+                  ? "border-[#0095f6] bg-[#0095f6]"
+                  : "border-[var(--border-primary)] bg-[var(--bg-secondary)]"
+          } disabled:cursor-not-allowed disabled:opacity-50`}
+          aria-pressed={checked}
+          aria-label={checked ? "On" : "Off"}
+      >
       <span
-        className={`grid h-6 w-6 place-items-center rounded-full bg-white text-[10px] font-bold shadow-sm transition-transform duration-200 ${
-          checked ? "translate-x-6 text-[#0095f6]" : "translate-x-0 text-secondary"
-        }`}
+          className={`grid h-6 w-6 place-items-center rounded-full bg-white text-[10px] font-bold shadow-sm transition-transform duration-200 ${
+              checked ? "translate-x-6 text-[#0095f6]" : "translate-x-0 text-secondary"
+          }`}
       >
         {checked ? "ON" : ""}
       </span>
-    </button>
+      </button>
   );
 }
 
@@ -470,18 +472,18 @@ function PrivacySettings({ currentUser }) {
 
   useEffect(() => {
     getSettings()
-      .then((s) => {
-        setSettings({
-          activityStatus: s?.activityStatus !== false,
-          readReceipts: s?.readReceipts !== false,
+        .then((s) => {
+          setSettings({
+            activityStatus: s?.activityStatus !== false,
+            readReceipts: s?.readReceipts !== false,
+          });
+        })
+        .catch(() => {
+          setSettings({
+            activityStatus: currentUser?.activityStatus !== false,
+            readReceipts: currentUser?.readReceipts !== false,
+          });
         });
-      })
-      .catch(() => {
-        setSettings({
-          activityStatus: currentUser?.activityStatus !== false,
-          readReceipts: currentUser?.readReceipts !== false,
-        });
-      });
   }, []);
 
   const toggle = async (setting) => {
@@ -502,21 +504,21 @@ function PrivacySettings({ currentUser }) {
   ];
 
   return (
-    <>
-      <h1 className="text-2xl font-bold">Privacy</h1>
-      <div className="mt-6 space-y-3 text-sm text-[var(--text-primary)]">
-        <AccountPrivacyToggle currentUser={currentUser} />
-        {toggles.map(({ key, label, desc }) => (
-          <div key={key} className="flex items-center justify-between gap-4 rounded-lg border border-[var(--border-primary)] p-4">
-            <div className="min-w-0">
-              <p className="text-sm font-semibold">{label}</p>
-              <p className="mt-1 text-xs text-[var(--text-secondary)]">{desc}</p>
-            </div>
-            <ToggleButton checked={settings[key]} disabled={saving === key} onClick={() => toggle(key)} />
-          </div>
-        ))}
-      </div>
-    </>
+      <>
+        <h1 className="text-2xl font-bold">Privacy</h1>
+        <div className="mt-6 space-y-3 text-sm text-[var(--text-primary)]">
+          <AccountPrivacyToggle currentUser={currentUser} />
+          {toggles.map(({ key, label, desc }) => (
+              <div key={key} className="flex items-center justify-between gap-4 rounded-lg border border-[var(--border-primary)] p-4">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold">{label}</p>
+                  <p className="mt-1 text-xs text-[var(--text-secondary)]">{desc}</p>
+                </div>
+                <ToggleButton checked={settings[key]} disabled={saving === key} onClick={() => toggle(key)} />
+              </div>
+          ))}
+        </div>
+      </>
   );
 }
 
@@ -559,25 +561,25 @@ function TagsMentionsSettings() {
   };
 
   return (
-    <>
-      <h1 className="text-2xl font-bold">Tags and Mentions</h1>
-      <div className="mt-6 space-y-3">
-        <div className="flex items-center justify-between gap-4 rounded-lg border border-[var(--border-primary)] p-4">
-          <div>
-            <p className="text-sm font-semibold">Allow mentions from stories</p>
-            <p className="mt-1 text-xs text-[var(--text-secondary)]">Let people mention you in their stories</p>
+      <>
+        <h1 className="text-2xl font-bold">Tags and Mentions</h1>
+        <div className="mt-6 space-y-3">
+          <div className="flex items-center justify-between gap-4 rounded-lg border border-[var(--border-primary)] p-4">
+            <div>
+              <p className="text-sm font-semibold">Allow mentions from stories</p>
+              <p className="mt-1 text-xs text-[var(--text-secondary)]">Let people mention you in their stories</p>
+            </div>
+            <ToggleButton checked={allowMentions} disabled={saving === "mentions"} onClick={toggleMentions} />
           </div>
-          <ToggleButton checked={allowMentions} disabled={saving === "mentions"} onClick={toggleMentions} />
-        </div>
-        <div className="flex items-center justify-between gap-4 rounded-lg border border-[var(--border-primary)] p-4">
-          <div>
-            <p className="text-sm font-semibold">Allow story replies</p>
-            <p className="mt-1 text-xs text-[var(--text-secondary)]">Let people reply to your stories</p>
+          <div className="flex items-center justify-between gap-4 rounded-lg border border-[var(--border-primary)] p-4">
+            <div>
+              <p className="text-sm font-semibold">Allow story replies</p>
+              <p className="mt-1 text-xs text-[var(--text-secondary)]">Let people reply to your stories</p>
+            </div>
+            <ToggleButton checked={allowReplies} disabled={saving === "replies"} onClick={toggleReplies} />
           </div>
-          <ToggleButton checked={allowReplies} disabled={saving === "replies"} onClick={toggleReplies} />
         </div>
-      </div>
-    </>
+      </>
   );
 }
 
@@ -606,20 +608,20 @@ function CommentsSettings() {
   };
 
   return (
-    <>
-      <h1 className="text-2xl font-bold">Comments</h1>
-      <div className="mt-6 space-y-3">
-        <div className="flex items-center justify-between gap-4 rounded-lg border border-[var(--border-primary)] p-4">
-          <div>
-            <p className="text-sm font-semibold">Hide comments</p>
-            <p className="mt-1 text-xs text-[var(--text-secondary)]">
-              Comments are restricted and the comment button is disabled on your posts.
-            </p>
+      <>
+        <h1 className="text-2xl font-bold">Comments</h1>
+        <div className="mt-6 space-y-3">
+          <div className="flex items-center justify-between gap-4 rounded-lg border border-[var(--border-primary)] p-4">
+            <div>
+              <p className="text-sm font-semibold">Hide comments</p>
+              <p className="mt-1 text-xs text-[var(--text-secondary)]">
+                Comments are restricted and the comment button is disabled on your posts.
+              </p>
+            </div>
+            <ToggleButton checked={commentsDisabled} disabled={saving === "commentsDisabled"} onClick={toggleComments} />
           </div>
-          <ToggleButton checked={commentsDisabled} disabled={saving === "commentsDisabled"} onClick={toggleComments} />
         </div>
-      </div>
-    </>
+      </>
   );
 }
 
@@ -636,7 +638,7 @@ function RestrictedListSettings({ currentUserId }) {
       const data = await getRestrictedAccounts();
       setItems(data);
     } catch (error) {
-     
+
       setItems([]);
     } finally {
       setLoading(false);
@@ -658,7 +660,7 @@ function RestrictedListSettings({ currentUserId }) {
         const data = await searchUsers(trimmed);
         setResults((Array.isArray(data) ? data : []).filter((user) => user.id !== currentUserId));
       } catch (error) {
-       
+
         setResults([]);
       }
     }, 300);
@@ -691,57 +693,57 @@ function RestrictedListSettings({ currentUserId }) {
   };
 
   return (
-    <>
-      <h1 className="text-2xl font-bold">Restricted Accounts</h1>
-      <div className="mt-6">
-        <input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search users"
-          className="h-11 w-full rounded-lg border border-[var(--border-primary)] px-3 text-sm outline-none focus:border-[var(--text-secondary)]"
-        />
-      </div>
-
-      {results.length > 0 && (
-        <div className="mt-3 overflow-hidden rounded-lg border border-[var(--border-primary)]">
-          {results.map((user) => (
-            <div key={user.id} className="flex items-center justify-between gap-3 px-4 py-3">
-              <UserRow user={user} />
-              <button
-                type="button"
-                disabled={savingId === user.id || listedUserIds.has(String(user.id))}
-                onClick={() => addUser(user.id)}
-                className="rounded-lg bg-[#0095f6] px-3 py-1.5 text-xs font-bold text-white disabled:opacity-40"
-              >
-                {listedUserIds.has(String(user.id)) ? "Restricted" : "Restrict"}
-              </button>
-            </div>
-          ))}
+      <>
+        <h1 className="text-2xl font-bold">Restricted Accounts</h1>
+        <div className="mt-6">
+          <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search users"
+              className="h-11 w-full rounded-lg border border-[var(--border-primary)] px-3 text-sm outline-none focus:border-[var(--text-secondary)]"
+          />
         </div>
-      )}
 
-      <div className="mt-6 overflow-hidden rounded-lg border border-[var(--border-primary)]">
-        {loading ? (
-          <p className="p-4 text-sm text-[var(--text-secondary)]">Loading...</p>
-        ) : listedUsers.length === 0 ? (
-          <p className="p-4 text-sm text-[var(--text-secondary)]">No restricted accounts.</p>
-        ) : (
-          listedUsers.map((user) => (
-            <div key={user.id} className="flex items-center justify-between gap-3 border-b border-[var(--border-secondary)] px-4 py-3 last:border-b-0">
-              <UserRow user={user} />
-              <button
-                type="button"
-                disabled={savingId === user.id}
-                onClick={() => removeUser(user.id)}
-                className="rounded-lg border border-[var(--border-primary)] px-3 py-1.5 text-xs font-bold disabled:opacity-40"
-              >
-                Unrestrict
-              </button>
+        {results.length > 0 && (
+            <div className="mt-3 overflow-hidden rounded-lg border border-[var(--border-primary)]">
+              {results.map((user) => (
+                  <div key={user.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                    <UserRow user={user} />
+                    <button
+                        type="button"
+                        disabled={savingId === user.id || listedUserIds.has(String(user.id))}
+                        onClick={() => addUser(user.id)}
+                        className="rounded-lg bg-[#0095f6] px-3 py-1.5 text-xs font-bold text-white disabled:opacity-40"
+                    >
+                      {listedUserIds.has(String(user.id)) ? "Restricted" : "Restrict"}
+                    </button>
+                  </div>
+              ))}
             </div>
-          ))
         )}
-      </div>
-    </>
+
+        <div className="mt-6 overflow-hidden rounded-lg border border-[var(--border-primary)]">
+          {loading ? (
+              <p className="p-4 text-sm text-[var(--text-secondary)]">Loading...</p>
+          ) : listedUsers.length === 0 ? (
+              <p className="p-4 text-sm text-[var(--text-secondary)]">No restricted accounts.</p>
+          ) : (
+              listedUsers.map((user) => (
+                  <div key={user.id} className="flex items-center justify-between gap-3 border-b border-[var(--border-secondary)] px-4 py-3 last:border-b-0">
+                    <UserRow user={user} />
+                    <button
+                        type="button"
+                        disabled={savingId === user.id}
+                        onClick={() => removeUser(user.id)}
+                        className="rounded-lg border border-[var(--border-primary)] px-3 py-1.5 text-xs font-bold disabled:opacity-40"
+                    >
+                      Unrestrict
+                    </button>
+                  </div>
+              ))
+          )}
+        </div>
+      </>
   );
 }
 
@@ -764,34 +766,34 @@ function AppearanceSettings() {
   ];
 
   return (
-    <>
-      <h1 className="text-2xl font-bold">Appearance</h1>
-      <div className="mt-6 space-y-3">
-        <div className="rounded-lg border border-[var(--border-primary)] p-4">
-          <p className="mb-4 text-sm font-semibold">Theme</p>
-          <div className="space-y-3">
-            {options.map(({ value, label, icon: Icon }) => {
-              const isActive = theme === value.toLowerCase();
-              return (
-                <div
-                  key={value}
-                  className={`flex cursor-pointer items-center justify-between gap-4 rounded-lg border px-4 py-3 transition-colors ${isActive ? "border-[var(--text-link)] bg-[var(--hover-bg)]" : "border-[var(--border-primary)] hover:bg-[var(--hover-bg)]"}`}
-                  onClick={() => handleChange(value)}
-                >
-                  <div className="flex items-center gap-3">
-                    <Icon size={20} className={isActive ? "text-[var(--text-link)]" : "text-[var(--text-secondary)]"} />
-                    <div>
-                      <p className={`text-sm font-semibold ${isActive ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]"}`}>{label}</p>
+      <>
+        <h1 className="text-2xl font-bold">Appearance</h1>
+        <div className="mt-6 space-y-3">
+          <div className="rounded-lg border border-[var(--border-primary)] p-4">
+            <p className="mb-4 text-sm font-semibold">Theme</p>
+            <div className="space-y-3">
+              {options.map(({ value, label, icon: Icon }) => {
+                const isActive = theme === value.toLowerCase();
+                return (
+                    <div
+                        key={value}
+                        className={`flex cursor-pointer items-center justify-between gap-4 rounded-lg border px-4 py-3 transition-colors ${isActive ? "border-[var(--text-link)] bg-[var(--hover-bg)]" : "border-[var(--border-primary)] hover:bg-[var(--hover-bg)]"}`}
+                        onClick={() => handleChange(value)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Icon size={20} className={isActive ? "text-[var(--text-link)]" : "text-[var(--text-secondary)]"} />
+                        <div>
+                          <p className={`text-sm font-semibold ${isActive ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]"}`}>{label}</p>
+                        </div>
+                      </div>
+                      {isActive && <div className="h-2.5 w-2.5 rounded-full bg-[var(--text-link)]" />}
                     </div>
-                  </div>
-                  {isActive && <div className="h-2.5 w-2.5 rounded-full bg-[var(--text-link)]" />}
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </div>
-      </div>
-    </>
+      </>
   );
 }
 
@@ -802,9 +804,9 @@ function ActivitySettings() {
 
   useEffect(() => {
     getActivity()
-      .then((data) => setActivities(Array.isArray(data) ? data : []))
-      .catch(() => setActivities([]))
-      .finally(() => setLoading(false));
+        .then((data) => setActivities(Array.isArray(data) ? data : []))
+        .catch(() => setActivities([]))
+        .finally(() => setLoading(false));
   }, []);
 
   const getActivityText = (item) => {
@@ -818,47 +820,47 @@ function ActivitySettings() {
   };
 
   return (
-    <>
-      <h1 className="text-2xl font-bold">Your Activity</h1>
-      {loading ? (
-        <p className="mt-6 text-sm text-[var(--text-secondary)]">Loading activity...</p>
-      ) : activities.length === 0 ? (
-        <div className="mt-6 rounded-lg border border-[var(--border-primary)] p-8 text-center">
-          <p className="text-sm text-[var(--text-secondary)]">No recent activity.</p>
-        </div>
-      ) : (
-        <div className="mt-6 divide-y divide-[var(--border-secondary)] rounded-lg border border-[var(--border-primary)]">
-          {activities.map((item) => {
-            const { text, icon } = getActivityText(item);
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => {
-                  const type = String(item.type || "").toUpperCase();
-                  if ((type.includes("LIKE") || type.includes("COMMENT")) && item.postId) {
-                    navigate(`/post/${item.postId}`);
-                  } else if (item.actorId) {
-                    navigate(`/profile/${item.actorId}`);
-                  }
-                }}
-                className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-[var(--hover-bg)]"
-              >
-                <div className="h-10 w-10 shrink-0 rounded-full bg-[var(--border-secondary)] flex items-center justify-center text-sm">
-                  {icon}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-[var(--text-primary)]">{text}</p>
-                  <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
-                    {item.createdAt ? new Date(item.createdAt).toLocaleString() : ""}
-                  </p>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </>
+      <>
+        <h1 className="text-2xl font-bold">Your Activity</h1>
+        {loading ? (
+            <p className="mt-6 text-sm text-[var(--text-secondary)]">Loading activity...</p>
+        ) : activities.length === 0 ? (
+            <div className="mt-6 rounded-lg border border-[var(--border-primary)] p-8 text-center">
+              <p className="text-sm text-[var(--text-secondary)]">No recent activity.</p>
+            </div>
+        ) : (
+            <div className="mt-6 divide-y divide-[var(--border-secondary)] rounded-lg border border-[var(--border-primary)]">
+              {activities.map((item) => {
+                const { text, icon } = getActivityText(item);
+                return (
+                    <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => {
+                          const type = String(item.type || "").toUpperCase();
+                          if ((type.includes("LIKE") || type.includes("COMMENT")) && item.postId) {
+                            navigate(`/post/${item.postId}`);
+                          } else if (item.actorId) {
+                            navigate(`/profile/${item.actorId}`);
+                          }
+                        }}
+                        className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-[var(--hover-bg)]"
+                    >
+                      <div className="h-10 w-10 shrink-0 rounded-full bg-[var(--border-secondary)] flex items-center justify-center text-sm">
+                        {icon}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm text-[var(--text-primary)]">{text}</p>
+                        <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
+                          {item.createdAt ? new Date(item.createdAt).toLocaleString() : ""}
+                        </p>
+                      </div>
+                    </button>
+                );
+              })}
+            </div>
+        )}
+      </>
   );
 }
 
@@ -869,8 +871,8 @@ function ManageAccountSettings({ currentUser }) {
   const [error, setError] = useState("");
 
   const createdAt = currentUser?.createdAt
-    ? new Date(currentUser.createdAt).toLocaleDateString([], { month: "long", day: "numeric", year: "numeric" })
-    : "";
+      ? new Date(currentUser.createdAt).toLocaleDateString([], { month: "long", day: "numeric", year: "numeric" })
+      : "";
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -888,80 +890,80 @@ function ManageAccountSettings({ currentUser }) {
   };
 
   return (
-    <>
-      <h1 className="text-2xl font-bold">Manage Account</h1>
-      <div className="mt-6 space-y-4">
-        <section className="rounded-lg border border-[var(--border-primary)]">
-          <div className="border-b border-[var(--border-secondary)] px-4 py-3">
-            <p className="text-sm font-semibold">Instagram</p>
-          </div>
-          <div className="flex items-center justify-between gap-4 px-4 py-4">
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold">{currentUser?.username || "Your account"}</p>
-              <p className="mt-1 text-xs text-[var(--text-secondary)]">{createdAt ? `Created ${createdAt}` : "Account details"}</p>
+      <>
+        <h1 className="text-2xl font-bold">Manage Account</h1>
+        <div className="mt-6 space-y-4">
+          <section className="rounded-lg border border-[var(--border-primary)]">
+            <div className="border-b border-[var(--border-secondary)] px-4 py-3">
+              <p className="text-sm font-semibold">Instagram</p>
             </div>
-            <button
-              type="button"
-              onClick={() => setConfirmOpen(true)}
-              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold text-[#ed4956] hover:bg-[var(--hover-bg)]"
-            >
-              <Trash2 className="h-4 w-4" />
-              Delete account
-            </button>
-          </div>
-        </section>
-        <p className="text-sm text-[var(--text-secondary)]">
-          Deleting your account removes your profile information and signs you out.
-        </p>
-      </div>
-
-      {confirmOpen && (
-        <div className="fixed inset-0 z-[900] flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-[600px] rounded-2xl bg-[var(--bg-primary)] p-5 shadow-2xl">
-            <div className="flex items-center justify-between">
-              <button type="button" onClick={() => setConfirmOpen(false)} disabled={deleting} className="rounded-full p-2 hover:bg-[var(--hover-bg)]">
-                <ChevronLeft className="h-6 w-6" />
-              </button>
-              <button type="button" onClick={() => setConfirmOpen(false)} disabled={deleting} className="rounded-full p-2 hover:bg-[var(--hover-bg)]">
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-            <h2 className="mt-4 text-2xl font-bold">Your Instagram account info will be deleted</h2>
-            <div className="mt-5 rounded-xl border border-[var(--border-primary)] p-4">
-              <div className="flex items-center gap-3">
-                <img src={getAvatarUrl(currentUser || {})} alt="" className="h-12 w-12 rounded-full object-cover" onError={(e) => { e.currentTarget.src = "/default-avatar.png"; e.currentTarget.onerror = null; }} />
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-bold">{currentUser?.username}</p>
-                  <p className="text-sm text-[var(--text-secondary)]">Instagram</p>
-                  {createdAt && <p className="text-sm text-[var(--text-secondary)]">Created {createdAt}</p>}
-                </div>
+            <div className="flex items-center justify-between gap-4 px-4 py-4">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold">{currentUser?.username || "Your account"}</p>
+                <p className="mt-1 text-xs text-[var(--text-secondary)]">{createdAt ? `Created ${createdAt}` : "Account details"}</p>
               </div>
-            </div>
-            <h3 className="mt-6 text-lg font-bold">Your profile information will be deleted</h3>
-            <div className="mt-4 rounded-xl border border-[var(--border-primary)] p-4">
-              <div className="flex items-center gap-3">
-                <div className="grid h-9 w-9 place-items-center rounded-full bg-[var(--bg-tertiary)]">
-                  <Trash2 className="h-4 w-4" />
-                </div>
-                <div>
-                  <p className="text-sm font-bold">{currentUser?.followersCount || 0} follower{currentUser?.followersCount === 1 ? "" : "s"}</p>
-                  <p className="text-sm text-[var(--text-secondary)]">Profile, personal details, and login access</p>
-                </div>
-              </div>
-            </div>
-            {error && <p className="mt-4 text-sm font-semibold text-[#ed4956]">{error}</p>}
-            <div className="mt-8 grid grid-cols-2 gap-3">
-              <button type="button" onClick={() => setConfirmOpen(false)} disabled={deleting} className="h-11 rounded-full bg-[var(--bg-tertiary)] text-sm font-bold disabled:opacity-50">
-                Cancel
-              </button>
-              <button type="button" onClick={handleDelete} disabled={deleting} className="h-11 rounded-full bg-[#0095f6] text-sm font-bold text-white disabled:opacity-50">
-                {deleting ? "Deleting..." : "Continue"}
+              <button
+                  type="button"
+                  onClick={() => setConfirmOpen(true)}
+                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold text-[#ed4956] hover:bg-[var(--hover-bg)]"
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete account
               </button>
             </div>
-          </div>
+          </section>
+          <p className="text-sm text-[var(--text-secondary)]">
+            Deleting your account removes your profile information and signs you out.
+          </p>
         </div>
-      )}
-    </>
+
+        {confirmOpen && (
+            <div className="fixed inset-0 z-[900] flex items-center justify-center bg-black/70 p-4">
+              <div className="w-full max-w-[600px] rounded-2xl bg-[var(--bg-primary)] p-5 shadow-2xl">
+                <div className="flex items-center justify-between">
+                  <button type="button" onClick={() => setConfirmOpen(false)} disabled={deleting} className="rounded-full p-2 hover:bg-[var(--hover-bg)]">
+                    <ChevronLeft className="h-6 w-6" />
+                  </button>
+                  <button type="button" onClick={() => setConfirmOpen(false)} disabled={deleting} className="rounded-full p-2 hover:bg-[var(--hover-bg)]">
+                    <X className="h-6 w-6" />
+                  </button>
+                </div>
+                <h2 className="mt-4 text-2xl font-bold">Your Instagram account info will be deleted</h2>
+                <div className="mt-5 rounded-xl border border-[var(--border-primary)] p-4">
+                  <div className="flex items-center gap-3">
+                    <img src={getAvatarUrl(currentUser || {})} alt="" className="h-12 w-12 rounded-full object-cover" onError={(e) => { e.currentTarget.src = "/default-avatar.png"; e.currentTarget.onerror = null; }} />
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-bold">{currentUser?.username}</p>
+                      <p className="text-sm text-[var(--text-secondary)]">Instagram</p>
+                      {createdAt && <p className="text-sm text-[var(--text-secondary)]">Created {createdAt}</p>}
+                    </div>
+                  </div>
+                </div>
+                <h3 className="mt-6 text-lg font-bold">Your profile information will be deleted</h3>
+                <div className="mt-4 rounded-xl border border-[var(--border-primary)] p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="grid h-9 w-9 place-items-center rounded-full bg-[var(--bg-tertiary)]">
+                      <Trash2 className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold">{currentUser?.followersCount || 0} follower{currentUser?.followersCount === 1 ? "" : "s"}</p>
+                      <p className="text-sm text-[var(--text-secondary)]">Profile, personal details, and login access</p>
+                    </div>
+                  </div>
+                </div>
+                {error && <p className="mt-4 text-sm font-semibold text-[#ed4956]">{error}</p>}
+                <div className="mt-8 grid grid-cols-2 gap-3">
+                  <button type="button" onClick={() => setConfirmOpen(false)} disabled={deleting} className="h-11 rounded-full bg-[var(--bg-tertiary)] text-sm font-bold disabled:opacity-50">
+                    Cancel
+                  </button>
+                  <button type="button" onClick={handleDelete} disabled={deleting} className="h-11 rounded-full bg-[#0095f6] text-sm font-bold text-white disabled:opacity-50">
+                    {deleting ? "Deleting..." : "Continue"}
+                  </button>
+                </div>
+              </div>
+            </div>
+        )}
+      </>
   );
 }
 
@@ -977,6 +979,7 @@ function SettingsPage() {
     privacy: <PrivacySettings currentUser={currentUser} />,
     "blocked-accounts": <UserListSettings title="Blocked Accounts" currentUserId={currentUser?.id} />,
     "story-location": <StoryLocationSettings currentUserId={currentUser?.id} />,
+    "close-friends": <CloseFriendsPage />,
     "messages-replies": <MessageStoryReplySettings />,
     "restricted-accounts": <RestrictedListSettings currentUserId={currentUser?.id} />,
     "tags-mentions": <TagsMentionsSettings />,
@@ -987,40 +990,40 @@ function SettingsPage() {
   };
 
   return (
-    <main className="min-h-screen" style={{ backgroundColor: "var(--bg-primary)" }}>
-      <div className="mx-auto grid max-w-[1320px] grid-cols-1 md:grid-cols-[260px_1fr] md:pt-0">
-        <aside className="border-r border-[var(--border-primary)] p-4 md:p-6" style={{ backgroundColor: "var(--bg-primary)" }}>
-          <h2 className="mb-4 text-lg font-bold">Settings</h2>
-          <nav className="space-y-1">
-            {items.map((item) => (
-              <NavLink
-                key={item.label}
-                to={item.slug ? `/settings/${item.slug}` : "/settings"}
-                end={!item.slug}
-                className={({ isActive }) =>
-                  `block rounded-lg px-3 py-3 text-sm font-semibold ${isActive ? "bg-[var(--bg-tertiary)] text-[var(--text-primary)]" : "text-[var(--text-secondary)] hover:bg-[var(--hover-bg)] hover:text-[var(--text-primary)]"}`
-                }
-              >
-                {item.label}
-              </NavLink>
-            ))}
-          </nav>
-        </aside>
-        <section className="p-6 md:p-8" style={{ backgroundColor: "var(--bg-primary)", color: "var(--text-primary)" }}>
-          {section && section !== "edit-profile" && (
-            <button
-              type="button"
-              onClick={() => navigate("/settings")}
-              className="mb-4 flex items-center gap-2 text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
-            >
-              <ChevronLeft className="h-4 w-4" />
-              Back
-            </button>
-          )}
-          {content[section] || <MissingEndpoint endpoints={[`/settings/${section}`]} />}
-        </section>
-      </div>
-    </main>
+      <main className="min-h-screen" style={{ backgroundColor: "var(--bg-primary)" }}>
+        <div className="mx-auto grid max-w-[1320px] grid-cols-1 md:grid-cols-[260px_1fr] md:pt-0">
+          <aside className="border-r border-[var(--border-primary)] p-4 md:p-6" style={{ backgroundColor: "var(--bg-primary)" }}>
+            <h2 className="mb-4 text-lg font-bold">Settings</h2>
+            <nav className="space-y-1">
+              {items.map((item) => (
+                  <NavLink
+                      key={item.label}
+                      to={item.slug ? `/settings/${item.slug}` : "/settings"}
+                      end={!item.slug}
+                      className={({ isActive }) =>
+                          `block rounded-lg px-3 py-3 text-sm font-semibold ${isActive ? "bg-[var(--bg-tertiary)] text-[var(--text-primary)]" : "text-[var(--text-secondary)] hover:bg-[var(--hover-bg)] hover:text-[var(--text-primary)]"}`
+                      }
+                  >
+                    {item.label}
+                  </NavLink>
+              ))}
+            </nav>
+          </aside>
+          <section className="p-6 md:p-8" style={{ backgroundColor: "var(--bg-primary)", color: "var(--text-primary)" }}>
+            {section && section !== "edit-profile" && (
+                <button
+                    type="button"
+                    onClick={() => navigate("/settings")}
+                    className="mb-4 flex items-center gap-2 text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Back
+                </button>
+            )}
+            {content[section] || <MissingEndpoint endpoints={[`/settings/${section}`]} />}
+          </section>
+        </div>
+      </main>
   );
 }
 

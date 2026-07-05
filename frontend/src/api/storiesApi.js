@@ -5,10 +5,11 @@ export const getStories = async () => {
   const { data } = await api.get(STORIES);
   return unwrapPage(data);
 };
-export const createStory = async ({ caption, media }) => {
+export const createStory = async ({ caption, media, closeFriendsOnly = false }) => {
   const formData = new FormData();
   formData.append("caption", caption || "");
   formData.append("media", media);
+  formData.append("closeFriendsOnly", String(Boolean(closeFriendsOnly)));
   const { data } = await api.post(STORIES, formData, { headers: { "Content-Type": "multipart/form-data" } });
   return data;
 };

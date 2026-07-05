@@ -39,6 +39,10 @@ public class Story implements Serializable {
     @JoinColumn(name = "user_id")
     private User user;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean closeFriendsOnly = false;
+
     @PrePersist
     public void onCreate() {
         createdAt = LocalDateTime.now();

@@ -35,14 +35,15 @@ const getCount = (
 };
 
 function ProfileHeader({
-    user,
-    postsCount,
-    isOwnProfile,
-    onProfilePhotoClick,
-    onFollowersClick,
-    onFollowingClick,
-    noteSlot
-}) {
+                           user,
+                           postsCount,
+                           isOwnProfile,
+                           onProfilePhotoClick,
+                           onFollowersClick,
+                           onFollowingClick,
+                           noteSlot,
+                           extraAction
+                       }) {
     const navigate = useNavigate();
     const { currentUserId } = useCurrentUser();
     const [settingsOpen, setSettingsOpen] = useState(false);
@@ -140,25 +141,25 @@ function ProfileHeader({
                             disabled={!onProfilePhotoClick}
                             className="h-full w-full rounded-full cursor-pointer"
                         >
-                        {
-                            user?.profilePicture &&
+                            {
+                                user?.profilePicture &&
                                 user.profilePicture.trim() !== ""
-                                ? (
-                                    <img
-                                        src={user.profilePicture}
-                                        alt=""
-                                        className="h-full w-full rounded-full object-cover"
-                                        onError={(e) => { e.currentTarget.src = '/default-avatar.png'; e.currentTarget.onerror = null; }}
-                                    />
-                                ) : (
-                                    <div className="relative h-full w-full overflow-hidden rounded-full bg-[#a8a8a8]">
-                                        <div className="absolute left-1/2 top-[28px] h-[48px] w-[48px] -translate-x-1/2 rounded-full bg-[#737373] sm:top-[34px] sm:h-[60px] sm:w-[60px]" />
-                                        <div className="absolute bottom-[-12px] left-1/2 h-[68px] w-[118px] -translate-x-1/2 rounded-t-full bg-[#737373] sm:h-[82px] sm:w-[150px]" />
-                                        <div className="absolute left-1/2 top-1/2 flex h-[42px] w-[42px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-[10px] bg-card text-secondary sm:h-[50px] sm:w-[50px]">
-                                            <Camera size={30} strokeWidth={3} />
+                                    ? (
+                                        <img
+                                            src={user.profilePicture}
+                                            alt=""
+                                            className="h-full w-full rounded-full object-cover"
+                                            onError={(e) => { e.currentTarget.src = '/default-avatar.png'; e.currentTarget.onerror = null; }}
+                                        />
+                                    ) : (
+                                        <div className="relative h-full w-full overflow-hidden rounded-full bg-[#a8a8a8]">
+                                            <div className="absolute left-1/2 top-[28px] h-[48px] w-[48px] -translate-x-1/2 rounded-full bg-[#737373] sm:top-[34px] sm:h-[60px] sm:w-[60px]" />
+                                            <div className="absolute bottom-[-12px] left-1/2 h-[68px] w-[118px] -translate-x-1/2 rounded-t-full bg-[#737373] sm:h-[82px] sm:w-[150px]" />
+                                            <div className="absolute left-1/2 top-1/2 flex h-[42px] w-[42px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-[10px] bg-card text-secondary sm:h-[50px] sm:w-[50px]">
+                                                <Camera size={30} strokeWidth={3} />
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
+                                    )}
                         </button>
                     </div>
 
@@ -294,6 +295,8 @@ function ProfileHeader({
                             </button>
                         </>
                     )}
+
+                    {!ownProfile && extraAction}
                 </div>
             </div>
         </section>
