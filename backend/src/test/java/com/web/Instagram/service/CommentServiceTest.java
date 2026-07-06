@@ -41,6 +41,9 @@ class CommentServiceTest {
     @Mock
     private NotificationService notificationService;
 
+    @Mock
+    private PostActivityPublisher postActivityPublisher;
+
     @InjectMocks
     private CommentService commentService;
 

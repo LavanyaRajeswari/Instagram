@@ -33,6 +33,11 @@ import com.web.Instagram.repository.PostRepository;
 import com.web.Instagram.repository.SavedPostRepository;
 import com.web.Instagram.repository.ShareRepository;
 import com.web.Instagram.repository.UserRepository;
+import com.web.Instagram.repository.BlockedUserRepository;
+import com.web.Instagram.repository.ActivityRepository;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.domain.PageImpl;
+import java.util.Collections;
 
 import lombok.RequiredArgsConstructor;
 
@@ -51,11 +56,110 @@ public class PostService {
     private final ShareRepository shareRepository;
     private final HashtagService hashtagService;
     private final TagService tagService;
+    private final BlockedUserRepository blockedUserRepository;
+    private final ActivityRepository activityRepository;
+    private final RedisTemplate<String, String> redisTemplate;
+
+    private List<Long> getPopularPostIdsFromRedis(int page, int limit) {
+        int start = page * limit;
+        int end = (page + 1) * limit - 1;
+        String redisKey = "popular_posts";
+        Set<String> idsStr = redisTemplate.opsForZSet().reverseRange(redisKey, start, end);
+        if (idsStr == null || idsStr.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<Long> ids = new ArrayList<>();
+        for (String id : idsStr) {
+            try {
+                ids.add(Long.parseLong(id));
+            } catch (NumberFormatException ignored) {}
+        }
+        return ids;
+    }
+
+    private boolean isVisibleToUser(Post post, Long userId) {
+        if (post.getUser() == null) return false;
+        if (post.getUser().getAccountStatus() != null && "DELETED".equalsIgnoreCase(post.getUser().getAccountStatus())) {
+            return false;
+        }
+        if (userId != null) {
+            if (blockedUserRepository.existsByBlockerIdAndBlockedId(userId, post.getUser().getId()) ||
+                blockedUserRepository.existsByBlockerIdAndBlockedId(post.getUser().getId(), userId)) {
+                return false;
+            }
+        }
+        if (Boolean.TRUE.equals(post.getUser().getIsPrivate())) {
+            if (userId == null) return false;
+            if (post.getUser().getId().equals(userId)) return true;
+            return followRepository.existsByFollowerIdAndFollowingId(userId, post.getUser().getId());
+        }
+        return true;
+    }
 
     @Transactional(readOnly = true)
-    @Cacheable(cacheNames = "feed", key = "#userId + ':' + #pageable.pageNumber + ':' + #pageable.pageSize")
     public Page<PostResponse> getFeed(Long userId, Pageable pageable) {
-        return mapToResponse(postRepository.findFeedPosts(userId, pageable), userId);
+        int page = pageable.getPageNumber();
+        int size = pageable.getPageSize();
+
+        int targetPopularCount = size / 2;
+        int targetFollowedCount = size - targetPopularCount;
+
+        List<Long> popularIds = getPopularPostIdsFromRedis(page, targetPopularCount);
+        List<Post> popularPosts = new ArrayList<>();
+        if (!popularIds.isEmpty()) {
+            List<Post> fetchedPopular = postRepository.findAllById(popularIds);
+            Map<Long, Post> postMap = fetchedPopular.stream()
+                    .collect(Collectors.toMap(Post::getId, p -> p));
+            for (Long id : popularIds) {
+                Post p = postMap.get(id);
+                if (p != null && isVisibleToUser(p, userId)) {
+                    popularPosts.add(p);
+                }
+            }
+        }
+
+        Page<Post> followedPage = postRepository.findFeedPosts(userId, PageRequest.of(page, targetFollowedCount));
+        List<Post> followedPosts = followedPage.getContent();
+
+        // 3. Interleave and deduplicate
+        List<Post> combinedList = new ArrayList<>();
+        Set<Long> seenIds = new HashSet<>();
+
+        int maxLen = Math.max(popularPosts.size(), followedPosts.size());
+        for (int i = 0; i < maxLen; i++) {
+            if (i < popularPosts.size()) {
+                Post p = popularPosts.get(i);
+                if (seenIds.add(p.getId())) {
+                    combinedList.add(p);
+                }
+            }
+            if (i < followedPosts.size()) {
+                Post p = followedPosts.get(i);
+                if (seenIds.add(p.getId())) {
+                    combinedList.add(p);
+                }
+            }
+        }
+
+        // 4. Backfill if combinedList size is less than requested size or both are exhausted
+        boolean popularExhausted = popularIds.size() < targetPopularCount;
+        boolean followedExhausted = followedPosts.size() < targetFollowedCount;
+
+        if (combinedList.size() < size || (popularExhausted && followedExhausted)) {
+            Page<Post> overallPage = postRepository.findOverallCollectionPosts(userId, PageRequest.of(page, size));
+            for (Post p : overallPage.getContent()) {
+                if (seenIds.add(p.getId())) {
+                    combinedList.add(p);
+                    if (combinedList.size() >= size) {
+                        break;
+                    }
+                }
+            }
+        }
+
+        long totalElements = postRepository.count();
+        Page<Post> combinedPage = new PageImpl<>(combinedList, pageable, totalElements);
+        return mapToResponse(combinedPage, userId);
     }
 
     @Transactional(readOnly = true)
@@ -265,6 +369,9 @@ public class PostService {
         savedPostRepository.deleteByPostId(postId);
         shareRepository.deleteByPostId(postId);
         postRepository.clearOriginalPostReferences(postId);
+
+        activityRepository.deleteByPostId(postId);
+        redisTemplate.opsForZSet().remove("popular_posts", postId.toString());
 
         deleteMediaFiles(post);
         postRepository.delete(post);

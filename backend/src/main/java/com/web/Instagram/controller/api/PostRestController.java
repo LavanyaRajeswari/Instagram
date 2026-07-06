@@ -49,32 +49,28 @@ public class PostRestController {
     @GetMapping("/feed")
     public ResponseEntity<Map<String, Object>> getFeed(Principal principal, @PageableDefault(size = 20) Pageable pageable) {
         if (principal == null) {
-            Page<PostResponse> posts = Page.empty(pageable);
-            return ResponseEntity.ok(Map.of(
-                    "content", posts.getContent(),
-                    "page", posts.getNumber(),
-                    "size", posts.getSize(),
-                    "totalElements", posts.getTotalElements(),
-                    "totalPages", posts.getTotalPages(),
-                    "last", posts.isLast()
-            ));
+            return emptyFeed(pageable);
         }
         Long userId;
         try {
             userId = userService.getCurrentUser(principal.getName()).getId();
         } catch (RuntimeException e) {
-            Page<PostResponse> posts = Page.empty(pageable);
-            return ResponseEntity.ok(Map.of(
-                    "content", posts.getContent(),
-                    "page", posts.getNumber(),
-                    "size", posts.getSize(),
-                    "totalElements", posts.getTotalElements(),
-                    "totalPages", posts.getTotalPages(),
-                    "last", posts.isLast()
-            ));
+            return emptyFeed(pageable);
         }
         Page<PostResponse> posts = postService.getFeed(userId, pageable);
 
+        return ResponseEntity.ok(Map.of(
+                "content", posts.getContent(),
+                "page", posts.getNumber(),
+                "size", posts.getSize(),
+                "totalElements", posts.getTotalElements(),
+                "totalPages", posts.getTotalPages(),
+                "last", posts.isLast()
+        ));
+    }
+
+    private ResponseEntity<Map<String, Object>> emptyFeed(Pageable pageable) {
+        Page<PostResponse> posts = Page.empty(pageable);
         return ResponseEntity.ok(Map.of(
                 "content", posts.getContent(),
                 "page", posts.getNumber(),

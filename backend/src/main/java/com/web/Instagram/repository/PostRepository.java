@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 public interface PostRepository extends JpaRepository<Post, Long> {
@@ -73,7 +74,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     boolean existsByUserIdAndOriginalPostId(Long userId, Long originalPostId);
 
     @Modifying
-    @org.springframework.transaction.annotation.Transactional
+    @Transactional
     @Query("update Post p set p.originalPost = null where p.originalPost.id = :originalPostId")
     void clearOriginalPostReferences(@Param("originalPostId") Long originalPostId);
 
@@ -94,6 +95,17 @@ public interface PostRepository extends JpaRepository<Post, Long> {
         order by p.createdAt desc
     """)
     Page<Post> findFeedPosts(@Param("userId") Long userId, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"media", "user"})
+    @Query("""
+        select distinct p from Post p
+        where (coalesce(p.user.isPrivate, false) = false or p.user.id in (select f.following.id from Follow f where f.follower.id = :userId) or p.user.id = :userId)
+          and (p.user.accountStatus is null or upper(p.user.accountStatus) <> 'DELETED')
+          and p.user.id not in (select b.blocked.id from BlockedUser b where b.blocker.id = :userId)
+          and p.user.id not in (select b.blocker.id from BlockedUser b where b.blocked.id = :userId)
+        order by p.createdAt desc
+    """)
+    Page<Post> findOverallCollectionPosts(@Param("userId") Long userId, Pageable pageable);
 
     @EntityGraph(attributePaths = {"media", "user"})
     @Query("""
@@ -122,6 +134,8 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             @Param("compactTag") String compactTag,
             @Param("requesterUsername") String requesterUsername,
             Pageable pageable);
+
+
 
     @Query("""
         select count(distinct p.id) from Post p

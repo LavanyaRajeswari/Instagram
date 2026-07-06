@@ -31,6 +31,7 @@ public class CommentService {
     private final UserRepository userRepository;
     private final PostRepository postRepository;
     private final NotificationService notificationService;
+    private final PostActivityPublisher postActivityPublisher;
 
     @Transactional
     @CacheEvict(cacheNames = {"postById", "feed", "reels"}, allEntries = true)
@@ -60,6 +61,8 @@ public class CommentService {
         } catch (Exception e) {
             java.util.logging.Logger.getLogger(getClass().getName()).warning("Failed to create notification: " + e.getMessage());
         }
+
+        postActivityPublisher.publishEvent(postId, "COMMENT_ADD");
 
         return toResponse(saved, userId, false);
     }
@@ -100,6 +103,8 @@ public class CommentService {
         } catch (Exception e) {
             java.util.logging.Logger.getLogger(getClass().getName()).warning("Failed to create notification: " + e.getMessage());
         }
+
+        postActivityPublisher.publishEvent(postId, "COMMENT_ADD");
 
         return toResponse(saved, userId, false);
     }
@@ -201,8 +206,18 @@ public class CommentService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not allowed to delete this comment");
         }
 
+        Long resolvedPostId = comment.getPost().getId();
+        int count = 1;
+        if (comment.getReplies() != null) {
+            count += comment.getReplies().size();
+        }
+
         deleteCommentLikes(comment);
         commentRepository.delete(comment);
+
+        for (int i = 0; i < count; i++) {
+            postActivityPublisher.publishEvent(resolvedPostId, "COMMENT_DELETE");
+        }
     }
 
     public long getCommentCount(Long postId) {

@@ -23,6 +23,7 @@ public class LikeService {
     private final UserRepository userRepository;
     private final PostRepository postRepository;
     private final NotificationService notificationService;
+    private final PostActivityPublisher postActivityPublisher;
 
     @Transactional
     @CacheEvict(cacheNames = {"postById", "feed", "reels"}, allEntries = true)
@@ -42,12 +43,18 @@ public class LikeService {
         notificationService.createNotification(
                 post.getUser().getId(), userId, "LIKE", postId, null, null
         );
+
+        postActivityPublisher.publishEvent(postId, "LIKE");
     }
 
     @Transactional
     @CacheEvict(cacheNames = {"postById", "feed", "reels"}, allEntries = true)
     public void unlikePost(Long userId, Long postId) {
+        boolean existed = likeRepository.existsByUserIdAndPostId(userId, postId);
         likeRepository.deleteByUserIdAndPostId(userId, postId);
+        if (existed) {
+            postActivityPublisher.publishEvent(postId, "UNLIKE");
+        }
     }
 
     public long getLikeCount(Long postId) {

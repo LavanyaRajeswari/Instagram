@@ -17,6 +17,7 @@ public class ShareService {
     private final ShareRepository shareRepository;
     private final UserRepository userRepository;
     private final PostRepository postRepository;
+    private final PostActivityPublisher postActivityPublisher;
 
     @Transactional
     public long sharePost(Long senderId, Long postId, Long receiverId, String shareType) {
@@ -40,6 +41,8 @@ public class ShareService {
         share.setTargetType("POST");
 
         shareRepository.save(share);
+
+        postActivityPublisher.publishEvent(postId, "SHARE");
 
         return shareRepository.countByPostId(postId);
     }
