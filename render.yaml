@@ -3,5 +3,6 @@ services:
     name: instagram-backend
     runtime: java
     rootDir: backend
-    buildCommand: ./mvnw clean package
-    startCommand: java -jar target/*.jar
+    buildCommand: chmod +x mvnw && ./mvnw clean package -DskipTests
+    startCommand: java -jar target/Instagram-0.0.1-SNAPSHOT.jar
+    autoDeploy: true
