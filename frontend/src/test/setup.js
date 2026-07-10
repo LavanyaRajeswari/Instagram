@@ -2,7 +2,7 @@ import "@testing-library/jest-dom";
 
 vi.stubGlobal("import.meta", {
   env: {
-    VITE_API_BASE_URL: "https://instagramweb-kbeo.onrender.com/",
+    VITE_API_BASE_URL: "https://instagramweb-kbeo.onrender.com",
     VITE_WS_URL: "wss://instagramweb-kbeo.onrender.com",
   },
 });
