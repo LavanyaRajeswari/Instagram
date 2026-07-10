@@ -21,6 +21,7 @@ vi.mock("../api/client", () => ({
   clearAuthToken: vi.fn(),
   normalizeAuthResponse: (data) => ({ token: data?.token, user: data }),
   API_BASE_URL: "http://localhost:8080/api",
+  BACKEND_BASE_URL: "http://localhost:8080",
 }));
 
 beforeEach(() => {

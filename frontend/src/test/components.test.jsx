@@ -10,6 +10,7 @@ vi.mock("../api/client", () => ({
   clearAuthToken: vi.fn(),
   normalizeAuthResponse: (d) => ({ token: d?.token, user: d }),
   API_BASE_URL: "http://localhost:8080/api",
+  BACKEND_BASE_URL: "http://localhost:8080",
 }));
 
 vi.mock("@stomp/stompjs", () => ({

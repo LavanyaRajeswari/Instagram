@@ -1,6 +1,19 @@
 import axios from "axios";
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
+const rawApiBaseUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_BACKEND_URL || "/api";
+
+const trimTrailingSlashes = (value) => value.replace(/\/+$/, "");
+
+const normalizeApiBaseUrl = (value) => {
+  const baseUrl = trimTrailingSlashes(String(value || "").trim());
+  if (!baseUrl || baseUrl === "/api") return "/api";
+  return baseUrl.endsWith("/api") ? baseUrl : `${baseUrl}/api`;
+};
+
+export const API_BASE_URL = normalizeApiBaseUrl(rawApiBaseUrl);
+export const BACKEND_BASE_URL = API_BASE_URL.endsWith("/api")
+  ? API_BASE_URL.slice(0, -4) || ""
+  : API_BASE_URL;
 
 const TOKEN_KEY = "instagram_auth_token";
 const REFRESH_TOKEN_KEY = "instagram_refresh_token";

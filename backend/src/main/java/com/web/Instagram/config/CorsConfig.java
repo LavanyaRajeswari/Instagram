@@ -39,8 +39,15 @@ public class CorsConfig {
         config.setAllowedOriginPatterns(List.of(
                 "http://localhost:*",
                 "https://instagramweb-olive.vercel.app",
+<<<<<<< HEAD
                 "https://instagramweb-kbeo.onrender.com",
                 "https://*.instagramweb-kbeo.onrender.com",
+=======
+                "https://*.vercel.app",
+                "https://*.onrender.com",
+                "https://noninsta.com",
+                "https://*.noninsta.com",
+>>>>>>> 1be4a8a (Update Render deployment configuration)
                 "http://127.0.0.1:*"
         ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));

@@ -1,9 +1,9 @@
 import { useEffect, useRef, useCallback } from "react";
 import { Client } from "@stomp/stompjs";
-import { getAuthToken } from "../api/client";
+import { BACKEND_BASE_URL, getAuthToken } from "../api/client";
 import SockJS from "sockjs-client";
 
-const WS_URL = import.meta.env.VITE_WS_URL || "/ws";
+const WS_URL = import.meta.env.VITE_WS_URL || `${BACKEND_BASE_URL}/ws`;
 
 const subCallbacks = {};
 let sharedClient = null;
