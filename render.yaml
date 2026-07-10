@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: instagram-backend
+    runtime: java
+    rootDir: backend
+    buildCommand: ./mvnw clean package
+    startCommand: java -jar target/*.jar
